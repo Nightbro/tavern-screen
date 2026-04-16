@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── Display ──────────────────────────────────────────────────────────────
@@ -37,4 +37,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyFiles:      (paths, pid) => ipcRenderer.invoke('copy-files', paths, pid),
   moveMap:        (id, pid)    => ipcRenderer.invoke('move-map', id, pid),
   deleteMap:      (id)         => ipcRenderer.send('delete-map', id),
+  openMapDialog:  ()           => ipcRenderer.invoke('open-map-dialog'),
+  getFilePath:    (file)       => webUtils.getPathForFile(file),
 });

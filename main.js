@@ -52,6 +52,16 @@ ipcMain.handle('rename-project',  (_e, oldId, newName) => lib.renameProject(oldI
 ipcMain.handle('delete-project',  (_e, projectId)      => { lib.deleteProject(projectId); });
 
 // ── Library: maps ──────────────────────────────────────────────────────────
+ipcMain.handle('open-map-dialog', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title:      'Add Images',
+    properties: ['openFile', 'multiSelections'],
+    filters:    [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }],
+  });
+  return canceled ? [] : filePaths;
+});
+
 ipcMain.handle('copy-files', (_e, filePaths, projectId) => {
   return lib.copyFiles(filePaths, projectId ?? null);
 });

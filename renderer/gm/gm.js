@@ -187,7 +187,7 @@ function buildProjectSection(projectId, label, maps, isUnsorted) {
       // Files dropped from filesystem — handled globally, but also accept here
       const files = [...e.dataTransfer.files]
         .filter(f => /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
-        .map(f => f.path);
+        .map(f => window.electronAPI.getFilePath(f));
       if (files.length) {
         const added = await window.electronAPI.copyFiles(files, targetProjectId);
         if (added.length && !activeMapId) activateMap(added[0]);
@@ -310,24 +310,12 @@ btnNewProject.addEventListener('click', async () => {
 });
 
 btnAddImages.addEventListener('click', async () => {
-  // Use native file dialog (reuse copy-files IPC with null project = unsorted)
-  // We trigger via the existing openMapDialog equivalent by doing a hidden input
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.multiple = true;
-  input.style.display = 'none';
-  document.body.appendChild(input);
-  input.addEventListener('change', async () => {
-    const files = [...input.files].map((f) => f.path);
-    if (files.length) {
-      const added = await window.electronAPI.copyFiles(files, null);
-      if (added.length && !activeMapId) activateMap(added[0]);
-      await refreshLibrary();
-    }
-    input.remove();
-  });
-  input.click();
+  const files = await window.electronAPI.openMapDialog();
+  if (files.length) {
+    const added = await window.electronAPI.copyFiles(files, null);
+    if (added.length && !activeMapId) activateMap(added[0]);
+    await refreshLibrary();
+  }
 });
 
 // ── Global drag & drop from filesystem ───────────────────────────────────────
@@ -350,7 +338,7 @@ document.addEventListener('drop', async (e) => {
 
   const files = [...e.dataTransfer.files]
     .filter(f => /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
-    .map(f => f.path);
+    .map(f => window.electronAPI.getFilePath(f));
   if (!files.length) return;
 
   const added = await window.electronAPI.copyFiles(files, null);
