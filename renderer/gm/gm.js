@@ -302,11 +302,48 @@ async function pickFolder() {
 btnSelectFolder.addEventListener('click', pickFolder);
 btnSetupFolder.addEventListener('click',  pickFolder);
 
-btnNewProject.addEventListener('click', async () => {
-  const name = prompt('Project name:')?.trim();
-  if (!name) return;
-  await window.electronAPI.createProject(name);
-  await refreshLibrary();
+btnNewProject.addEventListener('click', () => {
+  // Replace footer buttons with inline input
+  libFooter.innerHTML = '';
+  const input = document.createElement('input');
+  input.className = 'new-project-input';
+  input.placeholder = 'Project name…';
+  input.maxLength = 64;
+
+  const btnOk = document.createElement('button');
+  btnOk.className = 'btn-primary-sm';
+  btnOk.textContent = '✓';
+
+  const btnCancel = document.createElement('button');
+  btnCancel.className = 'btn-ghost-sm';
+  btnCancel.textContent = '✕';
+
+  libFooter.appendChild(input);
+  libFooter.appendChild(btnOk);
+  libFooter.appendChild(btnCancel);
+  input.focus();
+
+  function restoreFooter() {
+    libFooter.innerHTML = '';
+    libFooter.appendChild(btnNewProject);
+    libFooter.appendChild(btnAddImages);
+  }
+
+  async function commit() {
+    const name = input.value.trim();
+    restoreFooter();
+    if (name) {
+      await window.electronAPI.createProject(name);
+      await refreshLibrary();
+    }
+  }
+
+  btnOk.addEventListener('click', commit);
+  btnCancel.addEventListener('click', restoreFooter);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  commit();
+    if (e.key === 'Escape') restoreFooter();
+  });
 });
 
 btnAddImages.addEventListener('click', async () => {
