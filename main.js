@@ -1,24 +1,97 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 
-function createWindow() {
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 720,
+let gmWindow = null;
+let screenWindow = null;
+let activeDisplayId = null;
+
+function createGMWindow() {
+  gmWindow = new BrowserWindow({
+    width: 1000,
+    height: 680,
+    minWidth: 700,
+    minHeight: 500,
+    backgroundColor: '#1a1a2e',
     webPreferences: {
-      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  gmWindow.loadFile(path.join(__dirname, 'renderer', 'gm', 'index.html'));
+
+  gmWindow.on('closed', () => {
+    gmWindow = null;
+    if (screenWindow) {
+      screenWindow.close();
+      screenWindow = null;
+    }
+  });
 }
 
+ipcMain.handle('get-displays', () => {
+  return screen.getAllDisplays().map((d) => ({
+    id: d.id,
+    bounds: d.bounds,
+    workArea: d.workArea,
+    scaleFactor: d.scaleFactor,
+    isPrimary: d.id === screen.getPrimaryDisplay().id,
+    active: d.id === activeDisplayId,
+  }));
+});
+
+ipcMain.on('select-display', (event, displayId) => {
+  const displays = screen.getAllDisplays();
+  const display = displays.find((d) => d.id === displayId);
+  if (!display) return;
+
+  if (screenWindow) {
+    screenWindow.close();
+    screenWindow = null;
+  }
+
+  activeDisplayId = displayId;
+
+  const { x, y, width, height } = display.bounds;
+
+  screenWindow = new BrowserWindow({
+    x,
+    y,
+    width,
+    height,
+    frame: false,
+    fullscreen: true,
+    backgroundColor: '#000000',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  screenWindow.loadFile(path.join(__dirname, 'renderer', 'screen', 'index.html'));
+
+  screenWindow.on('closed', () => {
+    screenWindow = null;
+    activeDisplayId = null;
+    if (gmWindow) gmWindow.webContents.send('screen-closed');
+  });
+
+  if (gmWindow) gmWindow.webContents.send('screen-opened', displayId);
+});
+
+ipcMain.on('close-screen', () => {
+  if (screenWindow) {
+    screenWindow.close();
+    screenWindow = null;
+  }
+});
+
 app.whenReady().then(() => {
-  createWindow();
+  createGMWindow();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createGMWindow();
   });
 });
 

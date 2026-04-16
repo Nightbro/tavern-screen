@@ -5,20 +5,33 @@ An Electron app for sharing a map on a second screen as a fullscreen display. De
 ## Tech Stack
 
 - **Framework:** Electron (Node.js)
-- **Renderer:** HTML/CSS/JS in an Electron window
+- **Renderer:** HTML/CSS/JS in Electron windows
 - **Map & Grid:** Canvas API
 
 ## Project Structure
 
 ```
 tavern-screen/
-├── main.js              # Electron main process
+├── main.js                  # Electron main process, window & IPC management
+├── preload.js               # IPC bridge (contextIsolation)
 ├── renderer/
-│   ├── index.html       # Renderer entry point
-│   ├── style.css        # Styles
-│   └── renderer.js      # Canvas rendering logic
+│   ├── gm/                  # GM screen — monitor selection UI
+│   │   ├── index.html
+│   │   ├── style.css
+│   │   └── gm.js
+│   └── screen/              # Player screen — fullscreen map display
+│       ├── index.html
+│       ├── style.css
+│       └── screen.js
 └── package.json
 ```
+
+## Windows
+
+| Window | Description |
+|--------|-------------|
+| **GM Screen** | Shows all detected monitors. Click a monitor to open the player screen fullscreen on it. |
+| **Player Screen** | Fullscreen Canvas window shown on the selected monitor. |
 
 ## Prerequisites
 
