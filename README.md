@@ -154,6 +154,7 @@ A dedicated **Tokens** section (separate from but linked to the layer system).
 - **Token layer** — drag a character card onto the map to place a circular token; token shows the portrait; GM can move and resize it on the canvas
 - **Initiative integration** — drag a character card directly into the initiative tracker to add them with their portrait already attached; portrait shown as a small avatar next to the name in the tracker
 - **Persistence** — character roster saved as part of the scene JSON (or as a separate roster file reusable across scenes)
+- Token card can be arranged and moved to each of the corners so the player can be seen who is playing who, something like cards representing hand
 
 ---
 
@@ -217,6 +218,7 @@ Canvas particle / overlay effects added as built-in layer types:
 - Optional title label below the image
 - Useful for: letters, portraits, item art, map fragments, clues
 - Handouts do not interact with the layer system; they are always on top
+- Handouts can be shown in all 4 directions in order for all players to be able to see them
 
 ---
 
@@ -245,7 +247,7 @@ Support for touch and stylus input on both GM and player screens (targeted at la
 
 - **Scene presets** — save the complete state (active map + all layers + zoom) as a named preset; switch scenes instantly from a preset list
 - **Status panel** promotion — if the status panel grows complex enough, consider making it a full dockable window like the initiative tracker
-- **Ping / pointer** — already listed under HUD overlays above
+
 
 ---
 
