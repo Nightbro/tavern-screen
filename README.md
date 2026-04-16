@@ -243,9 +243,53 @@ Support for touch and stylus input on both GM and player screens (targeted at la
 
 ---
 
+### Campaign & Notes
+
+A campaign is a top-level container that groups everything belonging to a single story — similar to how projects organise maps, but richer. Multiple campaigns can exist side by side.
+
+#### Structure
+```
+Campaign/
+├── Sessions/          # one entry per session played
+│   ├── Session 1/
+│   │   ├── notes.md   # freeform session notes
+│   │   ├── scenes/    # scene presets used in this session
+│   │   └── handouts/  # handouts shown in this session
+│   └── Session 2/ …
+├── NPCs/              # reusable NPC cards (linked to character roster)
+├── Locations/         # location notes with optional map thumbnail
+├── Items/             # notable items / handout images
+└── Party/             # player characters (linked to token roster)
+```
+
+#### Sessions
+- Create, rename, delete sessions
+- Each session has a **notes editor** — freeform markdown text with basic formatting (bold, italic, headings, bullet lists)
+- Notes are searchable across all sessions in a campaign
+- Attach maps to a session (links to the map library project)
+- Attach scene presets and handouts; re-open them directly from the session view
+
+#### NPC / Location / Item cards
+- Name, image/portrait, tags, and a freeform notes field per card
+- NPC cards feed directly into the **character roster** and **initiative tracker**
+- Location cards can hold a map thumbnail and a link to the map library entry
+- Item cards double as handout sources — send an item's image to the player screen as a handout with one click
+
+#### Party
+- Persistent player character cards (name, portrait, player name, class/race, notes)
+- Shared across all sessions in the campaign
+- Automatically available in the initiative tracker and token roster
+
+#### Persistence
+- Each campaign stored as a folder on disk (inside or alongside the maps root)
+- Notes saved as plain `.md` files; everything else as JSON
+- Campaigns listed in the library panel alongside map projects; switchable from the GM screen
+
+---
+
 ### Other planned features
 
-- **Scene presets** — save the complete state (active map + all layers + zoom) as a named preset; switch scenes instantly from a preset list
+- **Scene presets** — save the complete state (active map + all layers + zoom) as a named preset; switch scenes instantly from a preset list; presets are attached to sessions in the campaign
 - **Status panel** promotion — if the status panel grows complex enough, consider making it a full dockable window like the initiative tracker
 
 
