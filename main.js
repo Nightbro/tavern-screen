@@ -1,11 +1,13 @@
 const { app, BrowserWindow, ipcMain, screen, dialog } = require('electron');
 const path = require('path');
-const { createConfig }       = require('./config');
-const { createLibrary }      = require('./library');
-const { createWindowManager } = require('./windowManager');
+const { createConfig }           = require('./config');
+const { createLibrary }          = require('./library');
+const { createCampaignLibrary }  = require('./campaignLibrary');
+const { createWindowManager }    = require('./windowManager');
 
-const config = createConfig(path.join(app.getPath('userData'), 'config.json'));
-const lib    = createLibrary(config);
+const config       = createConfig(path.join(app.getPath('userData'), 'config.json'));
+const lib          = createLibrary(config);
+const campaignLib  = createCampaignLibrary(config);
 
 const manager = createWindowManager({
   BrowserWindow, screen,
@@ -40,6 +42,7 @@ ipcMain.handle('select-root-folder', async (event) => {
   });
   if (canceled) return null;
   lib.setRootFolder(filePaths[0]);
+  campaignLib.setRootFolder(filePaths[0]);
   return filePaths[0];
 });
 
@@ -74,6 +77,17 @@ ipcMain.on('delete-map', (_e, mapId) => {
   lib.deleteMap(mapId);
   manager.setActiveMap(null);
 });
+
+// ── Campaigns ──────────────────────────────────────────────────────────────
+ipcMain.handle('scan-campaigns',   ()                              => campaignLib.scan());
+ipcMain.handle('create-campaign',  (_e, name)                     => campaignLib.createCampaign(name));
+ipcMain.handle('rename-campaign',  (_e, oldId, newName)           => campaignLib.renameCampaign(oldId, newName));
+ipcMain.handle('delete-campaign',  (_e, id)                       => { campaignLib.deleteCampaign(id); });
+ipcMain.handle('create-session',   (_e, campaignId, name)         => campaignLib.createSession(campaignId, name));
+ipcMain.handle('rename-session',   (_e, campaignId, oldId, newName) => campaignLib.renameSession(campaignId, oldId, newName));
+ipcMain.handle('delete-session',   (_e, campaignId, id)           => { campaignLib.deleteSession(campaignId, id); });
+ipcMain.handle('read-notes',       (_e, campaignId, sessionId)    => campaignLib.readNotes(campaignId, sessionId));
+ipcMain.handle('write-notes',      (_e, campaignId, sessionId, content) => { campaignLib.writeNotes(campaignId, sessionId, content); });
 
 ipcMain.on('set-active-map', (_e, map) => {
   manager.setActiveMap(map ?? null);

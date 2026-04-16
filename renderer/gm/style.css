@@ -20,7 +20,7 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
 /* ── Workspace ── */
 .workspace { flex: 1; display: flex; overflow: hidden; }
 
-.panel { display: flex; flex-direction: column; gap: 12px; padding: 14px; overflow-y: auto; }
+.panel { display: flex; flex-direction: column; gap: 12px; padding: 14px; overflow: hidden; }
 
 #panel-maps    { width: 280px; min-width: 220px; border-right: 1px solid #2e2e4e; flex-shrink: 0; }
 #panel-center  { flex: 1; border-right: 1px solid #2e2e4e; min-width: 0; }
@@ -150,6 +150,28 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
 .map-card:hover .map-card-remove { opacity: 1; }
 .map-card-remove:hover { background: #e05555; color: #fff; }
 
+/* ════════════════════════════════════════════════════════════════
+   LEFT PANEL TABS
+   ════════════════════════════════════════════════════════════════ */
+.panel-tabs {
+  display: flex; gap: 2px; flex-shrink: 0;
+  border-bottom: 1px solid #2e2e4e; padding-bottom: 6px;
+}
+.panel-tab {
+  flex: 1; padding: 4px 0;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 4px; color: #555; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.panel-tab:hover  { color: #aaa; }
+.panel-tab.active { color: #c9a84c; border-color: #c9a84c44; background: #c9a84c0d; }
+
+.tab-pane {
+  display: flex; flex-direction: column; gap: 10px;
+  flex: 1; min-height: 0; overflow: hidden;
+}
+
 /* ── Library footer ── */
 .lib-footer {
   display: flex; gap: 6px; align-items: center;
@@ -161,6 +183,80 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
   padding: 3px 7px; outline: none; min-width: 0;
 }
 .new-project-input::placeholder { color: #444; }
+
+/* ════════════════════════════════════════════════════════════════
+   CAMPAIGN TAB
+   ════════════════════════════════════════════════════════════════ */
+.campaign-toolbar {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.campaign-select {
+  flex: 1; background: #11111f; border: 1px solid #3a3a5e;
+  border-radius: 4px; color: #e0e0e0; font-size: 12px;
+  padding: 3px 6px; outline: none; cursor: pointer; min-width: 0;
+}
+.campaign-select:focus { border-color: #c9a84c; }
+.campaign-toolbar-actions { display: flex; gap: 3px; }
+
+/* Sessions list */
+#sessions-content {
+  flex: 0 0 auto; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 38%;
+}
+.session-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 6px;
+  cursor: pointer; user-select: none;
+  transition: background 0.12s;
+}
+.session-row:hover  { background: #1e1e38; }
+.session-row.active { background: #1a2e24; }
+.session-name {
+  flex: 1; font-size: 12px; font-weight: 600; color: #aaa;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.session-row.active .session-name { color: #81e0ab; }
+.session-name-input {
+  flex: 1; background: #11111f; border: 1px solid #c9a84c;
+  border-radius: 3px; color: #e0e0e0; font-size: 12px; font-weight: 600;
+  padding: 1px 5px; outline: none;
+}
+.session-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.12s; }
+.session-row:hover .session-actions { opacity: 1; }
+.sessions-empty { font-size: 11px; color: #333; font-style: italic; padding: 6px 8px; }
+
+/* Notes area */
+.notes-area {
+  flex: 1; display: flex; flex-direction: column; gap: 6px;
+  min-height: 0; border-top: 1px solid #2e2e4e; padding-top: 8px;
+}
+.notes-toolbar {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.notes-status {
+  font-size: 10px; color: #3a3a5e; margin-left: auto;
+  transition: color 0.3s;
+}
+.notes-status.unsaved { color: #c9a84c; }
+.notes-status.saved   { color: #4caf7d; }
+.notes-textarea {
+  flex: 1; resize: none;
+  background: #0d0d1a; border: 1px solid #2e2e4e;
+  border-radius: 6px; color: #ccc; font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  line-height: 1.6; padding: 8px 10px; outline: none;
+  min-height: 0;
+}
+.notes-textarea:focus    { border-color: #3a3a5e; }
+.notes-textarea:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* New campaign / new session inline input */
+.campaign-name-input {
+  flex: 1; background: #11111f; border: 1px solid #c9a84c;
+  border-radius: 4px; color: #e0e0e0; font-size: 12px;
+  padding: 3px 7px; outline: none; min-width: 0;
+}
 
 /* ── Drop overlay (fullscreen) ── */
 #drop-overlay {

@@ -14,31 +14,70 @@
 
   <div class="workspace">
 
-    <!-- ── Left: Map Library ── -->
+    <!-- ── Left: Map Library + Campaign (tabbed) ── -->
     <aside class="panel" id="panel-maps">
 
-      <div class="lib-toolbar">
-        <span class="panel-title">Maps</span>
-        <div class="lib-toolbar-actions">
-          <button id="btn-refresh-lib" class="btn-icon-sm" title="Refresh library">↺</button>
-          <button id="btn-select-folder" class="btn-ghost-sm" title="Change root folder">📁 Folder</button>
+      <!-- Tab nav -->
+      <nav class="panel-tabs">
+        <button class="panel-tab active" data-tab="maps">Maps</button>
+        <button class="panel-tab"        data-tab="campaign">Campaign</button>
+      </nav>
+
+      <!-- ══ Tab: Maps ══ -->
+      <div class="tab-pane" id="tab-pane-maps">
+
+        <div class="lib-toolbar">
+          <span class="panel-title">Maps</span>
+          <div class="lib-toolbar-actions">
+            <button id="btn-refresh-lib" class="btn-icon-sm" title="Refresh library">↺</button>
+            <button id="btn-select-folder" class="btn-ghost-sm" title="Change root folder">📁 Folder</button>
+          </div>
         </div>
-      </div>
 
-      <!-- No-folder state -->
-      <div id="lib-setup" style="display:none">
-        <p>Select a folder to store your maps.<br/>A <code>maps/</code> subfolder will be created inside it.</p>
-        <button id="btn-setup-folder" class="btn-primary">Select Folder</button>
-      </div>
+        <!-- No-folder state -->
+        <div id="lib-setup" style="display:none">
+          <p>Select a folder to store your maps.<br/>A <code>maps/</code> subfolder will be created inside it.</p>
+          <button id="btn-setup-folder" class="btn-primary">Select Folder</button>
+        </div>
 
-      <!-- Library content -->
-      <div id="lib-root-path"></div>
-      <div id="lib-content"></div>
+        <!-- Library content -->
+        <div id="lib-root-path"></div>
+        <div id="lib-content"></div>
 
-      <div class="lib-footer">
-        <button id="btn-new-project" class="btn-ghost-sm">+ New Project</button>
-        <button id="btn-add-images"  class="btn-primary-sm">+ Add Images</button>
-      </div>
+        <div class="lib-footer">
+          <button id="btn-new-project" class="btn-ghost-sm">+ New Project</button>
+          <button id="btn-add-images"  class="btn-primary-sm">+ Add Images</button>
+        </div>
+
+      </div><!-- /tab-pane-maps -->
+
+      <!-- ══ Tab: Campaign ══ -->
+      <div class="tab-pane" id="tab-pane-campaign" style="display:none">
+
+        <!-- Campaign selector -->
+        <div class="campaign-toolbar">
+          <select id="campaign-select" class="campaign-select"></select>
+          <div class="campaign-toolbar-actions">
+            <button id="btn-new-campaign"    class="btn-icon-sm" title="New campaign">+</button>
+            <button id="btn-rename-campaign" class="btn-icon-xs" title="Rename campaign">✏</button>
+            <button id="btn-delete-campaign" class="btn-icon-xs danger" title="Delete campaign">×</button>
+          </div>
+        </div>
+
+        <!-- Sessions list -->
+        <div id="sessions-content"></div>
+
+        <!-- Notes editor -->
+        <div class="notes-area">
+          <div class="notes-toolbar">
+            <span class="panel-title">Notes</span>
+            <span id="notes-status" class="notes-status"></span>
+            <button id="btn-new-session" class="btn-ghost-sm">+ Session</button>
+          </div>
+          <textarea id="notes-textarea" class="notes-textarea" placeholder="Select a session to edit notes…" disabled></textarea>
+        </div>
+
+      </div><!-- /tab-pane-campaign -->
 
     </aside>
 

@@ -39,4 +39,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteMap:      (id)         => ipcRenderer.send('delete-map', id),
   openMapDialog:  ()           => ipcRenderer.invoke('open-map-dialog'),
   getFilePath:    (file)       => webUtils.getPathForFile(file),
+
+  // ── Campaigns ─────────────────────────────────────────────────────────────
+  scanCampaigns:   ()                                    => ipcRenderer.invoke('scan-campaigns'),
+  createCampaign:  (name)                                => ipcRenderer.invoke('create-campaign', name),
+  renameCampaign:  (oldId, newName)                      => ipcRenderer.invoke('rename-campaign', oldId, newName),
+  deleteCampaign:  (id)                                  => ipcRenderer.invoke('delete-campaign', id),
+  createSession:   (campaignId, name)                    => ipcRenderer.invoke('create-session', campaignId, name),
+  renameSession:   (campaignId, oldId, newName)          => ipcRenderer.invoke('rename-session', campaignId, oldId, newName),
+  deleteSession:   (campaignId, id)                      => ipcRenderer.invoke('delete-session', campaignId, id),
+  readNotes:       (campaignId, sessionId)               => ipcRenderer.invoke('read-notes', campaignId, sessionId),
+  writeNotes:      (campaignId, sessionId, content)      => ipcRenderer.invoke('write-notes', campaignId, sessionId, content),
 });
