@@ -485,6 +485,25 @@ function sendSettings(patch) {
   window.electronAPI.updateSettings(patch);
 }
 
+/** Apply a settings object to the UI controls without re-sending to main. */
+function applySettingsToUI(s) {
+  if (s.gridVisible    !== undefined) elGridVisible.checked  = s.gridVisible;
+  if (s.cellSizeInches !== undefined) elCellSize.value       = s.cellSizeInches;
+  if (s.gridColor      !== undefined) elGridColor.value      = s.gridColor;
+  if (s.gridOpacity    !== undefined) {
+    elGridOpacity.value     = Math.round(s.gridOpacity * 100);
+    elGridOpacityVal.textContent = Math.round(s.gridOpacity * 100) + '%';
+  }
+  if (s.dpi  !== undefined) elDpi.value = s.dpi;
+  if (s.zoom !== undefined) {
+    const z = Math.max(0.25, Math.min(4, s.zoom));
+    settings.zoom = z;
+    elZoomSlider.value    = Math.round(z * 100);
+    elZoomVal.textContent = Math.round(z * 100) + '%';
+  }
+  Object.assign(settings, s);
+}
+
 elGridVisible.addEventListener('change',  () => sendSettings({ gridVisible: elGridVisible.checked }));
 elCellSize.addEventListener('change', () => {
   const v = Math.max(0.25, Math.min(4, parseFloat(elCellSize.value) || 1));
@@ -514,6 +533,9 @@ btnZoomIn.addEventListener('click',    () => setZoom(settings.zoom + 0.1));
 btnZoomOut.addEventListener('click',   () => setZoom(settings.zoom - 0.1));
 btnZoomReset.addEventListener('click', () => setZoom(1.0));
 elZoomSlider.addEventListener('input', () => setZoom(parseInt(elZoomSlider.value) / 100));
+
+// Receive persisted settings from main process on startup
+window.electronAPI.onInitialSettings((s) => applySettingsToUI(s));
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadDisplays();

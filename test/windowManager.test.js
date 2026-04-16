@@ -30,7 +30,7 @@ function makeMockWindow() {
 const DISPLAY_1 = { id: 1, bounds: { x: 0,    y: 0, width: 1920, height: 1080 }, scaleFactor: 1   };
 const DISPLAY_2 = { id: 2, bounds: { x: 1920, y: 0, width: 2560, height: 1440 }, scaleFactor: 1.5 };
 
-function makeManager(displays = [DISPLAY_1, DISPLAY_2]) {
+function makeManager(displays = [DISPLAY_1, DISPLAY_2], options = {}) {
   const windows = [];
 
   const MockBrowserWindow = jest.fn().mockImplementation(() => {
@@ -50,6 +50,7 @@ function makeManager(displays = [DISPLAY_1, DISPLAY_2]) {
     preloadPath:        '/fake/preload.js',
     gmRendererPath:     '/fake/gm.html',
     screenRendererPath: '/fake/screen.html',
+    ...options,
   });
 
   return { manager, MockBrowserWindow, mockScreen, windows };
@@ -63,6 +64,24 @@ describe('createGMWindow', () => {
     manager.createGMWindow();
     expect(windows).toHaveLength(1);
     expect(windows[0].loadFile).toHaveBeenCalledWith('/fake/gm.html');
+  });
+
+  test('sends initial-settings to GM after it loads', () => {
+    const saved = { zoom: 2.0, dpi: 144, gridVisible: false };
+    const { manager, windows } = makeManager(undefined, { initialSettings: saved });
+    manager.createGMWindow();
+    windows[0]._fireWeb('did-finish-load');
+    expect(windows[0].webContents.send).toHaveBeenCalledWith(
+      'initial-settings',
+      expect.objectContaining({ zoom: 2.0, dpi: 144, gridVisible: false })
+    );
+  });
+
+  test('merges initialSettings over DEFAULT_SETTINGS', () => {
+    const { manager } = makeManager(undefined, { initialSettings: { zoom: 1.5 } });
+    const s = manager.getSettings();
+    expect(s.zoom).toBe(1.5);
+    expect(s.gridVisible).toBe(DEFAULT_SETTINGS.gridVisible); // unchanged default
   });
 });
 

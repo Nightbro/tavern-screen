@@ -16,6 +16,7 @@ tavern-screen/
 ├── preload.js               # IPC bridge (contextIsolation)
 ├── windowManager.js         # Window lifecycle, active map, preview capture
 ├── library.js               # File-system map library (projects, copy, move, delete)
+├── config.js                # Key-value config backed by JSON (settings + folder persistence)
 ├── renderer/
 │   ├── gm/                  # GM screen (3-panel layout)
 │   │   ├── index.html
@@ -26,10 +27,42 @@ tavern-screen/
 │       ├── style.css
 │       └── screen.js
 ├── test/
-│   ├── windowManager.test.js
-│   └── library.test.js
+│   ├── config.test.js
+│   ├── library.test.js
+│   └── windowManager.test.js
+├── run.bat                  # Double-click to start the app
+├── build.bat                # Double-click to build the Windows installer + portable exe
 └── package.json
 ```
+
+## Running the App
+
+### Development (double-click or terminal)
+
+```
+run.bat
+```
+or
+```bash
+npm start
+```
+
+### Build Windows Executable
+
+```
+build.bat
+```
+or
+```bash
+npm run build
+```
+
+Output is in the `dist/` folder:
+- `Tavern Screen Setup x.x.x.exe` — NSIS installer (lets user choose install directory)
+- `Tavern Screen x.x.x.exe` — portable, no installation needed
+
+> **Note:** An `assets/icon.ico` file can be added to give the app a custom icon.
+> electron-builder uses a default icon if none is provided.
 
 ## GM Screen Layout
 
@@ -39,14 +72,25 @@ tavern-screen/
 | **Center** | Monitor selector, live player screen preview |
 | **Right — Settings** | Grid toggle, cell size, color/opacity, DPI calibration, zoom |
 
+## Persistence
+
+All settings are saved automatically to Electron's `userData` directory (`config.json`):
+
+| Key | What is saved |
+|-----|--------------|
+| `rootFolder` | Path to the maps root folder |
+| `settings` | Grid visibility, cell size, color, opacity, DPI, zoom |
+
+Settings are restored when the app next starts — the GM screen controls reflect the saved values immediately.
+
 ## Map Library
 
-- **Select Folder** — pick any folder; a `maps/` subdirectory is created inside it and remembered across sessions
+- **Select Folder** — pick any folder; a `maps/` subdirectory is created inside it
 - **Projects** — subfolders inside `maps/`; create, rename, delete (maps moved to Unsorted on delete)
-- **Add Images** — file dialog (multi-select) or drag & drop files from the OS onto the GM window
-- **Switch Maps** — click any thumbnail to instantly display it on the player screen
+- **Add Images** — file dialog (multi-select) or drag & drop from the OS
+- **Switch Maps** — click any thumbnail to send it to the player screen instantly
 - **Move between projects** — drag a map card onto another project section
-- **Refresh** — re-scans the folder for any externally added/removed files
+- **Refresh** — re-scans the folder without restarting
 
 ## Player Screen
 
@@ -54,16 +98,6 @@ tavern-screen/
 - Map image displayed behind the grid (contain-fit, centered)
 - Grid overlay with configurable size, color, opacity
 - Zoom applies to both map and grid
-
-## Screen Settings
-
-| Setting | Description |
-|---------|-------------|
-| **Show grid** | Toggle grid overlay |
-| **Cell size** | Grid cell size in inches (default 1.0) |
-| **Color / Opacity** | Grid line color and transparency |
-| **DPI** | Auto-suggested from display scale factor. Adjust until 1 cell = 1 physical inch |
-| **Zoom** | Scale the view 25%–400% |
 
 ## Prerequisites
 
@@ -73,12 +107,6 @@ tavern-screen/
 
 ```bash
 npm install
-```
-
-## Run
-
-```bash
-npm start
 ```
 
 ## Test

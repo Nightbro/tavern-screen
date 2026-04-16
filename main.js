@@ -1,17 +1,18 @@
 const { app, BrowserWindow, ipcMain, screen, dialog } = require('electron');
 const path = require('path');
+const { createConfig }       = require('./config');
+const { createLibrary }      = require('./library');
 const { createWindowManager } = require('./windowManager');
-const { createLibrary }       = require('./library');
 
-const configPath = path.join(app.getPath('userData'), 'config.json');
-const lib = createLibrary(configPath);
+const config = createConfig(path.join(app.getPath('userData'), 'config.json'));
+const lib    = createLibrary(config);
 
 const manager = createWindowManager({
-  BrowserWindow,
-  screen,
+  BrowserWindow, screen,
   preloadPath:        path.join(__dirname, 'preload.js'),
   gmRendererPath:     path.join(__dirname, 'renderer', 'gm',     'index.html'),
   screenRendererPath: path.join(__dirname, 'renderer', 'screen', 'index.html'),
+  initialSettings:    config.get('settings', null),
 });
 
 // ── Display ────────────────────────────────────────────────────────────────
@@ -20,7 +21,10 @@ ipcMain.on('select-display',    (_e, id)    => manager.selectDisplay(id));
 ipcMain.on('close-screen',      ()          => manager.closeScreen());
 
 // ── Settings ───────────────────────────────────────────────────────────────
-ipcMain.on('update-settings',   (_e, patch) => manager.updateSettings(patch));
+ipcMain.on('update-settings', (_e, patch) => {
+  manager.updateSettings(patch);
+  config.set('settings', manager.getSettings()); // persist
+});
 
 // ── Preview ────────────────────────────────────────────────────────────────
 ipcMain.on('request-preview',   ()          => manager.capturePreview());
@@ -48,7 +52,7 @@ ipcMain.handle('rename-project',  (_e, oldId, newName) => lib.renameProject(oldI
 ipcMain.handle('delete-project',  (_e, projectId)      => { lib.deleteProject(projectId); });
 
 // ── Library: maps ──────────────────────────────────────────────────────────
-ipcMain.handle('copy-files', async (event, filePaths, projectId) => {
+ipcMain.handle('copy-files', (_e, filePaths, projectId) => {
   return lib.copyFiles(filePaths, projectId ?? null);
 });
 
@@ -58,7 +62,6 @@ ipcMain.handle('move-map', (_e, mapId, toProjectId) => {
 
 ipcMain.on('delete-map', (_e, mapId) => {
   lib.deleteMap(mapId);
-  // If the deleted map was active, clear the screen
   manager.setActiveMap(null);
 });
 

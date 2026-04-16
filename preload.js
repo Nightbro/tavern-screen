@@ -9,10 +9,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onScreenOpened: (cb)         => ipcRenderer.on('screen-opened', (_e, id, dpi) => cb(id, dpi)),
 
   // ── Settings ─────────────────────────────────────────────────────────────
-  updateSettings:   (patch)    => ipcRenderer.send('update-settings', patch),
-  onSettingsUpdate: (cb)       => ipcRenderer.on('settings-update', (_e, s) => cb(s)),
+  updateSettings:    (patch)   => ipcRenderer.send('update-settings', patch),
+  onSettingsUpdate:  (cb)      => ipcRenderer.on('settings-update',  (_e, s) => cb(s)),
+  onInitialSettings: (cb)      => ipcRenderer.on('initial-settings', (_e, s) => cb(s)),
 
-  // ── Active map (GM → main → screen) ──────────────────────────────────────
+  // ── Active map ────────────────────────────────────────────────────────────
   setActiveMap:   (map)        => ipcRenderer.send('set-active-map', map),
   onMapUpdate:    (cb)         => ipcRenderer.on('map-update', (_e, map) => cb(map)),
 
@@ -29,7 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Library: projects ────────────────────────────────────────────────────
   createProject:  (name)       => ipcRenderer.invoke('create-project', name),
-  renameProject:  (oldId, name)=> ipcRenderer.invoke('rename-project', oldId, name),
+  renameProject:  (oldId, n)   => ipcRenderer.invoke('rename-project', oldId, n),
   deleteProject:  (id)         => ipcRenderer.invoke('delete-project', id),
 
   // ── Library: maps ────────────────────────────────────────────────────────

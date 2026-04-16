@@ -1,18 +1,22 @@
 const DEFAULT_SETTINGS = {
-  gridVisible: true,
+  gridVisible:    true,
   cellSizeInches: 1.0,
-  zoom: 1.0,
-  dpi: 96,
-  gridColor: '#ffffff',
-  gridOpacity: 0.25,
+  zoom:           1.0,
+  dpi:            96,
+  gridColor:      '#ffffff',
+  gridOpacity:    0.25,
 };
 
-function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPath, screenRendererPath }) {
+function createWindowManager({
+  BrowserWindow, screen,
+  preloadPath, gmRendererPath, screenRendererPath,
+  initialSettings = null,
+}) {
   let gmWindow     = null;
   let screenWindow = null;
   let activeDisplayId = null;
-  let settings     = { ...DEFAULT_SETTINGS };
-  let currentMap   = null; // { id, path, name } or null
+  let settings     = { ...DEFAULT_SETTINGS, ...(initialSettings ?? {}) };
+  let currentMap   = null;
 
   let previewTimer = null;
 
@@ -47,10 +51,8 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
 
   function createGMWindow() {
     gmWindow = new BrowserWindow({
-      width: 1200,
-      height: 760,
-      minWidth: 900,
-      minHeight: 560,
+      width: 1200, height: 760,
+      minWidth: 900, minHeight: 560,
       backgroundColor: '#1a1a2e',
       webPreferences: {
         preload: preloadPath,
@@ -60,6 +62,11 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
     });
 
     gmWindow.loadFile(gmRendererPath);
+
+    // Send persisted settings to GM renderer so controls are in sync
+    gmWindow.webContents.on('did-finish-load', () => {
+      notifyGM('initial-settings', settings);
+    });
 
     gmWindow.on('closed', () => {
       gmWindow = null;
@@ -94,8 +101,7 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
 
     screenWindow = new BrowserWindow({
       x, y, width, height,
-      frame: false,
-      fullscreen: true,
+      frame: false, fullscreen: true,
       backgroundColor: '#000000',
       webPreferences: {
         preload: preloadPath,
@@ -163,8 +169,7 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
   return {
     createGMWindow,
     selectDisplay, closeScreen,
-    updateSettings,
-    setActiveMap,
+    updateSettings, setActiveMap,
     getDisplays, getSettings,
     capturePreview,
   };

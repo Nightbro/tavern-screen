@@ -7,7 +7,6 @@ function isImage(filename) {
   return IMAGE_EXTS.has(path.extname(filename).toLowerCase());
 }
 
-/** Resolve a unique destination path, appending _1, _2 ... if needed. */
 function uniqueDest(dir, filename) {
   const ext  = path.extname(filename);
   const base = path.basename(filename, ext);
@@ -32,29 +31,18 @@ function scanMaps(dir, projectId, mapsDir) {
     }));
 }
 
-function createLibrary(configPath) {
-  let rootFolder = null;
+/**
+ * @param {object} config  Object with get(key, default) / set(key, value) methods.
+ *                         Use createConfig() from config.js for file-backed persistence,
+ *                         or pass an in-memory object for tests.
+ */
+function createLibrary(config) {
+  // Restore persisted root folder, but only if it still exists on disk
+  const stored = config.get('rootFolder', null);
+  let rootFolder = (stored && fs.existsSync(stored)) ? stored : null;
 
-  // ── Config persistence ─────────────────────────────────────────────────────
-  function loadConfig() {
-    try {
-      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (cfg.rootFolder && fs.existsSync(cfg.rootFolder)) {
-        rootFolder = cfg.rootFolder;
-      }
-    } catch { /* first run or corrupt config */ }
-  }
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-  function saveConfig() {
-    try {
-      fs.mkdirSync(path.dirname(configPath), { recursive: true });
-      fs.writeFileSync(configPath, JSON.stringify({ rootFolder }, null, 2));
-    } catch { /* best-effort */ }
-  }
-
-  loadConfig();
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
   function getMapsDir() {
     return rootFolder ? path.join(rootFolder, 'maps') : null;
   }
@@ -71,11 +59,11 @@ function createLibrary(configPath) {
     return path.join(mapsDir, mapId.replace(/\//g, path.sep));
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────
+  // ── Public API ────────────────────────────────────────────────────────────
 
   function setRootFolder(folderPath) {
     rootFolder = folderPath;
-    saveConfig();
+    config.set('rootFolder', folderPath);
     ensureMapsDir();
   }
 
@@ -118,10 +106,8 @@ function createLibrary(configPath) {
   function renameProject(oldId, newName) {
     const mapsDir = getMapsDir();
     if (!mapsDir) throw new Error('No root folder set');
-    const src  = path.join(mapsDir, oldId);
-    const dest = path.join(mapsDir, newName);
-    fs.renameSync(src, dest);
-    return newName; // new id === new name
+    fs.renameSync(path.join(mapsDir, oldId), path.join(mapsDir, newName));
+    return newName;
   }
 
   function deleteProject(projectId) {
@@ -130,15 +116,15 @@ function createLibrary(configPath) {
     const projectPath = path.join(mapsDir, projectId);
     if (!fs.existsSync(projectPath)) return;
 
-    // Move all maps to root first to avoid data loss
     for (const entry of fs.readdirSync(projectPath, { withFileTypes: true })) {
       if (entry.isFile() && isImage(entry.name)) {
-        const src  = path.join(projectPath, entry.name);
-        const dest = uniqueDest(mapsDir, entry.name);
-        fs.renameSync(src, dest);
+        fs.renameSync(
+          path.join(projectPath, entry.name),
+          uniqueDest(mapsDir, entry.name)
+        );
       }
     }
-    fs.rmdirSync(projectPath); // now empty
+    fs.rmdirSync(projectPath);
   }
 
   function copyFiles(filePaths, projectId = null) {
@@ -150,7 +136,6 @@ function createLibrary(configPath) {
     for (const src of filePaths) {
       if (!isImage(path.basename(src))) continue;
       const destPath = uniqueDest(destDir, path.basename(src));
-      // Skip copy if file is already in the library at the same location
       if (path.resolve(src) !== path.resolve(destPath)) {
         fs.copyFileSync(src, destPath);
       }
