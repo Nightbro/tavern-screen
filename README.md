@@ -99,6 +99,47 @@ Settings are restored when the app next starts — the GM screen controls reflec
 - Grid overlay with configurable size, color, opacity
 - Zoom applies to both map and grid
 
+## Roadmap
+
+### Layer Screen (Advanced Screen Type)
+
+The current player screen (image + grid) becomes the **Simple** mode. A new **Advanced** screen type introduces a full layer system.
+
+#### Core layer system
+- Layer panel on the GM side (Photoshop-style): list of all objects with eye icon to show/hide each one
+- Each object is its own layer (image, gif, video, light/shadow shape, default asset)
+- Drag to reorder layers
+- Per-layer delayed reveal: configurable countdown shown on the player screen before the object appears (especially useful for video)
+
+#### Object types
+- **Image** — add, move, resize freely on the canvas via the GM preview
+- **GIF** — animated, same controls as image
+- **Video** — playback controlled from GM side; supports delayed reveal countdown
+- **Light / Shadow** — semi-transparent blue-gray overlay shapes to simulate dim areas or darkness; drawn and resized like any other object
+- **Default assets** — bundled objects (fire GIF, fireflies GIF, others) available from a quick-insert panel
+
+#### Viewport / zoom
+- GM can zoom into a region of the map; the player screen shows only that region
+- GM preview shows a black border/overlay indicating the visible region
+- Zoom in/out controls in the GM preview panel
+
+#### Persistence
+- Save a layer scene (all objects, positions, visibility, zoom state) as a JSON file
+- Load scene from JSON; library panel can list saved scenes alongside maps
+
+---
+
+### Other planned features
+
+- **Fog of War** — paintable dark overlay the GM reveals progressively; stored as a layer
+- **Scene presets** — save the complete state (active map + layers + zoom) and switch scenes instantly
+- **Ping / pointer tool** — GM clicks the preview and a pulsing marker appears on the player screen for a few seconds
+- **Token layer** — circular tokens with image + label the GM can drag around the map
+- **Audio layer** — ambient sounds (Web Audio / HTML audio) triggered and controlled from the GM side, played on the player screen; supports show/hide (mute) like other layers
+- **Initiative / status HUD** — optional overlay on the player screen showing turn order or condition icons, managed from the GM panel
+
+---
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18 or later recommended)
