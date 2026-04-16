@@ -5,11 +5,20 @@ let gmWindow = null;
 let screenWindow = null;
 let activeDisplayId = null;
 
+let settings = {
+  gridVisible: true,
+  cellSizeInches: 1.0,
+  zoom: 1.0,
+  dpi: 96,
+  gridColor: '#ffffff',
+  gridOpacity: 0.25,
+};
+
 function createGMWindow() {
   gmWindow = new BrowserWindow({
-    width: 1000,
-    height: 680,
-    minWidth: 700,
+    width: 1100,
+    height: 720,
+    minWidth: 800,
     minHeight: 500,
     backgroundColor: '#1a1a2e',
     webPreferences: {
@@ -31,12 +40,12 @@ function createGMWindow() {
 }
 
 ipcMain.handle('get-displays', () => {
+  const primary = screen.getPrimaryDisplay();
   return screen.getAllDisplays().map((d) => ({
     id: d.id,
     bounds: d.bounds,
-    workArea: d.workArea,
     scaleFactor: d.scaleFactor,
-    isPrimary: d.id === screen.getPrimaryDisplay().id,
+    isPrimary: d.id === primary.id,
     active: d.id === activeDisplayId,
   }));
 });
@@ -53,6 +62,10 @@ ipcMain.on('select-display', (event, displayId) => {
 
   activeDisplayId = displayId;
 
+  // Suggest DPI based on scale factor
+  const suggestedDpi = Math.round(96 * display.scaleFactor);
+  settings = { ...settings, dpi: suggestedDpi };
+
   const { x, y, width, height } = display.bounds;
 
   screenWindow = new BrowserWindow({
@@ -64,6 +77,7 @@ ipcMain.on('select-display', (event, displayId) => {
     fullscreen: true,
     backgroundColor: '#000000',
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -71,19 +85,30 @@ ipcMain.on('select-display', (event, displayId) => {
 
   screenWindow.loadFile(path.join(__dirname, 'renderer', 'screen', 'index.html'));
 
+  screenWindow.webContents.on('did-finish-load', () => {
+    screenWindow.webContents.send('settings-update', settings);
+  });
+
   screenWindow.on('closed', () => {
     screenWindow = null;
     activeDisplayId = null;
     if (gmWindow) gmWindow.webContents.send('screen-closed');
   });
 
-  if (gmWindow) gmWindow.webContents.send('screen-opened', displayId);
+  if (gmWindow) gmWindow.webContents.send('screen-opened', displayId, suggestedDpi);
 });
 
 ipcMain.on('close-screen', () => {
   if (screenWindow) {
     screenWindow.close();
     screenWindow = null;
+  }
+});
+
+ipcMain.on('update-settings', (event, patch) => {
+  settings = { ...settings, ...patch };
+  if (screenWindow) {
+    screenWindow.webContents.send('settings-update', settings);
   }
 });
 

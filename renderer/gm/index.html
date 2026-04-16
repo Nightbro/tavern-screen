@@ -12,14 +12,78 @@
     <p class="subtitle">Select a monitor to display the player screen</p>
   </header>
 
-  <main>
-    <div id="monitor-map"></div>
-    <div id="monitor-list"></div>
-  </main>
+  <div class="layout">
 
-  <footer>
-    <button id="btn-close-screen" class="btn-danger" disabled>Close Player Screen</button>
-  </footer>
+    <!-- Left: monitor selection -->
+    <section class="panel" id="panel-monitors">
+      <h2 class="panel-title">Monitors</h2>
+      <div id="monitor-map"></div>
+      <div id="monitor-list"></div>
+      <div class="panel-footer">
+        <button id="btn-close-screen" class="btn-danger" disabled>Close Player Screen</button>
+      </div>
+    </section>
+
+    <!-- Right: screen settings -->
+    <section class="panel" id="panel-settings">
+      <h2 class="panel-title">Screen Settings</h2>
+
+      <div class="settings-group">
+        <div class="settings-group-title">Grid</div>
+
+        <label class="toggle-row">
+          <span>Show grid</span>
+          <input type="checkbox" id="grid-visible" checked />
+        </label>
+
+        <label class="field-row">
+          <span>Cell size</span>
+          <div class="input-unit">
+            <input type="number" id="cell-size" value="1.0" min="0.25" max="4" step="0.25" />
+            <span class="unit">inch</span>
+          </div>
+        </label>
+
+        <label class="field-row">
+          <span>Color</span>
+          <input type="color" id="grid-color" value="#ffffff" />
+        </label>
+
+        <label class="field-row">
+          <span>Opacity</span>
+          <div class="slider-row">
+            <input type="range" id="grid-opacity" min="0" max="100" value="25" />
+            <span class="slider-val" id="grid-opacity-val">25%</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">Calibration</div>
+        <label class="field-row">
+          <span>DPI</span>
+          <div class="input-unit">
+            <input type="number" id="dpi" value="96" min="48" max="600" step="1" />
+            <span class="unit">px / inch</span>
+          </div>
+        </label>
+        <p class="hint">Auto-suggested from display scale factor. Adjust until one grid cell measures physically 1 inch.</p>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">Zoom</div>
+        <div class="zoom-controls">
+          <button class="btn-icon" id="zoom-out">−</button>
+          <span id="zoom-val">100%</span>
+          <button class="btn-icon" id="zoom-in">+</button>
+          <button class="btn-ghost" id="zoom-reset">Reset</button>
+        </div>
+        <input type="range" id="zoom-slider" min="25" max="400" value="100" step="5" />
+      </div>
+
+    </section>
+
+  </div>
 
   <script src="gm.js"></script>
 </body>
