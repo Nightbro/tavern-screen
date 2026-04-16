@@ -1,4 +1,8 @@
 const { app, BrowserWindow, ipcMain, screen, dialog } = require('electron');
+
+// Suppress Chromium GPU shader cache warnings on Windows (harmless, caused by
+// a locked temp directory when a previous instance didn't fully shut down).
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 const path = require('path');
 const { createConfig }           = require('./config');
 const { createLibrary }          = require('./library');
