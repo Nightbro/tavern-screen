@@ -19,14 +19,18 @@ tavern-screen/
 ├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes)
 ├── config.js                    # Key-value config backed by JSON (settings + folder persistence)
 ├── renderer/
-│   ├── gm/                      # GM screen (tabbed left panel + center + settings)
+│   ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
 │   │   ├── index.html
 │   │   ├── style.css
 │   │   └── gm.js
-│   └── screen/                  # Player screen — fullscreen map + grid
+│   ├── screen/                  # Player screen — Simple mode (fullscreen map + grid)
+│   │   ├── index.html
+│   │   ├── style.css
+│   │   └── screen.js
+│   └── screen-advanced/         # Player screen — Advanced mode (layer system + HUDs)
 │       ├── index.html
 │       ├── style.css
-│       └── screen.js
+│       └── screen-advanced.js
 ├── test/
 │   ├── config.test.js
 │   ├── library.test.js
@@ -72,8 +76,22 @@ Output is in the `dist/` folder:
 |-------|----------|
 | **Left — Maps tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
 | **Left — Campaign tab** | Campaign selector, sessions list, notes editor |
-| **Center** | Monitor selector, live player screen preview |
-| **Right — Settings** | Grid toggle, cell size, color/opacity, DPI calibration, zoom |
+| **Center** | Monitor selector, live player screen preview (click to ping in advanced mode) |
+| **Right — Settings tab** | Grid toggle, cell size, color/opacity, DPI calibration, zoom |
+| **Right — Layers tab** | Screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
+
+### Layers Tab (Advanced Mode)
+
+Enabled by toggling **Advanced (Layer) Mode** in the Layers tab. Switching reloads the player screen with the layer renderer.
+
+| Section | Controls |
+|---------|----------|
+| **Viewport** | Zoom in/out/reset slider; 🎯 Ping button — click then click the preview to send a pulsing marker to the player screen |
+| **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; click row to expand detail editor; × to delete |
+| **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
+| **HUDs** | Add Initiative Tracker; eye icon to show/hide; click row to expand editor |
+| **Initiative** | Add entries (name, roll, hidden checkbox); Start/Stop combat; Next/Prev turn |
+| **Scene** | 💾 Save scene to JSON; 📂 Load scene from JSON; ↺ Reset to empty |
 
 ## Persistence
 
@@ -117,57 +135,37 @@ Campaigns and sessions are stored alongside the map library under the same root 
   - When a session is selected: editing that session's notes; click again to deselect
 - Notes are plain `.md` files readable outside the app
 
-## Player Screen
+## Player Screen — Simple Mode
 
 - Fullscreen Canvas on the selected monitor
 - Map image displayed behind the grid (contain-fit, centered)
 - Grid overlay with configurable size, color, opacity
 - Zoom applies to both map and grid
 
+## Player Screen — Advanced Mode (Layer System)
+
+Switched to via the Layers tab in the GM panel. Fully separate renderer (`screen-advanced`).
+
+- **Layer stack** — image, GIF, video, light/shadow, fog of war, weather particle layers
+- **Viewport zoom** — GM can zoom into a map region; player screen shows that region
+- **HUD overlays** — screen-space panels unaffected by pan/zoom: initiative tracker with combat turn tracking
+- **Ping** — GM clicks preview → pulsing ring + dot appears at that position on the player screen
+- **Scene persistence** — save/load full layer state as JSON
+
 ## Roadmap
 
-### Layer Screen (Advanced Screen Type)
+### Advanced Screen — Remaining enhancements
 
-The current player screen (image + grid) becomes the **Simple** mode. A new **Advanced** screen type introduces a full layer system.
+The core Advanced screen is implemented. Remaining polish items:
 
-#### Core layer system
-- Layer panel on the GM side (Photoshop-style): list of all objects with eye icon to show/hide each one
-- Each object is its own layer (image, gif, video, light/shadow shape, default asset)
-- Drag to reorder layers
-- Per-layer delayed reveal: configurable countdown shown on the player screen before the object appears (especially useful for video)
-
-#### Object types
-- **Image** — add, move, resize freely on the canvas via the GM preview
-- **GIF** — animated, same controls as image
-- **Video** — playback controlled from GM side; supports delayed reveal countdown
-- **Light / Shadow** — semi-transparent overlay shapes (blue-gray tint) to paint atmosphere/darkness onto areas; drawn and resized like any other object
-- **Fog of War** — separate from light/shadow; starts fully covering the map, GM reveals areas by erasing. Light/shadow is *additive* (paint darkness on top); Fog of War is *subtractive* (everything hidden by default, GM uncovers it)
-- **Weather / atmosphere** — canvas particle layers: rain, snow, falling embers, drifting fog; available as built-in layer types alongside the default assets
-- **Default assets** — bundled objects (fire GIF, fireflies GIF, others) available from a quick-insert panel
-
-#### Viewport / zoom
-- GM can zoom into a region of the map; the player screen shows only that region
-- GM preview shows a black border/overlay indicating the visible region
-- Zoom in/out controls in the GM preview panel
-
-#### Persistence
-- Save a layer scene (all objects, positions, visibility, zoom state) as a JSON file
-- Load scene from JSON; library panel can list saved scenes alongside maps
-
-#### HUD overlays (screen-space, not scene-space)
-These overlays are fixed to the player screen corners — they do not move or scale when the GM pans/zooms the map. Multiple instances can be added and repositioned independently relative to the screen edges.
-
-- **Initiative tracker**
-  - Drag-and-drop reordered list; selectable rows; highlights the current turn
-  - Buttons + keyboard shortcuts: Start, Next, Previous
-  - Hidden entries: can be fully hidden from the list *or* shown as a nameless slot ("???") to hint something is lurking
-  - Triggerable initiative roll: auto-sorts the list by initiative value
-  - Per-row status badges (colored tags after the name, e.g. Poisoned, Stunned) — triggerable from the GM side
-  - Triggerable reveal: GM can un-hide or un-anonymise an entry mid-combat
-
-- **Status panel** — simpler variant of the initiative tracker; no turn management, just names with colored status tags; useful for persistent conditions or party-wide states
-
-- **Ping / pointer** — GM clicks on the preview; a pulsing marker appears at that map position on the player screen for a few seconds
+- **Layer move/resize on preview** — drag handles on the GM preview to reposition and resize image/light layers
+- **Drag to reorder layers** — drag-and-drop handles in the layer list
+- **Per-layer delayed reveal** — countdown shown on the player screen before the object appears
+- **Fog of War reveal tool** — GM draws on the preview to erase fog; currently fog is a static full-screen layer
+- **Default assets** — bundled quick-insert objects (fire GIF, fireflies, etc.)
+- **Status panel HUD** — names + status badges, no turn management
+- **Initiative enhancements** — sort by roll, per-entry status badge management, "???" hidden slot mode
+- **Preview viewport overlay** — rectangle on GM preview showing the current zoom region
 
 ---
 
