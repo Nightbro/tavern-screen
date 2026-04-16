@@ -1,0 +1,25 @@
+{
+  "name": "tavern-screen",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nightbro/tavern-screen.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Nightbro/tavern-screen/issues"
+  },
+  "homepage": "https://github.com/Nightbro/tavern-screen#readme",
+  "devDependencies": {
+    "electron": "^41.2.1"
+  }
+}
