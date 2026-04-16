@@ -12,26 +12,28 @@ An Electron app for sharing a map on a second screen as a fullscreen display. De
 
 ```
 tavern-screen/
-├── main.js                  # Electron main process, IPC wiring
-├── preload.js               # IPC bridge (contextIsolation)
-├── windowManager.js         # Window lifecycle, active map, preview capture
-├── library.js               # File-system map library (projects, copy, move, delete)
-├── config.js                # Key-value config backed by JSON (settings + folder persistence)
+├── main.js                      # Electron main process, IPC wiring
+├── preload.js                   # IPC bridge (contextIsolation)
+├── windowManager.js             # Window lifecycle, active map, preview capture
+├── library.js                   # File-system map library (projects, copy, move, delete)
+├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes)
+├── config.js                    # Key-value config backed by JSON (settings + folder persistence)
 ├── renderer/
-│   ├── gm/                  # GM screen (3-panel layout)
+│   ├── gm/                      # GM screen (tabbed left panel + center + settings)
 │   │   ├── index.html
 │   │   ├── style.css
 │   │   └── gm.js
-│   └── screen/              # Player screen — fullscreen map + grid
+│   └── screen/                  # Player screen — fullscreen map + grid
 │       ├── index.html
 │       ├── style.css
 │       └── screen.js
 ├── test/
 │   ├── config.test.js
 │   ├── library.test.js
+│   ├── campaignLibrary.test.js
 │   └── windowManager.test.js
-├── run.bat                  # Double-click to start the app
-├── build.bat                # Double-click to build the Windows installer + portable exe
+├── run.bat                      # Double-click to start the app
+├── build.bat                    # Double-click to build the Windows installer + portable exe
 └── package.json
 ```
 
@@ -68,7 +70,8 @@ Output is in the `dist/` folder:
 
 | Panel | Contents |
 |-------|----------|
-| **Left — Map Library** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
+| **Left — Maps tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
+| **Left — Campaign tab** | Campaign selector, sessions list, notes editor |
 | **Center** | Monitor selector, live player screen preview |
 | **Right — Settings** | Grid toggle, cell size, color/opacity, DPI calibration, zoom |
 
@@ -85,12 +88,34 @@ Settings are restored when the app next starts — the GM screen controls reflec
 
 ## Map Library
 
-- **Select Folder** — pick any folder; a `maps/` subdirectory is created inside it
+- **Select Folder** — pick any folder; `maps/` and `campaigns/` subdirectories are created inside it
 - **Projects** — subfolders inside `maps/`; create, rename, delete (maps moved to Unsorted on delete)
 - **Add Images** — file dialog (multi-select) or drag & drop from the OS
 - **Switch Maps** — click any thumbnail to send it to the player screen instantly
 - **Move between projects** — drag a map card onto another project section
 - **Refresh** — re-scans the folder without restarting
+
+## Campaign Library
+
+Campaigns and sessions are stored alongside the map library under the same root folder:
+
+```
+<root>/
+├── maps/
+└── campaigns/
+    └── My Campaign/
+        ├── notes.md             # campaign-level notes
+        └── sessions/
+            └── Session 1/
+                └── notes.md     # session notes
+```
+
+- **Campaigns** — create, rename, delete (with confirmation); switch via dropdown
+- **Sessions** — create, rename, delete (with confirmation) within a campaign
+- **Notes** — freeform text editor; auto-saves 800 ms after the last keystroke
+  - When no session is selected: editing campaign-level notes
+  - When a session is selected: editing that session's notes; click again to deselect
+- Notes are plain `.md` files readable outside the app
 
 ## Player Screen
 
