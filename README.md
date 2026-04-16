@@ -115,7 +115,9 @@ The current player screen (image + grid) becomes the **Simple** mode. A new **Ad
 - **Image** — add, move, resize freely on the canvas via the GM preview
 - **GIF** — animated, same controls as image
 - **Video** — playback controlled from GM side; supports delayed reveal countdown
-- **Light / Shadow** — semi-transparent blue-gray overlay shapes to simulate dim areas or darkness; drawn and resized like any other object
+- **Light / Shadow** — semi-transparent overlay shapes (blue-gray tint) to paint atmosphere/darkness onto areas; drawn and resized like any other object
+- **Fog of War** — separate from light/shadow; starts fully covering the map, GM reveals areas by erasing. Light/shadow is *additive* (paint darkness on top); Fog of War is *subtractive* (everything hidden by default, GM uncovers it)
+- **Weather / atmosphere** — canvas particle layers: rain, snow, falling embers, drifting fog; available as built-in layer types alongside the default assets
 - **Default assets** — bundled objects (fire GIF, fireflies GIF, others) available from a quick-insert panel
 
 #### Viewport / zoom
@@ -127,16 +129,31 @@ The current player screen (image + grid) becomes the **Simple** mode. A new **Ad
 - Save a layer scene (all objects, positions, visibility, zoom state) as a JSON file
 - Load scene from JSON; library panel can list saved scenes alongside maps
 
+#### HUD overlays (screen-space, not scene-space)
+These overlays are fixed to the player screen corners — they do not move or scale when the GM pans/zooms the map. Multiple instances can be added and repositioned independently relative to the screen edges.
+
+- **Initiative tracker**
+  - Drag-and-drop reordered list; selectable rows; highlights the current turn
+  - Buttons + keyboard shortcuts: Start, Next, Previous
+  - Hidden entries: can be fully hidden from the list *or* shown as a nameless slot ("???") to hint something is lurking
+  - Triggerable initiative roll: auto-sorts the list by initiative value
+  - Per-row status badges (colored tags after the name, e.g. Poisoned, Stunned) — triggerable from the GM side
+  - Triggerable reveal: GM can un-hide or un-anonymise an entry mid-combat
+
+- **Status panel** — simpler variant of the initiative tracker; no turn management, just names with colored status tags; useful for persistent conditions or party-wide states
+
+- **Ping / pointer** — GM clicks on the preview; a pulsing marker appears at that map position on the player screen for a few seconds
+
 ---
 
 ### Other planned features
 
-- **Fog of War** — paintable dark overlay the GM reveals progressively; stored as a layer
 - **Scene presets** — save the complete state (active map + layers + zoom) and switch scenes instantly
-- **Ping / pointer tool** — GM clicks the preview and a pulsing marker appears on the player screen for a few seconds
-- **Token layer** — circular tokens with image + label the GM can drag around the map
-- **Audio layer** — ambient sounds (Web Audio / HTML audio) triggered and controlled from the GM side, played on the player screen; supports show/hide (mute) like other layers
-- **Initiative / status HUD** — optional overlay on the player screen showing turn order or condition icons, managed from the GM panel
+- **Token layer** — circular tokens with image + label the GM can drag around the map *(deferred; physical minis in use for now)*
+- **Handouts** — pop a specific image (letter, portrait, item art, map fragment) onto the player screen as a floating overlay; GM dismisses it when done
+- **Freehand drawing / annotations** — GM sketches arrows or shapes on the preview; appears live on the player screen; can be temporary (auto-clear) or persistent (saved as a layer)
+- **Fade / transition** — fade to black between scenes while the GM swaps maps or layers behind the curtain
+- **Spotlight** — a circular lit area the GM positions; everything outside it dims; lives inside the light/shadow layer type
 
 ---
 
