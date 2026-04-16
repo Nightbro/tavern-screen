@@ -357,3 +357,254 @@ describe('GM window closed', () => {
     expect(() => windows[0]._fire('closed')).not.toThrow();
   });
 });
+
+// ── DEFAULT_SETTINGS ──────────────────────────────────────────────────────────
+
+describe('DEFAULT_SETTINGS', () => {
+  test('screenMode defaults to simple', () => {
+    expect(DEFAULT_SETTINGS.screenMode).toBe('simple');
+  });
+});
+
+// ── screenMode routing in selectDisplay ──────────────────────────────────────
+
+describe('screenMode routing in selectDisplay', () => {
+  function makeAdvancedManager() {
+    return makeManager(undefined, {
+      screenAdvancedRendererPath: '/fake/screen-advanced.html',
+      initialSettings: { screenMode: 'advanced' },
+    });
+  }
+
+  test('simple mode loads the simple renderer', () => {
+    const { manager, windows } = makeManager();
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+    expect(windows[1].loadFile).toHaveBeenCalledWith('/fake/screen.html');
+  });
+
+  test('advanced mode loads the advanced renderer', () => {
+    const { manager, windows } = makeAdvancedManager();
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+    expect(windows[1].loadFile).toHaveBeenCalledWith('/fake/screen-advanced.html');
+  });
+
+  test('advanced mode sends scene-update on did-finish-load', () => {
+    const { manager, windows } = makeAdvancedManager();
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+    windows[1]._fireWeb('did-finish-load');
+    expect(windows[1].webContents.send).toHaveBeenCalledWith(
+      'scene-update', expect.objectContaining({ layers: [], huds: [] })
+    );
+  });
+
+  test('simple mode sends map-update (not scene-update) on did-finish-load', () => {
+    const { manager, windows } = makeManager();
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+    windows[1]._fireWeb('did-finish-load');
+    const sceneUpdateCalls = windows[1].webContents.send.mock.calls
+      .filter(([ch]) => ch === 'scene-update');
+    expect(sceneUpdateCalls).toHaveLength(0);
+  });
+});
+
+// ── updateSettings screenMode change ─────────────────────────────────────────
+
+describe('updateSettings screenMode change', () => {
+  test('switching to advanced mode destroys old window and loads advanced renderer', () => {
+    const { manager, windows } = makeManager(undefined, {
+      screenAdvancedRendererPath: '/fake/screen-advanced.html',
+    });
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+    const oldScreen = windows[1];
+
+    manager.updateSettings({ screenMode: 'advanced' });
+
+    expect(oldScreen.destroy).toHaveBeenCalled();
+    expect(oldScreen.removeAllListeners).toHaveBeenCalledWith('closed');
+    expect(windows).toHaveLength(3);
+    expect(windows[2].loadFile).toHaveBeenCalledWith('/fake/screen-advanced.html');
+  });
+
+  test('switching back to simple mode loads simple renderer', () => {
+    const { manager, windows } = makeManager(undefined, {
+      screenAdvancedRendererPath: '/fake/screen-advanced.html',
+      initialSettings: { screenMode: 'advanced' },
+    });
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+
+    manager.updateSettings({ screenMode: 'simple' });
+
+    expect(windows).toHaveLength(3);
+    expect(windows[2].loadFile).toHaveBeenCalledWith('/fake/screen.html');
+  });
+
+  test('updating unrelated settings does not reload the screen window', () => {
+    const { manager, windows } = makeManager();
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+    manager.updateSettings({ zoom: 1.5 });
+    expect(windows).toHaveLength(2);
+    expect(windows[1].destroy).not.toHaveBeenCalled();
+  });
+});
+
+// ── Scene state ───────────────────────────────────────────────────────────────
+
+describe('scene state', () => {
+  function makeAdvancedWithScreen() {
+    const result = makeManager(undefined, {
+      screenAdvancedRendererPath: '/fake/screen-advanced.html',
+      initialSettings: { screenMode: 'advanced' },
+    });
+    result.manager.createGMWindow();
+    result.manager.selectDisplay(DISPLAY_1.id);
+    return result;
+  }
+
+  test('getScene returns null before selectDisplay in advanced mode', () => {
+    const { manager } = makeManager(undefined, {
+      screenAdvancedRendererPath: '/fake/screen-advanced.html',
+      initialSettings: { screenMode: 'advanced' },
+    });
+    manager.createGMWindow();
+    expect(manager.getScene()).toBeNull();
+  });
+
+  test('getScene returns scene with empty layers and huds after selectDisplay', () => {
+    const { manager } = makeAdvancedWithScreen();
+    const scene = manager.getScene();
+    expect(scene).not.toBeNull();
+    expect(scene.layers).toEqual([]);
+    expect(scene.huds).toEqual([]);
+  });
+
+  test('addLayer adds a layer with a generated id', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addLayer({ type: 'image', src: '/maps/bg.jpg' });
+    const { layers } = manager.getScene();
+    expect(layers).toHaveLength(1);
+    expect(layers[0].id).toBeDefined();
+    expect(layers[0].type).toBe('image');
+  });
+
+  test('addLayer sends layers-update to screen', () => {
+    const { manager, windows } = makeAdvancedWithScreen();
+    manager.addLayer({ type: 'fog' });
+    expect(windows[1].webContents.send).toHaveBeenCalledWith(
+      'layers-update',
+      expect.arrayContaining([expect.objectContaining({ type: 'fog' })])
+    );
+  });
+
+  test('updateLayer patches a layer by id', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addLayer({ type: 'image', visible: true });
+    const { layers } = manager.getScene();
+    manager.updateLayer(layers[0].id, { visible: false });
+    expect(manager.getScene().layers[0].visible).toBe(false);
+  });
+
+  test('removeLayer removes the layer', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addLayer({ type: 'light' });
+    const { layers } = manager.getScene();
+    manager.removeLayer(layers[0].id);
+    expect(manager.getScene().layers).toHaveLength(0);
+  });
+
+  test('reorderLayers reorders by provided id array', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addLayer({ type: 'image' });
+    manager.addLayer({ type: 'fog' });
+    const [l1, l2] = manager.getScene().layers;
+    manager.reorderLayers([l2.id, l1.id]);
+    const reordered = manager.getScene().layers;
+    expect(reordered[0].id).toBe(l2.id);
+    expect(reordered[1].id).toBe(l1.id);
+  });
+
+  test('updateViewport merges viewport patch', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.updateViewport({ zoom: 2.0 });
+    expect(manager.getScene().viewport.zoom).toBe(2.0);
+    expect(manager.getScene().viewport.centerX).toBe(0.5); // unchanged
+  });
+
+  test('updateViewport sends viewport-update to screen', () => {
+    const { manager, windows } = makeAdvancedWithScreen();
+    manager.updateViewport({ zoom: 1.5 });
+    expect(windows[1].webContents.send).toHaveBeenCalledWith(
+      'viewport-update', expect.objectContaining({ zoom: 1.5 })
+    );
+  });
+
+  test('addHud adds a HUD with a generated id', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addHud({ type: 'initiative', entries: [] });
+    const { huds } = manager.getScene();
+    expect(huds).toHaveLength(1);
+    expect(huds[0].id).toBeDefined();
+    expect(huds[0].type).toBe('initiative');
+  });
+
+  test('updateHud patches a HUD by id', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addHud({ type: 'initiative', visible: true });
+    const { huds } = manager.getScene();
+    manager.updateHud(huds[0].id, { visible: false });
+    expect(manager.getScene().huds[0].visible).toBe(false);
+  });
+
+  test('updateHud can replace entries array', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addHud({ type: 'initiative', entries: [] });
+    const { huds } = manager.getScene();
+    const entries = [{ id: 'e1', name: 'Fighter', initiative: 20 }];
+    manager.updateHud(huds[0].id, { entries });
+    expect(manager.getScene().huds[0].entries).toEqual(entries);
+  });
+
+  test('removeHud removes the HUD', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addHud({ type: 'initiative' });
+    const { huds } = manager.getScene();
+    manager.removeHud(huds[0].id);
+    expect(manager.getScene().huds).toHaveLength(0);
+  });
+
+  test('sendPing sends ping to screen with coordinates', () => {
+    const { manager, windows } = makeAdvancedWithScreen();
+    manager.sendPing(0.5, 0.3);
+    expect(windows[1].webContents.send).toHaveBeenCalledWith('ping', 0.5, 0.3);
+  });
+
+  test('resetScene clears layers and huds', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.addLayer({ type: 'image' });
+    manager.addHud({ type: 'initiative' });
+    manager.resetScene();
+    const scene = manager.getScene();
+    expect(scene.layers).toHaveLength(0);
+    expect(scene.huds).toHaveLength(0);
+  });
+
+  test('setScene replaces the full scene', () => {
+    const { manager, windows } = makeAdvancedWithScreen();
+    const newScene = {
+      map: null,
+      viewport: { centerX: 0.5, centerY: 0.5, zoom: 2.0 },
+      layers: [{ id: 'l1', type: 'fog' }],
+      huds: [],
+    };
+    manager.setScene(newScene);
+    expect(manager.getScene().viewport.zoom).toBe(2.0);
+    expect(manager.getScene().layers[0].id).toBe('l1');
+    expect(windows[1].webContents.send).toHaveBeenCalledWith('scene-update', expect.objectContaining({ layers: newScene.layers }));
+  });
+});

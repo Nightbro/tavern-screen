@@ -11,7 +11,7 @@ const btnAddImages    = document.getElementById('btn-add-images');
 const dropOverlay     = document.getElementById('drop-overlay');
 
 // ── Campaign tab ──────────────────────────────────────────────────────────────
-const tabBtns           = document.querySelectorAll('.panel-tab');
+const tabBtns           = document.querySelectorAll('#left-panel-tabs .panel-tab');
 const tabPaneMaps       = document.getElementById('tab-pane-maps');
 const tabPaneCampaign   = document.getElementById('tab-pane-campaign');
 const campaignSelect    = document.getElementById('campaign-select');
@@ -848,13 +848,14 @@ window.electronAPI.onScreenClosed(() => {
   showPreviewPlaceholder();
 });
 
-window.electronAPI.onScreenOpened((displayId, suggestedDpi) => {
+window.electronAPI.onScreenOpened(async (displayId, suggestedDpi) => {
   activeDisplayId = displayId;
   displays = displays.map((d) => ({ ...d, active: d.id === displayId }));
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = false;
   if (suggestedDpi) { elDpi.value = suggestedDpi; sendSettings({ dpi: suggestedDpi }); }
+  if (screenModeAdvanced) await initScene();
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -899,6 +900,12 @@ function applySettingsToUI(s) {
     elZoomSlider.value    = Math.round(z * 100);
     elZoomVal.textContent = Math.round(z * 100) + '%';
   }
+  if (s.screenMode !== undefined) {
+    const isAdv = s.screenMode === 'advanced';
+    screenModeAdvanced = isAdv;
+    if (elScreenModeAdvanced) elScreenModeAdvanced.checked = isAdv;
+    document.body.classList.toggle('advanced-mode', isAdv);
+  }
   Object.assign(settings, s);
 }
 
@@ -932,8 +939,590 @@ btnZoomOut.addEventListener('click',   () => setZoom(settings.zoom - 0.1));
 btnZoomReset.addEventListener('click', () => setZoom(1.0));
 elZoomSlider.addEventListener('input', () => setZoom(parseInt(elZoomSlider.value) / 100));
 
+// ════════════════════════════════════════════════════════════════════════════
+// RIGHT PANEL TABS
+// ════════════════════════════════════════════════════════════════════════════
+
+const rightTabBtns         = document.querySelectorAll('#right-panel-tabs .panel-tab');
+const rightTabPaneSettings = document.getElementById('right-tab-pane-settings');
+const rightTabPaneLayers   = document.getElementById('right-tab-pane-layers');
+
+rightTabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    rightTabBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.rightTab;
+    rightTabPaneSettings.style.display = tab === 'settings' ? '' : 'none';
+    rightTabPaneLayers.style.display   = tab === 'layers'   ? '' : 'none';
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// ADVANCED / LAYER MODE
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const elScreenModeAdvanced = document.getElementById('screen-mode-advanced');
+const vpZoomOut            = document.getElementById('vp-zoom-out');
+const vpZoomIn             = document.getElementById('vp-zoom-in');
+const vpZoomReset          = document.getElementById('vp-zoom-reset');
+const vpZoomVal            = document.getElementById('vp-zoom-val');
+const vpZoomSlider         = document.getElementById('vp-zoom-slider');
+const btnPingMode          = document.getElementById('btn-ping-mode');
+const layerListEl          = document.getElementById('layer-list');
+const layerDetail          = document.getElementById('layer-detail');
+const layerDetailTitle     = document.getElementById('layer-detail-title');
+const layerDetailFields    = document.getElementById('layer-detail-fields');
+const hudListEl            = document.getElementById('hud-list');
+const initiativeEditor     = document.getElementById('initiative-editor');
+const initiativeEntriesEl  = document.getElementById('initiative-entries');
+const btnCombatToggle      = document.getElementById('btn-combat-toggle');
+const btnCombatPrev        = document.getElementById('btn-combat-prev');
+const btnCombatNext        = document.getElementById('btn-combat-next');
+const btnAddEntry          = document.getElementById('btn-add-entry');
+const btnAddInitiative     = document.getElementById('btn-add-initiative');
+const btnAddImageLayer     = document.getElementById('btn-add-image-layer');
+const btnAddLightLayer     = document.getElementById('btn-add-light-layer');
+const btnAddFogLayer       = document.getElementById('btn-add-fog-layer');
+const btnAddWeatherLayer   = document.getElementById('btn-add-weather-layer');
+const btnSaveScene         = document.getElementById('btn-save-scene');
+const btnLoadScene         = document.getElementById('btn-load-scene');
+const btnResetScene        = document.getElementById('btn-reset-scene');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let layers           = [];
+let huds             = [];
+let selectedLayerId  = null;
+let selectedHudId    = null;
+let vpZoom           = 1.0;
+let pingMode         = false;
+let screenModeAdvanced = false;
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// ── Screen mode toggle ────────────────────────────────────────────────────────
+
+elScreenModeAdvanced.addEventListener('change', async () => {
+  const isAdv = elScreenModeAdvanced.checked;
+  screenModeAdvanced = isAdv;
+  document.body.classList.toggle('advanced-mode', isAdv);
+  sendSettings({ screenMode: isAdv ? 'advanced' : 'simple' });
+  if (isAdv) await initScene();
+});
+
+// ── Scene init ────────────────────────────────────────────────────────────────
+
+async function initScene() {
+  const scene = await window.electronAPI.getScene();
+  if (!scene) return;
+  layers = scene.layers ?? [];
+  huds   = scene.huds   ?? [];
+  vpZoom = scene.viewport?.zoom ?? 1.0;
+  renderLayerList();
+  renderHudList();
+  updateVpZoomUI();
+}
+
+// ── Viewport zoom ─────────────────────────────────────────────────────────────
+
+function updateVpZoomUI() {
+  const pct = Math.round(vpZoom * 100);
+  vpZoomVal.textContent = pct + '%';
+  vpZoomSlider.value    = pct;
+}
+
+function setVpZoom(value) {
+  vpZoom = Math.max(0.25, Math.min(8, value));
+  updateVpZoomUI();
+  window.electronAPI.updateViewport({ zoom: vpZoom });
+}
+
+vpZoomIn.addEventListener('click',     () => setVpZoom(vpZoom + 0.1));
+vpZoomOut.addEventListener('click',    () => setVpZoom(vpZoom - 0.1));
+vpZoomReset.addEventListener('click',  () => setVpZoom(1.0));
+vpZoomSlider.addEventListener('input', () => setVpZoom(parseInt(vpZoomSlider.value) / 100));
+
+// ── Ping mode ─────────────────────────────────────────────────────────────────
+
+btnPingMode.addEventListener('click', () => {
+  pingMode = !pingMode;
+  btnPingMode.classList.toggle('ping-active', pingMode);
+  previewImg.parentElement.classList.toggle('ping-mode', pingMode);
+});
+
+previewImg.addEventListener('click', (e) => {
+  if (!pingMode || previewImg.style.display === 'none') return;
+  const rect     = previewImg.getBoundingClientRect();
+  const imgAR    = previewImg.naturalWidth / (previewImg.naturalHeight || 1);
+  const boxAR    = rect.width / (rect.height || 1);
+  let cx, cy, cw, ch;
+  if (imgAR > boxAR) {
+    cw = rect.width;  ch = cw / imgAR;
+    cx = rect.left;   cy = rect.top + (rect.height - ch) / 2;
+  } else {
+    ch = rect.height; cw = ch * imgAR;
+    cy = rect.top;    cx = rect.left + (rect.width - cw) / 2;
+  }
+  const nx = (e.clientX - cx) / cw;
+  const ny = (e.clientY - cy) / ch;
+  if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
+  window.electronAPI.sendPing(nx, ny);
+  pingMode = false;
+  btnPingMode.classList.remove('ping-active');
+  previewImg.parentElement.classList.remove('ping-mode');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAYER MANAGEMENT
+// ════════════════════════════════════════════════════════════════════════════
+
+const LAYER_TYPE_LABELS = {
+  image: 'Img', gif: 'GIF', video: 'Vid', light: 'Lgt', fog: 'Fog', weather: 'Wx',
+};
+const WEATHER_TYPES = ['rain', 'snow', 'embers', 'fog', 'fireflies'];
+
+function renderLayerList() {
+  layerListEl.innerHTML = '';
+  if (layers.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'layer-empty';
+    empty.textContent = 'No layers yet';
+    layerListEl.appendChild(empty);
+    return;
+  }
+  // Render in reverse (top of stack first visually)
+  for (let i = layers.length - 1; i >= 0; i--) {
+    layerListEl.appendChild(buildLayerRow(layers[i]));
+  }
+}
+
+function buildLayerRow(layer) {
+  const row = document.createElement('div');
+  row.className = 'layer-row' + (layer.id === selectedLayerId ? ' active' : '');
+  row.dataset.layerId = layer.id;
+
+  const eye = document.createElement('button');
+  eye.className = 'btn-icon-xs';
+  eye.textContent = layer.visible !== false ? '●' : '○';
+  eye.title = layer.visible !== false ? 'Hide' : 'Show';
+  eye.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const newLayers = await window.electronAPI.updateLayer(layer.id, { visible: !(layer.visible !== false) });
+    if (newLayers) { layers = newLayers; renderLayerList(); }
+  });
+
+  const badge = document.createElement('span');
+  badge.className = 'layer-type-badge';
+  badge.textContent = LAYER_TYPE_LABELS[layer.type] ?? layer.type;
+
+  const name = document.createElement('span');
+  name.className = 'layer-name';
+  name.textContent = layer.name || layer.type;
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-icon-xs danger';
+  delBtn.textContent = '×';
+  delBtn.title = 'Remove layer';
+  delBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (selectedLayerId === layer.id) { selectedLayerId = null; layerDetail.style.display = 'none'; }
+    const newLayers = await window.electronAPI.removeLayer(layer.id);
+    if (newLayers) { layers = newLayers; renderLayerList(); }
+  });
+
+  row.appendChild(eye);
+  row.appendChild(badge);
+  row.appendChild(name);
+  row.appendChild(delBtn);
+  row.addEventListener('click', () => selectLayer(layer.id));
+  return row;
+}
+
+function selectLayer(id) {
+  selectedLayerId = (id === selectedLayerId) ? null : id;
+  renderLayerList();
+  const layer = layers.find(l => l.id === selectedLayerId);
+  if (layer) renderLayerDetail(layer);
+  else layerDetail.style.display = 'none';
+}
+
+function renderLayerDetail(layer) {
+  layerDetail.style.display = '';
+  layerDetailTitle.textContent = (LAYER_TYPE_LABELS[layer.type] ?? layer.type) + ' Layer';
+  layerDetailFields.innerHTML = '';
+
+  function addField(labelText, inputEl) {
+    const row = document.createElement('div');
+    row.className = 'detail-field';
+    const lbl = document.createElement('label');
+    lbl.textContent = labelText;
+    row.appendChild(lbl);
+    row.appendChild(inputEl);
+    layerDetailFields.appendChild(row);
+    return inputEl;
+  }
+
+  // Name (all types)
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text'; nameInput.value = layer.name || '';
+  nameInput.placeholder = 'Layer name…';
+  addField('Name', nameInput);
+  nameInput.addEventListener('change', async () => {
+    const newLayers = await window.electronAPI.updateLayer(layer.id, { name: nameInput.value });
+    if (newLayers) layers = newLayers;
+  });
+
+  if (layer.type === 'image' || layer.type === 'gif' || layer.type === 'video') {
+    // Source file
+    const srcWrap = document.createElement('div');
+    srcWrap.style.cssText = 'display:flex;gap:4px;flex:1;min-width:0;align-items:center;';
+    const srcSpan = document.createElement('span');
+    srcSpan.style.cssText = 'font-size:10px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;';
+    srcSpan.title = layer.src ?? '';
+    srcSpan.textContent = layer.src ? layer.src.split(/[/\\]/).at(-1) : '(none)';
+    const pickBtn = document.createElement('button');
+    pickBtn.className = 'btn-ghost-sm';
+    pickBtn.textContent = '📁';
+    pickBtn.title = 'Pick file';
+    pickBtn.addEventListener('click', async () => {
+      const files = await window.electronAPI.openMapDialog();
+      if (files.length) {
+        const src = 'file:///' + files[0].replace(/\\/g, '/');
+        const newLayers = await window.electronAPI.updateLayer(layer.id, { src });
+        if (newLayers) {
+          layers = newLayers;
+          const updated = layers.find(l => l.id === layer.id);
+          if (updated) renderLayerDetail(updated);
+        }
+      }
+    });
+    srcWrap.appendChild(srcSpan);
+    srcWrap.appendChild(pickBtn);
+    addField('Src', srcWrap);
+
+    // Opacity
+    const opInput = document.createElement('input');
+    opInput.type = 'number'; opInput.min = 0; opInput.max = 1; opInput.step = 0.05;
+    opInput.value = layer.opacity ?? 1;
+    addField('Opacity', opInput);
+    opInput.addEventListener('change', async () => {
+      const newLayers = await window.electronAPI.updateLayer(layer.id, { opacity: parseFloat(opInput.value) || 1 });
+      if (newLayers) layers = newLayers;
+    });
+  }
+
+  if (layer.type === 'light') {
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color'; colorInput.value = layer.color ?? '#000033';
+    addField('Color', colorInput);
+    colorInput.addEventListener('input', async () => {
+      const newLayers = await window.electronAPI.updateLayer(layer.id, { color: colorInput.value });
+      if (newLayers) layers = newLayers;
+    });
+
+    const opInput = document.createElement('input');
+    opInput.type = 'number'; opInput.min = 0; opInput.max = 1; opInput.step = 0.05;
+    opInput.value = layer.opacity ?? 0.6;
+    addField('Opacity', opInput);
+    opInput.addEventListener('change', async () => {
+      const newLayers = await window.electronAPI.updateLayer(layer.id, { opacity: parseFloat(opInput.value) || 0.6 });
+      if (newLayers) layers = newLayers;
+    });
+  }
+
+  if (layer.type === 'weather') {
+    const typeSelect = document.createElement('select');
+    WEATHER_TYPES.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+      if (t === (layer.weatherType ?? 'rain')) opt.selected = true;
+      typeSelect.appendChild(opt);
+    });
+    addField('Type', typeSelect);
+    typeSelect.addEventListener('change', async () => {
+      const newLayers = await window.electronAPI.updateLayer(layer.id, { weatherType: typeSelect.value });
+      if (newLayers) layers = newLayers;
+    });
+
+    const intInput = document.createElement('input');
+    intInput.type = 'number'; intInput.min = 0.1; intInput.max = 3; intInput.step = 0.1;
+    intInput.value = layer.intensity ?? 1;
+    addField('Intensity', intInput);
+    intInput.addEventListener('change', async () => {
+      const newLayers = await window.electronAPI.updateLayer(layer.id, { intensity: parseFloat(intInput.value) || 1 });
+      if (newLayers) layers = newLayers;
+    });
+  }
+}
+
+// ── Add layer buttons ─────────────────────────────────────────────────────────
+
+btnAddImageLayer.addEventListener('click', async () => {
+  const newLayers = await window.electronAPI.addLayer({ type: 'image', visible: true, opacity: 1 });
+  if (newLayers) { layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
+});
+
+btnAddLightLayer.addEventListener('click', async () => {
+  const newLayers = await window.electronAPI.addLayer({ type: 'light', visible: true, color: '#000033', opacity: 0.6 });
+  if (newLayers) { layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
+});
+
+btnAddFogLayer.addEventListener('click', async () => {
+  const newLayers = await window.electronAPI.addLayer({ type: 'fog', visible: true, revealed: [] });
+  if (newLayers) { layers = newLayers; renderLayerList(); }
+});
+
+btnAddWeatherLayer.addEventListener('click', async () => {
+  const newLayers = await window.electronAPI.addLayer({ type: 'weather', visible: true, weatherType: 'rain', intensity: 1 });
+  if (newLayers) { layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// HUD MANAGEMENT
+// ════════════════════════════════════════════════════════════════════════════
+
+function renderHudList() {
+  hudListEl.innerHTML = '';
+  if (huds.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'layer-empty';
+    empty.textContent = 'No HUDs';
+    hudListEl.appendChild(empty);
+    return;
+  }
+  for (const hud of huds) {
+    hudListEl.appendChild(buildHudRow(hud));
+  }
+}
+
+function buildHudRow(hud) {
+  const row = document.createElement('div');
+  row.className = 'layer-row' + (hud.id === selectedHudId ? ' active' : '');
+  row.dataset.hudId = hud.id;
+
+  const eye = document.createElement('button');
+  eye.className = 'btn-icon-xs';
+  eye.textContent = hud.visible !== false ? '●' : '○';
+  eye.title = hud.visible !== false ? 'Hide' : 'Show';
+  eye.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const newHuds = await window.electronAPI.updateHud(hud.id, { visible: !(hud.visible !== false) });
+    if (newHuds) { huds = newHuds; renderHudList(); }
+  });
+
+  const badge = document.createElement('span');
+  badge.className = 'layer-type-badge';
+  badge.textContent = 'INIT';
+
+  const name = document.createElement('span');
+  name.className = 'layer-name';
+  name.textContent = 'Initiative';
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-icon-xs danger';
+  delBtn.textContent = '×';
+  delBtn.title = 'Remove HUD';
+  delBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (selectedHudId === hud.id) { selectedHudId = null; initiativeEditor.style.display = 'none'; }
+    const newHuds = await window.electronAPI.removeHud(hud.id);
+    if (newHuds) { huds = newHuds; renderHudList(); }
+  });
+
+  row.appendChild(eye);
+  row.appendChild(badge);
+  row.appendChild(name);
+  row.appendChild(delBtn);
+  row.addEventListener('click', () => selectHud(hud.id));
+  return row;
+}
+
+function selectHud(id) {
+  selectedHudId = (id === selectedHudId) ? null : id;
+  renderHudList();
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (hud && hud.type === 'initiative') renderInitiativeEditor(hud);
+  else initiativeEditor.style.display = 'none';
+}
+
+btnAddInitiative.addEventListener('click', async () => {
+  const newHuds = await window.electronAPI.addHud({
+    type: 'initiative', visible: true, combat: false, currentIndex: 0, entries: [],
+  });
+  if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// INITIATIVE TRACKER EDITOR
+// ════════════════════════════════════════════════════════════════════════════
+
+function renderInitiativeEditor(hud) {
+  initiativeEditor.style.display = '';
+  const inCombat = hud.combat ?? false;
+  btnCombatToggle.textContent = inCombat ? '■ Stop' : '▶ Start';
+  btnCombatPrev.disabled = !inCombat;
+  btnCombatNext.disabled = !inCombat;
+  renderInitiativeEntries(hud);
+}
+
+function renderInitiativeEntries(hud) {
+  initiativeEntriesEl.innerHTML = '';
+  if (!hud.entries || hud.entries.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'layer-empty';
+    empty.textContent = 'No entries';
+    initiativeEntriesEl.appendChild(empty);
+    return;
+  }
+  hud.entries.forEach((entry, idx) => {
+    const row = document.createElement('div');
+    row.className = 'initiative-entry-row';
+
+    const turnInd = document.createElement('span');
+    turnInd.className = 'init-entry-active';
+    turnInd.textContent = (hud.combat && idx === hud.currentIndex) ? '▶' : '';
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'init-entry-name';
+    nameInput.value = entry.name;
+    nameInput.placeholder = 'Name…';
+    nameInput.addEventListener('change', () => updateEntryField(hud, idx, { name: nameInput.value }));
+
+    const rollInput = document.createElement('input');
+    rollInput.className = 'init-entry-roll';
+    rollInput.type = 'number';
+    rollInput.value = entry.initiative ?? '';
+    rollInput.placeholder = '—';
+    rollInput.addEventListener('change', () =>
+      updateEntryField(hud, idx, { initiative: parseInt(rollInput.value) || 0 })
+    );
+
+    const hiddenChk = document.createElement('input');
+    hiddenChk.type = 'checkbox';
+    hiddenChk.title = 'Hide from players (show as ???)';
+    hiddenChk.checked = entry.hidden ?? false;
+    hiddenChk.style.cssText = 'accent-color:#c9a84c;cursor:pointer;flex-shrink:0;';
+    hiddenChk.addEventListener('change', () => updateEntryField(hud, idx, { hidden: hiddenChk.checked }));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-icon-xs danger';
+    delBtn.textContent = '×';
+    delBtn.title = 'Remove entry';
+    delBtn.addEventListener('click', () => removeEntry(hud, idx));
+
+    row.appendChild(turnInd);
+    row.appendChild(nameInput);
+    row.appendChild(rollInput);
+    row.appendChild(hiddenChk);
+    row.appendChild(delBtn);
+    initiativeEntriesEl.appendChild(row);
+  });
+}
+
+async function updateEntryField(hud, idx, patch) {
+  const newEntries = hud.entries.map((e, i) => i === idx ? { ...e, ...patch } : e);
+  const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
+  if (newHuds) {
+    huds = newHuds;
+    const updated = huds.find(h => h.id === hud.id);
+    if (updated) Object.assign(hud, updated);
+  }
+}
+
+async function removeEntry(hud, idx) {
+  const newEntries = hud.entries.filter((_, i) => i !== idx);
+  const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
+  if (newHuds) {
+    huds = newHuds;
+    const updated = huds.find(h => h.id === selectedHudId);
+    if (updated) renderInitiativeEditor(updated);
+  }
+}
+
+btnCombatToggle.addEventListener('click', async () => {
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (!hud) return;
+  const inCombat = !(hud.combat ?? false);
+  const newHuds = await window.electronAPI.updateHud(hud.id, { combat: inCombat, currentIndex: 0 });
+  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+});
+
+btnCombatNext.addEventListener('click', async () => {
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (!hud || !hud.entries.length) return;
+  const next = ((hud.currentIndex ?? 0) + 1) % hud.entries.length;
+  const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: next });
+  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+});
+
+btnCombatPrev.addEventListener('click', async () => {
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (!hud || !hud.entries.length) return;
+  const prev = ((hud.currentIndex ?? 0) - 1 + hud.entries.length) % hud.entries.length;
+  const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: prev });
+  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+});
+
+btnAddEntry.addEventListener('click', async () => {
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (!hud) return;
+  const newEntry = { id: genId(), name: '', initiative: 0, hidden: false, statuses: [] };
+  const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
+  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// SCENE I/O
+// ════════════════════════════════════════════════════════════════════════════
+
+btnSaveScene.addEventListener('click', async () => {
+  const scene = await window.electronAPI.getScene();
+  if (scene) await window.electronAPI.saveSceneDialog(scene);
+});
+
+btnLoadScene.addEventListener('click', async () => {
+  const scene = await window.electronAPI.loadSceneDialog();
+  if (!scene) return;
+  window.electronAPI.setScene(scene);
+  layers = scene.layers ?? [];
+  huds   = scene.huds   ?? [];
+  vpZoom = scene.viewport?.zoom ?? 1.0;
+  updateVpZoomUI();
+  renderLayerList();
+  renderHudList();
+  selectedLayerId = null;
+  selectedHudId   = null;
+  layerDetail.style.display      = 'none';
+  initiativeEditor.style.display = 'none';
+});
+
+btnResetScene.addEventListener('click', () => {
+  confirmInline(btnResetScene, () => {
+    window.electronAPI.resetScene();
+    layers = [];
+    huds   = [];
+    vpZoom = 1.0;
+    updateVpZoomUI();
+    renderLayerList();
+    renderHudList();
+    selectedLayerId = null;
+    selectedHudId   = null;
+    layerDetail.style.display      = 'none';
+    initiativeEditor.style.display = 'none';
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// SETTINGS (continued)
+// ════════════════════════════════════════════════════════════════════════════
+
 // Receive persisted settings from main process on startup
-window.electronAPI.onInitialSettings((s) => applySettingsToUI(s));
+window.electronAPI.onInitialSettings(async (s) => {
+  applySettingsToUI(s);
+  if (s.screenMode === 'advanced') await initScene();
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadDisplays();

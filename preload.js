@@ -52,4 +52,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeCampaignNotes: (campaignId, content)              => ipcRenderer.invoke('write-campaign-notes', campaignId, content),
   readNotes:          (campaignId, sessionId)            => ipcRenderer.invoke('read-notes', campaignId, sessionId),
   writeNotes:         (campaignId, sessionId, content)   => ipcRenderer.invoke('write-notes', campaignId, sessionId, content),
+
+  // ── Advanced / Scene ─────────────────────────────────────────────────────────
+  getScene:        ()             => ipcRenderer.invoke('get-scene'),
+  setScene:        (scene)        => ipcRenderer.send('set-scene', scene),
+  resetScene:      ()             => ipcRenderer.send('reset-scene'),
+  onSceneUpdate:   (cb)           => ipcRenderer.on('scene-update',    (_e, s)    => cb(s)),
+
+  updateViewport:  (patch)        => ipcRenderer.send('update-viewport', patch),
+  onViewportUpdate:(cb)           => ipcRenderer.on('viewport-update',   (_e, vp)  => cb(vp)),
+
+  addLayer:        (layer)        => ipcRenderer.invoke('add-layer',      layer),
+  updateLayer:     (id, patch)    => ipcRenderer.invoke('update-layer',   id, patch),
+  removeLayer:     (id)           => ipcRenderer.invoke('remove-layer',   id),
+  reorderLayers:   (ids)          => ipcRenderer.invoke('reorder-layers', ids),
+  onLayersUpdate:  (cb)           => ipcRenderer.on('layers-update',    (_e, ls)   => cb(ls)),
+
+  addHud:          (hud)          => ipcRenderer.invoke('add-hud',    hud),
+  updateHud:       (id, patch)    => ipcRenderer.invoke('update-hud',  id, patch),
+  removeHud:       (id)           => ipcRenderer.invoke('remove-hud',  id),
+  onHudsUpdate:    (cb)           => ipcRenderer.on('huds-update',    (_e, hs)   => cb(hs)),
+
+  sendPing:        (x, y)         => ipcRenderer.send('send-ping', x, y),
+  onPing:          (cb)           => ipcRenderer.on('ping',        (_e, x, y) => cb(x, y)),
+
+  saveSceneDialog: (scene)        => ipcRenderer.invoke('save-scene-dialog', scene),
+  loadSceneDialog: ()             => ipcRenderer.invoke('load-scene-dialog'),
 });

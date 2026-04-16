@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, screen, dialog } = require('electron');
 // a locked temp directory when a previous instance didn't fully shut down).
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 const path = require('path');
+const fs   = require('fs');
 const { createConfig }           = require('./config');
 const { createLibrary }          = require('./library');
 const { createCampaignLibrary }  = require('./campaignLibrary');
@@ -15,10 +16,11 @@ const campaignLib  = createCampaignLibrary(config);
 
 const manager = createWindowManager({
   BrowserWindow, screen,
-  preloadPath:        path.join(__dirname, 'preload.js'),
-  gmRendererPath:     path.join(__dirname, 'renderer', 'gm',     'index.html'),
-  screenRendererPath: path.join(__dirname, 'renderer', 'screen', 'index.html'),
-  initialSettings:    config.get('settings', null),
+  preloadPath:                path.join(__dirname, 'preload.js'),
+  gmRendererPath:             path.join(__dirname, 'renderer', 'gm',              'index.html'),
+  screenRendererPath:         path.join(__dirname, 'renderer', 'screen',          'index.html'),
+  screenAdvancedRendererPath: path.join(__dirname, 'renderer', 'screen-advanced', 'index.html'),
+  initialSettings:            config.get('settings', null),
 });
 
 // ── Display ────────────────────────────────────────────────────────────────
@@ -97,6 +99,47 @@ ipcMain.handle('write-notes',          (_e, campaignId, sessionId, content) => {
 
 ipcMain.on('set-active-map', (_e, map) => {
   manager.setActiveMap(map ?? null);
+});
+
+// ── Advanced / Scene ───────────────────────────────────────────────────────────
+ipcMain.handle('get-scene',      ()              => manager.getScene());
+ipcMain.on(    'set-scene',      (_e, scene)     => manager.setScene(scene));
+ipcMain.on(    'reset-scene',    ()              => manager.resetScene());
+ipcMain.on(    'update-viewport',(_e, patch)     => manager.updateViewport(patch));
+
+ipcMain.handle('add-layer',      (_e, layer)     => { manager.addLayer(layer);        return manager.getScene()?.layers ?? []; });
+ipcMain.handle('update-layer',   (_e, id, patch) => { manager.updateLayer(id, patch); return manager.getScene()?.layers ?? []; });
+ipcMain.handle('remove-layer',   (_e, id)        => { manager.removeLayer(id);        return manager.getScene()?.layers ?? []; });
+ipcMain.handle('reorder-layers', (_e, ids)       => { manager.reorderLayers(ids);     return manager.getScene()?.layers ?? []; });
+
+ipcMain.handle('add-hud',        (_e, hud)       => { manager.addHud(hud);            return manager.getScene()?.huds ?? []; });
+ipcMain.handle('update-hud',     (_e, id, patch) => { manager.updateHud(id, patch);   return manager.getScene()?.huds ?? []; });
+ipcMain.handle('remove-hud',     (_e, id)        => { manager.removeHud(id);          return manager.getScene()?.huds ?? []; });
+
+ipcMain.on('send-ping', (_e, x, y) => manager.sendPing(x, y));
+
+ipcMain.handle('save-scene-dialog', async (event, scene) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Save Scene',
+    defaultPath: 'scene.json',
+    filters: [{ name: 'Scene JSON', extensions: ['json'] }],
+  });
+  if (canceled || !filePath) return false;
+  try { fs.writeFileSync(filePath, JSON.stringify(scene, null, 2), 'utf8'); return true; }
+  catch (_) { return false; }
+});
+
+ipcMain.handle('load-scene-dialog', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: 'Load Scene',
+    properties: ['openFile'],
+    filters: [{ name: 'Scene JSON', extensions: ['json'] }],
+  });
+  if (canceled || !filePaths.length) return null;
+  try { return JSON.parse(fs.readFileSync(filePaths[0], 'utf8')); }
+  catch (_) { return null; }
 });
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────

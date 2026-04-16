@@ -18,7 +18,7 @@
     <aside class="panel" id="panel-maps">
 
       <!-- Tab nav -->
-      <nav class="panel-tabs">
+      <nav class="panel-tabs" id="left-panel-tabs">
         <button class="panel-tab active" data-tab="maps">Maps</button>
         <button class="panel-tab"        data-tab="campaign">Campaign</button>
       </nav>
@@ -103,58 +103,146 @@
 
     </main>
 
-    <!-- ── Right: Settings ── -->
+    <!-- ── Right: Settings / Layers ── -->
     <aside class="panel" id="panel-settings">
-      <div class="panel-title">Screen Settings</div>
 
-      <div class="settings-group">
-        <div class="settings-group-title">Grid</div>
-        <label class="toggle-row">
-          <span>Show grid</span>
-          <input type="checkbox" id="grid-visible" checked />
-        </label>
-        <label class="field-row">
-          <span>Cell size</span>
-          <div class="input-unit">
-            <input type="number" id="cell-size" value="1.0" min="0.25" max="4" step="0.25" />
-            <span class="unit">inch</span>
-          </div>
-        </label>
-        <label class="field-row">
-          <span>Color</span>
-          <input type="color" id="grid-color" value="#ffffff" />
-        </label>
-        <label class="field-row">
-          <span>Opacity</span>
-          <div class="slider-row">
-            <input type="range" id="grid-opacity" min="0" max="100" value="25" />
-            <span class="slider-val" id="grid-opacity-val">25%</span>
-          </div>
-        </label>
-      </div>
+      <!-- Tab nav -->
+      <nav class="panel-tabs" id="right-panel-tabs">
+        <button class="panel-tab active" data-right-tab="settings">Settings</button>
+        <button class="panel-tab"        data-right-tab="layers">Layers</button>
+      </nav>
 
-      <div class="settings-group">
-        <div class="settings-group-title">Calibration</div>
-        <label class="field-row">
-          <span>DPI</span>
-          <div class="input-unit">
-            <input type="number" id="dpi" value="96" min="48" max="600" step="1" />
-            <span class="unit">px / inch</span>
-          </div>
-        </label>
-        <p class="hint">Auto-suggested from display scale factor. Adjust until one cell measures 1 inch physically.</p>
-      </div>
+      <!-- ══ Tab: Settings ══ -->
+      <div class="tab-pane right-tab-pane" id="right-tab-pane-settings">
 
-      <div class="settings-group">
-        <div class="settings-group-title">Zoom</div>
-        <div class="zoom-controls">
-          <button class="btn-icon" id="zoom-out">−</button>
-          <span id="zoom-val">100%</span>
-          <button class="btn-icon" id="zoom-in">+</button>
-          <button class="btn-ghost" id="zoom-reset">Reset</button>
+        <div class="settings-group">
+          <div class="settings-group-title">Grid</div>
+          <label class="toggle-row">
+            <span>Show grid</span>
+            <input type="checkbox" id="grid-visible" checked />
+          </label>
+          <label class="field-row">
+            <span>Cell size</span>
+            <div class="input-unit">
+              <input type="number" id="cell-size" value="1.0" min="0.25" max="4" step="0.25" />
+              <span class="unit">inch</span>
+            </div>
+          </label>
+          <label class="field-row">
+            <span>Color</span>
+            <input type="color" id="grid-color" value="#ffffff" />
+          </label>
+          <label class="field-row">
+            <span>Opacity</span>
+            <div class="slider-row">
+              <input type="range" id="grid-opacity" min="0" max="100" value="25" />
+              <span class="slider-val" id="grid-opacity-val">25%</span>
+            </div>
+          </label>
         </div>
-        <input type="range" id="zoom-slider" min="25" max="400" value="100" step="5" />
-      </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Calibration</div>
+          <label class="field-row">
+            <span>DPI</span>
+            <div class="input-unit">
+              <input type="number" id="dpi" value="96" min="48" max="600" step="1" />
+              <span class="unit">px / inch</span>
+            </div>
+          </label>
+          <p class="hint">Auto-suggested from display scale factor. Adjust until one cell measures 1 inch physically.</p>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Zoom</div>
+          <div class="zoom-controls">
+            <button class="btn-icon" id="zoom-out">−</button>
+            <span id="zoom-val">100%</span>
+            <button class="btn-icon" id="zoom-in">+</button>
+            <button class="btn-ghost" id="zoom-reset">Reset</button>
+          </div>
+          <input type="range" id="zoom-slider" min="25" max="400" value="100" step="5" />
+        </div>
+
+      </div><!-- /right-tab-pane-settings -->
+
+      <!-- ══ Tab: Layers ══ -->
+      <div class="tab-pane right-tab-pane" id="right-tab-pane-layers" style="display:none">
+
+        <!-- Screen mode -->
+        <div class="settings-group">
+          <div class="settings-group-title">Screen Mode</div>
+          <label class="toggle-row">
+            <span>Advanced (Layer) Mode</span>
+            <input type="checkbox" id="screen-mode-advanced" />
+          </label>
+        </div>
+
+        <!-- Viewport controls -->
+        <div class="settings-group adv-only" id="group-viewport">
+          <div class="settings-group-title">Viewport</div>
+          <div class="zoom-controls">
+            <button class="btn-icon" id="vp-zoom-out">−</button>
+            <span id="vp-zoom-val">100%</span>
+            <button class="btn-icon" id="vp-zoom-in">+</button>
+            <button class="btn-ghost" id="vp-zoom-reset">Reset</button>
+          </div>
+          <input type="range" id="vp-zoom-slider" min="25" max="800" value="100" step="5" />
+          <button class="btn-ghost-sm" id="btn-ping-mode" style="width:100%">🎯 Ping (click preview)</button>
+        </div>
+
+        <!-- Layers -->
+        <div class="settings-group adv-only" id="group-layers">
+          <div class="layer-group-header">
+            <div class="settings-group-title">Layers</div>
+            <div class="layer-add-btns">
+              <button class="btn-icon-xs" id="btn-add-image-layer"   title="Add Image layer">Im</button>
+              <button class="btn-icon-xs" id="btn-add-light-layer"   title="Add Light/Shadow">Li</button>
+              <button class="btn-icon-xs" id="btn-add-fog-layer"     title="Add Fog of War">Fg</button>
+              <button class="btn-icon-xs" id="btn-add-weather-layer" title="Add Weather">Wx</button>
+            </div>
+          </div>
+          <div id="layer-list"></div>
+        </div>
+
+        <!-- Layer detail editor -->
+        <div class="settings-group adv-only" id="layer-detail" style="display:none">
+          <div class="settings-group-title" id="layer-detail-title">Layer</div>
+          <div id="layer-detail-fields"></div>
+        </div>
+
+        <!-- HUDs -->
+        <div class="settings-group adv-only" id="group-huds">
+          <div class="layer-group-header">
+            <div class="settings-group-title">HUDs</div>
+            <button class="btn-icon-xs" id="btn-add-initiative" title="Add Initiative Tracker">+</button>
+          </div>
+          <div id="hud-list"></div>
+        </div>
+
+        <!-- Initiative tracker editor -->
+        <div class="settings-group adv-only" id="initiative-editor" style="display:none">
+          <div class="settings-group-title">Initiative</div>
+          <div class="initiative-controls">
+            <button class="btn-ghost-sm" id="btn-combat-toggle">▶ Start</button>
+            <button class="btn-icon-sm"  id="btn-combat-prev">◀</button>
+            <button class="btn-icon-sm"  id="btn-combat-next">▶</button>
+          </div>
+          <div id="initiative-entries"></div>
+          <button class="btn-ghost-sm" id="btn-add-entry" style="margin-top:4px">+ Add Entry</button>
+        </div>
+
+        <!-- Scene I/O -->
+        <div class="settings-group adv-only" id="group-scene-io">
+          <div class="settings-group-title">Scene</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-ghost-sm" id="btn-save-scene">💾 Save</button>
+            <button class="btn-ghost-sm" id="btn-load-scene">📂 Load</button>
+            <button class="btn-ghost-sm" id="btn-reset-scene">↺ Reset</button>
+          </div>
+        </div>
+
+      </div><!-- /right-tab-pane-layers -->
 
     </aside>
 

@@ -420,3 +420,97 @@ input[type="range"] { flex: 1; accent-color: #c9a84c; max-width: 110px; }
   cursor: pointer; transition: background 0.15s;
 }
 .btn-primary-sm:hover { background: #e0c060; }
+
+/* ════════════════════════════════════════════════════════════════
+   RIGHT PANEL — LAYERS TAB
+   ════════════════════════════════════════════════════════════════ */
+
+/* Right tab pane: scrollable, flex column */
+.right-tab-pane {
+  overflow-y: auto;
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* adv-only: hidden unless body has .advanced-mode */
+.adv-only { display: none; }
+body.advanced-mode .adv-only { display: flex; }
+
+/* Layer group header (title + add buttons on same row) */
+.layer-group-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.layer-add-btns { display: flex; gap: 3px; }
+
+/* Layer row */
+.layer-row {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 2px; border-radius: 4px;
+  cursor: pointer; user-select: none;
+  transition: background 0.12s;
+}
+.layer-row:hover  { background: #1e1e38; }
+.layer-row.active { background: #1a2e24; }
+.layer-row.active .layer-name { color: #81e0ab; }
+
+.layer-type-badge {
+  font-size: 9px; background: #1e1e38; color: #555;
+  padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.layer-name {
+  flex: 1; font-size: 12px; color: #aaa;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.layer-empty { font-size: 11px; color: #333; font-style: italic; padding: 2px 0; }
+
+/* Layer detail fields */
+#layer-detail-fields {
+  display: flex; flex-direction: column; gap: 5px; padding-top: 4px;
+}
+.detail-field {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: #ccc;
+}
+.detail-field label {
+  font-size: 11px; color: #666; flex-shrink: 0; min-width: 52px;
+}
+.detail-field input[type="text"],
+.detail-field input[type="number"],
+.detail-field select {
+  flex: 1; background: #11111f; border: 1px solid #2e2e4e;
+  border-radius: 3px; color: #e0e0e0; font-size: 11px;
+  padding: 2px 6px; outline: none; min-width: 0;
+}
+.detail-field input:focus, .detail-field select:focus { border-color: #c9a84c; }
+.detail-field input[type="color"] {
+  flex: 0 0 34px; height: 22px; padding: 1px; cursor: pointer;
+}
+
+/* Initiative tracker editor */
+.initiative-controls {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+#initiative-entries { display: flex; flex-direction: column; margin-top: 4px; }
+.initiative-entry-row {
+  display: flex; gap: 4px; align-items: center;
+  padding: 4px 0; border-bottom: 1px solid #1a1a2e;
+}
+.initiative-entry-row:last-child { border-bottom: none; }
+.init-entry-active {
+  font-size: 9px; color: #c9a84c; min-width: 9px; text-align: center; flex-shrink: 0;
+}
+.init-entry-name {
+  flex: 1; background: #11111f; border: 1px solid #2e2e4e; border-radius: 3px;
+  color: #e0e0e0; font-size: 11px; padding: 2px 5px; outline: none; min-width: 0;
+}
+.init-entry-name:focus { border-color: #c9a84c; }
+.init-entry-roll {
+  width: 34px; background: #11111f; border: 1px solid #2e2e4e; border-radius: 3px;
+  color: #c9a84c; font-size: 11px; padding: 2px 3px; text-align: center; outline: none;
+}
+.init-entry-roll:focus { border-color: #c9a84c; }
+
+/* Ping mode active state */
+#btn-ping-mode.ping-active { color: #c9a84c; border-color: #c9a84c55; background: #c9a84c0d; }
+#preview-wrap.ping-mode { cursor: crosshair; }
