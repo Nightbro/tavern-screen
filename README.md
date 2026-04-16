@@ -146,14 +146,106 @@ These overlays are fixed to the player screen corners — they do not move or sc
 
 ---
 
+### Tokens & Character Roster
+
+A dedicated **Tokens** section (separate from but linked to the layer system).
+
+- **Character / NPC cards** — each entry has: name, portrait image, type (PC / NPC / monster), notes
+- **Token layer** — drag a character card onto the map to place a circular token; token shows the portrait; GM can move and resize it on the canvas
+- **Initiative integration** — drag a character card directly into the initiative tracker to add them with their portrait already attached; portrait shown as a small avatar next to the name in the tracker
+- **Persistence** — character roster saved as part of the scene JSON (or as a separate roster file reusable across scenes)
+
+---
+
+### Fade / Transition
+
+- Fade to black (or custom color) on command from the GM side
+- Configurable duration
+- Player screen shows the fade while GM reorganises the scene behind it
+- Optional hold on black until GM manually releases
+
+---
+
+### Spotlight
+
+- GM places one or more circular light cones on the canvas via the preview
+- Everything outside the lit area dims to a configurable darkness level
+- Spotlight can be moved in real time (follow a creature, sweep a torch)
+- Lives as a special layer type; supports show/hide and delayed reveal like other layers
+
+---
+
+### Drawing & Annotations
+
+- Freehand paint tool on the GM preview; strokes appear live on the player screen
+- Tools: freehand brush, straight line, arrow, circle, rectangle
+- Color and opacity picker; adjustable brush size
+- Pen/stylus pressure sensitivity on touch devices
+- Modes:
+  - **Temporary** — auto-clears after a configurable timer, or on GM command
+  - **Persistent** — saved as a drawing layer in the scene JSON
+- Eraser tool to remove individual strokes
+- Clear-all button
+
+---
+
+### Weather & Atmosphere Effects
+
+Canvas particle / overlay effects added as built-in layer types:
+
+| Effect | Notes |
+|--------|-------|
+| Rain | light / heavy variants |
+| Snow | light / blizzard variants |
+| Falling embers / ash | for fire scenes |
+| Drifting fog / mist | low-opacity overlay |
+| Fireflies | gentle ambient glow particles |
+| Fire | looping GIF or canvas particle version |
+| Smoke | slow-rising particle layer |
+
+- Intensity slider per effect
+- Show/hide and delayed reveal like any other layer
+- Multiple effects can be stacked (e.g. fog + rain)
+
+---
+
+### Handouts & Notable Items
+
+- GM opens a handout panel and selects any image from the library (or a dedicated handouts folder)
+- Selected image pops onto the player screen as a floating overlay — centered or pinned to a corner
+- Multiple handouts can be shown simultaneously, each independently dismissible
+- Optional title label below the image
+- Useful for: letters, portraits, item art, map fragments, clues
+- Handouts do not interact with the layer system; they are always on top
+
+---
+
+### Touch & Pen Support
+
+Support for touch and stylus input on both GM and player screens (targeted at laptops with touchscreens and active pens).
+
+**GM screen (touch)**
+- Pan the preview with one finger
+- Pinch-to-zoom the preview
+- Tap to select / activate map or layer objects
+- Drag objects (tokens, spotlight, annotations) with finger or pen
+- Drawing tools fully pen-aware: pressure → brush opacity/size
+
+**Player screen (touch)**
+- Pinch-to-zoom and pan (if zoom-to-region feature is enabled and GM allows player zoom)
+- Tap to acknowledge a handout / dismiss overlay
+
+**Pen-specific**
+- Barrel button mapped to eraser in drawing mode
+- Hover preview of brush stroke before contact
+
+---
+
 ### Other planned features
 
-- **Scene presets** — save the complete state (active map + layers + zoom) and switch scenes instantly
-- **Token layer** — circular tokens with image + label the GM can drag around the map *(deferred; physical minis in use for now)*
-- **Handouts** — pop a specific image (letter, portrait, item art, map fragment) onto the player screen as a floating overlay; GM dismisses it when done
-- **Freehand drawing / annotations** — GM sketches arrows or shapes on the preview; appears live on the player screen; can be temporary (auto-clear) or persistent (saved as a layer)
-- **Fade / transition** — fade to black between scenes while the GM swaps maps or layers behind the curtain
-- **Spotlight** — a circular lit area the GM positions; everything outside it dims; lives inside the light/shadow layer type
+- **Scene presets** — save the complete state (active map + all layers + zoom) as a named preset; switch scenes instantly from a preset list
+- **Status panel** promotion — if the status panel grows complex enough, consider making it a full dockable window like the initiative tracker
+- **Ping / pointer** — already listed under HUD overlays above
 
 ---
 
