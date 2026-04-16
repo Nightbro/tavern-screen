@@ -364,6 +364,10 @@ describe('DEFAULT_SETTINGS', () => {
   test('screenMode defaults to simple', () => {
     expect(DEFAULT_SETTINGS.screenMode).toBe('simple');
   });
+
+  test('gridScaleWithViewport defaults to true', () => {
+    expect(DEFAULT_SETTINGS.gridScaleWithViewport).toBe(true);
+  });
 });
 
 // ── screenMode routing in selectDisplay ──────────────────────────────────────

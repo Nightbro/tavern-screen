@@ -281,7 +281,12 @@ function drawLayer(layer, tx) {
 
 // ── Grid ──────────────────────────────────────────────────────────────────────
 function drawGrid(tx) {
-  const cellPx = settings.cellSizeInches * settings.dpi * scene.viewport.zoom;
+  // When gridScaleWithViewport is false the grid is a fixed screen-space overlay
+  // (useful for placing minis at a consistent physical size regardless of zoom).
+  // When true (default) the grid scales and pans with the viewport.
+  const scalesWithVp = settings.gridScaleWithViewport !== false;
+  const zoom   = scalesWithVp ? scene.viewport.zoom : 1.0;
+  const cellPx = settings.cellSizeInches * settings.dpi * zoom;
   if (cellPx < 4) return;
 
   const cw  = window.innerWidth;
@@ -296,8 +301,9 @@ function drawGrid(tx) {
   ctx.lineWidth   = 1;
   ctx.beginPath();
 
-  const startX = ((tx.originX % cellPx) + cellPx) % cellPx;
-  const startY = ((tx.originY % cellPx) + cellPx) % cellPx;
+  // Fixed grid starts from (0,0); viewport-linked grid shifts with the origin
+  const startX = scalesWithVp ? ((tx.originX % cellPx) + cellPx) % cellPx : 0;
+  const startY = scalesWithVp ? ((tx.originY % cellPx) + cellPx) % cellPx : 0;
 
   for (let x = startX; x <= cw; x += cellPx) { ctx.moveTo(x, 0); ctx.lineTo(x, ch); }
   for (let y = startY; y <= ch; y += cellPx) { ctx.moveTo(0, y); ctx.lineTo(cw, y); }

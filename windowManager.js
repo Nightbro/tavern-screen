@@ -1,22 +1,37 @@
+const { randomUUID } = require('crypto');
+
 const DEFAULT_SETTINGS = {
-  gridVisible:    true,
-  cellSizeInches: 1.0,
-  zoom:           1.0,
-  dpi:            96,
-  gridColor:      '#ffffff',
-  gridOpacity:    0.25,
+  gridVisible:          true,
+  cellSizeInches:       1.0,
+  zoom:                 1.0,
+  dpi:                  96,
+  gridColor:            '#ffffff',
+  gridOpacity:          0.25,
+  screenMode:           'simple',  // 'simple' | 'advanced'
+  gridScaleWithViewport: true,     // advanced: grid scales with viewport zoom
 };
+
+function buildDefaultScene() {
+  return {
+    map:      null,
+    viewport: { centerX: 0.5, centerY: 0.5, zoom: 1.0 },
+    layers:   [],
+    huds:     [],
+  };
+}
 
 function createWindowManager({
   BrowserWindow, screen,
   preloadPath, gmRendererPath, screenRendererPath,
+  screenAdvancedRendererPath,
   initialSettings = null,
 }) {
-  let gmWindow     = null;
-  let screenWindow = null;
+  let gmWindow        = null;
+  let screenWindow    = null;
   let activeDisplayId = null;
-  let settings     = { ...DEFAULT_SETTINGS, ...(initialSettings ?? {}) };
-  let currentMap   = null;
+  let settings        = { ...DEFAULT_SETTINGS, ...(initialSettings ?? {}) };
+  let currentMap      = null;
+  let currentScene    = null;
 
   let previewTimer = null;
 
@@ -63,7 +78,6 @@ function createWindowManager({
 
     gmWindow.loadFile(gmRendererPath);
 
-    // Send persisted settings to GM renderer so controls are in sync
     gmWindow.webContents.on('did-finish-load', () => {
       notifyGM('initial-settings', settings);
     });
@@ -110,11 +124,20 @@ function createWindowManager({
       },
     });
 
-    screenWindow.loadFile(screenRendererPath);
+    const isAdvanced = settings.screenMode === 'advanced' && screenAdvancedRendererPath;
+    screenWindow.loadFile(isAdvanced ? screenAdvancedRendererPath : screenRendererPath);
+
+    if (isAdvanced && !currentScene) {
+      currentScene = buildDefaultScene();
+    }
 
     screenWindow.webContents.on('did-finish-load', () => {
       notifyScreen('settings-update', settings);
-      if (currentMap) notifyScreen('map-update', currentMap);
+      if (settings.screenMode === 'advanced') {
+        notifyScreen('scene-update', { ...currentScene, map: currentMap });
+      } else {
+        if (currentMap) notifyScreen('map-update', currentMap);
+      }
       schedulePreview();
     });
 
@@ -138,17 +161,119 @@ function createWindowManager({
   // ── Settings ───────────────────────────────────────────────────────────────
 
   function updateSettings(patch) {
+    const prevMode = settings.screenMode;
     settings = { ...settings, ...patch };
-    notifyScreen('settings-update', settings);
-    schedulePreview();
+
+    if ('screenMode' in patch && patch.screenMode !== prevMode && screenWindow) {
+      // Reload the screen window with the correct renderer
+      screenWindow.removeAllListeners('closed');
+      screenWindow.destroy();
+      screenWindow = null;
+      selectDisplay(activeDisplayId);
+    } else {
+      notifyScreen('settings-update', settings);
+      schedulePreview();
+    }
   }
 
   // ── Active map ─────────────────────────────────────────────────────────────
 
   function setActiveMap(map) {
     currentMap = map ?? null;
-    notifyScreen('map-update', currentMap);
+    if (settings.screenMode === 'advanced' && currentScene) {
+      currentScene = { ...currentScene, map: currentMap };
+      notifyScreen('scene-update', currentScene);
+    } else {
+      notifyScreen('map-update', currentMap);
+    }
     schedulePreview();
+  }
+
+  // ── Scene ──────────────────────────────────────────────────────────────────
+
+  function getScene() {
+    return currentScene ? JSON.parse(JSON.stringify(currentScene)) : null;
+  }
+
+  function setScene(scene) {
+    currentScene = { ...scene };
+    notifyScreen('scene-update', currentScene);
+  }
+
+  function resetScene() {
+    currentScene = buildDefaultScene();
+    notifyScreen('scene-update', currentScene);
+  }
+
+  function updateViewport(patch) {
+    if (!currentScene) return;
+    currentScene = { ...currentScene, viewport: { ...currentScene.viewport, ...patch } };
+    notifyScreen('viewport-update', currentScene.viewport);
+    schedulePreview();
+  }
+
+  // ── Layers ─────────────────────────────────────────────────────────────────
+
+  function addLayer(layer) {
+    if (!currentScene) return;
+    const newLayer = { id: randomUUID(), ...layer };
+    currentScene = { ...currentScene, layers: [...currentScene.layers, newLayer] };
+    notifyScreen('layers-update', currentScene.layers);
+    schedulePreview();
+  }
+
+  function updateLayer(id, patch) {
+    if (!currentScene) return;
+    currentScene = {
+      ...currentScene,
+      layers: currentScene.layers.map(l => l.id === id ? { ...l, ...patch } : l),
+    };
+    notifyScreen('layers-update', currentScene.layers);
+    schedulePreview();
+  }
+
+  function removeLayer(id) {
+    if (!currentScene) return;
+    currentScene = { ...currentScene, layers: currentScene.layers.filter(l => l.id !== id) };
+    notifyScreen('layers-update', currentScene.layers);
+    schedulePreview();
+  }
+
+  function reorderLayers(orderedIds) {
+    if (!currentScene) return;
+    const layerMap  = new Map(currentScene.layers.map(l => [l.id, l]));
+    const reordered = orderedIds.map(id => layerMap.get(id)).filter(Boolean);
+    const extra     = currentScene.layers.filter(l => !orderedIds.includes(l.id));
+    currentScene = { ...currentScene, layers: [...reordered, ...extra] };
+    notifyScreen('layers-update', currentScene.layers);
+  }
+
+  // ── HUDs ───────────────────────────────────────────────────────────────────
+
+  function addHud(hud) {
+    if (!currentScene) return;
+    const newHud = { id: randomUUID(), ...hud };
+    currentScene = { ...currentScene, huds: [...currentScene.huds, newHud] };
+    notifyScreen('huds-update', currentScene.huds);
+  }
+
+  function updateHud(id, patch) {
+    if (!currentScene) return;
+    currentScene = {
+      ...currentScene,
+      huds: currentScene.huds.map(h => h.id === id ? { ...h, ...patch } : h),
+    };
+    notifyScreen('huds-update', currentScene.huds);
+  }
+
+  function removeHud(id) {
+    if (!currentScene) return;
+    currentScene = { ...currentScene, huds: currentScene.huds.filter(h => h.id !== id) };
+    notifyScreen('huds-update', currentScene.huds);
+  }
+
+  function sendPing(x, y) {
+    notifyScreen('ping', x, y);
   }
 
   // ── Getters ────────────────────────────────────────────────────────────────
@@ -172,6 +297,11 @@ function createWindowManager({
     updateSettings, setActiveMap,
     getDisplays, getSettings,
     capturePreview,
+    getScene, setScene, resetScene,
+    updateViewport,
+    addLayer, updateLayer, removeLayer, reorderLayers,
+    addHud, updateHud, removeHud,
+    sendPing,
   };
 }
 

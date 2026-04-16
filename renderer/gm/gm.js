@@ -904,7 +904,10 @@ function sendSettings(patch) {
 
 /** Apply a settings object to the UI controls without re-sending to main. */
 function applySettingsToUI(s) {
-  if (s.gridVisible    !== undefined) elGridVisible.checked  = s.gridVisible;
+  if (s.gridVisible    !== undefined) {
+    elGridVisible.checked = s.gridVisible;
+    if (elAdvGridVisible) elAdvGridVisible.checked = s.gridVisible;
+  }
   if (s.cellSizeInches !== undefined) elCellSize.value       = s.cellSizeInches;
   if (s.gridColor      !== undefined) elGridColor.value      = s.gridColor;
   if (s.gridOpacity    !== undefined) {
@@ -924,10 +927,16 @@ function applySettingsToUI(s) {
     if (elScreenModeAdvanced) elScreenModeAdvanced.checked = isAdv;
     document.body.classList.toggle('advanced-mode', isAdv);
   }
+  if (s.gridScaleWithViewport !== undefined) {
+    if (elGridScaleViewport) elGridScaleViewport.checked = s.gridScaleWithViewport;
+  }
   Object.assign(settings, s);
 }
 
-elGridVisible.addEventListener('change',  () => sendSettings({ gridVisible: elGridVisible.checked }));
+elGridVisible.addEventListener('change', () => {
+  if (elAdvGridVisible) elAdvGridVisible.checked = elGridVisible.checked;
+  sendSettings({ gridVisible: elGridVisible.checked });
+});
 elCellSize.addEventListener('change', () => {
   const v = Math.max(0.25, Math.min(4, parseFloat(elCellSize.value) || 1));
   elCellSize.value = v;
@@ -981,6 +990,8 @@ rightTabBtns.forEach(btn => {
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const elScreenModeAdvanced = document.getElementById('screen-mode-advanced');
+const elAdvGridVisible     = document.getElementById('adv-grid-visible');
+const elGridScaleViewport  = document.getElementById('grid-scale-viewport');
 const vpZoomOut            = document.getElementById('vp-zoom-out');
 const vpZoomIn             = document.getElementById('vp-zoom-in');
 const vpZoomReset          = document.getElementById('vp-zoom-reset');
@@ -1028,6 +1039,17 @@ elScreenModeAdvanced.addEventListener('change', async () => {
   document.body.classList.toggle('advanced-mode', isAdv);
   sendSettings({ screenMode: isAdv ? 'advanced' : 'simple' });
   if (isAdv) await initScene();
+});
+
+// Grid visibility shortcut (syncs with Settings-tab checkbox)
+elAdvGridVisible.addEventListener('change', () => {
+  elGridVisible.checked = elAdvGridVisible.checked;
+  sendSettings({ gridVisible: elAdvGridVisible.checked });
+});
+
+// Grid scale mode
+elGridScaleViewport.addEventListener('change', () => {
+  sendSettings({ gridScaleWithViewport: elGridScaleViewport.checked });
 });
 
 // ── Scene init ────────────────────────────────────────────────────────────────
