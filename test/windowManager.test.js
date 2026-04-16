@@ -13,9 +13,9 @@ function makeMockWindow() {
     removeAllListeners: jest.fn((event) => { delete handlers[event]; }),
     on:                 jest.fn((event, cb) => { handlers[event] = cb; }),
     webContents: {
-      send:          jest.fn(),
-      on:            jest.fn((event, cb) => { webHandlers[event] = cb; }),
-      capturePage:   jest.fn(() => Promise.resolve({
+      send:        jest.fn(),
+      on:          jest.fn((event, cb) => { webHandlers[event] = cb; }),
+      capturePage: jest.fn(() => Promise.resolve({
         resize:    () => ({ toDataURL: () => 'data:image/png;base64,fake' }),
         toDataURL: () => 'data:image/png;base64,fake',
       })),
@@ -113,16 +113,14 @@ describe('selectDisplay', () => {
     );
   });
 
-  test('sends active map to screen window after it loads', () => {
+  test('sends current active map to screen window after it loads', () => {
     const { manager, windows } = makeManager();
     manager.createGMWindow();
-    manager.addMaps(['/maps/dungeon.jpg']);
-    manager.setActiveMap(manager.getMaps()[0].id);
+    const map = { id: 'dungeon.jpg', path: '/maps/dungeon.jpg', name: 'dungeon.jpg' };
+    manager.setActiveMap(map);
     manager.selectDisplay(DISPLAY_1.id);
     windows[1]._fireWeb('did-finish-load');
-    expect(windows[1].webContents.send).toHaveBeenCalledWith(
-      'map-update', expect.objectContaining({ name: 'dungeon.jpg' })
-    );
+    expect(windows[1].webContents.send).toHaveBeenCalledWith('map-update', map);
   });
 
   // ── KEY BUG: switching monitors ───────────────────────────────────────────
@@ -143,7 +141,7 @@ describe('selectDisplay', () => {
     expect(screenClosedCalls).toHaveLength(0);
   });
 
-  test('switching monitors opens a new screen window on the new display', () => {
+  test('switching monitors opens a new screen on the new display', () => {
     const { manager, windows } = makeManager();
     manager.createGMWindow();
     manager.selectDisplay(DISPLAY_1.id);
@@ -157,10 +155,9 @@ describe('selectDisplay', () => {
     manager.createGMWindow();
     manager.selectDisplay(DISPLAY_1.id);
     manager.selectDisplay(DISPLAY_2.id);
-    const openedCalls = windows[0].webContents.send.mock.calls
-      .filter(([ch]) => ch === 'screen-opened');
-    expect(openedCalls).toHaveLength(2);
-    expect(openedCalls[1][1]).toBe(DISPLAY_2.id);
+    const calls = windows[0].webContents.send.mock.calls.filter(([ch]) => ch === 'screen-opened');
+    expect(calls).toHaveLength(2);
+    expect(calls[1][1]).toBe(DISPLAY_2.id);
   });
 
   test('selecting the same display twice replaces the window', () => {
@@ -216,8 +213,7 @@ describe('updateSettings', () => {
     manager.createGMWindow();
     manager.selectDisplay(DISPLAY_1.id);
     manager.updateSettings({ zoom: 1.5 });
-    const calls = windows[1].webContents.send.mock.calls
-      .filter(([ch]) => ch === 'settings-update');
+    const calls = windows[1].webContents.send.mock.calls.filter(([ch]) => ch === 'settings-update');
     expect(calls.at(-1)[1].zoom).toBe(1.5);
   });
 
@@ -240,95 +236,40 @@ describe('updateSettings', () => {
   });
 });
 
-// ── Map management ────────────────────────────────────────────────────────────
-
-describe('addMaps', () => {
-  test('returns added map objects with id, path, name', () => {
-    const { manager } = makeManager();
-    const added = manager.addMaps(['/maps/dungeon.jpg', '/maps/forest.png']);
-    expect(added).toHaveLength(2);
-    expect(added[0]).toMatchObject({ path: '/maps/dungeon.jpg', name: 'dungeon.jpg' });
-    expect(added[1]).toMatchObject({ path: '/maps/forest.png', name: 'forest.png' });
-    expect(added[0].id).toBeTruthy();
-    expect(added[0].id).not.toBe(added[1].id);
-  });
-
-  test('accumulates maps across multiple calls', () => {
-    const { manager } = makeManager();
-    manager.addMaps(['/maps/a.jpg']);
-    manager.addMaps(['/maps/b.jpg']);
-    expect(manager.getMaps()).toHaveLength(2);
-  });
-});
+// ── setActiveMap ──────────────────────────────────────────────────────────────
 
 describe('setActiveMap', () => {
-  test('returns false when map ID does not exist', () => {
-    const { manager } = makeManager();
-    expect(manager.setActiveMap('nonexistent')).toBe(false);
-  });
+  const map = { id: 'dungeon.jpg', path: '/maps/dungeon.jpg', name: 'dungeon.jpg' };
 
-  test('returns true and sends map-update to screen window', () => {
+  test('sends map-update to the screen window', () => {
     const { manager, windows } = makeManager();
     manager.createGMWindow();
     manager.selectDisplay(DISPLAY_1.id);
-    manager.addMaps(['/maps/dungeon.jpg']);
-    const mapId = manager.getMaps()[0].id;
+    manager.setActiveMap(map);
+    expect(windows[1].webContents.send).toHaveBeenCalledWith('map-update', map);
+  });
 
-    expect(manager.setActiveMap(mapId)).toBe(true);
-    expect(windows[1].webContents.send).toHaveBeenCalledWith(
-      'map-update', expect.objectContaining({ id: mapId, path: '/maps/dungeon.jpg' })
-    );
+  test('sends null map-update when called with null', () => {
+    const { manager, windows } = makeManager();
+    manager.createGMWindow();
+    manager.selectDisplay(DISPLAY_1.id);
+    manager.setActiveMap(null);
+    expect(windows[1].webContents.send).toHaveBeenCalledWith('map-update', null);
   });
 
   test('does not throw when no screen window is open', () => {
     const { manager } = makeManager();
     manager.createGMWindow();
-    manager.addMaps(['/maps/dungeon.jpg']);
-    const mapId = manager.getMaps()[0].id;
-    expect(() => manager.setActiveMap(mapId)).not.toThrow();
-  });
-});
-
-describe('removeMap', () => {
-  test('removes the map from the list', () => {
-    const { manager } = makeManager();
-    manager.addMaps(['/maps/a.jpg', '/maps/b.jpg']);
-    const id = manager.getMaps()[0].id;
-    manager.removeMap(id);
-    const remaining = manager.getMaps();
-    expect(remaining).toHaveLength(1);
-    expect(remaining[0].path).toBe('/maps/b.jpg');
+    expect(() => manager.setActiveMap(map)).not.toThrow();
   });
 
-  test('sends null map-update when the active map is removed', () => {
+  test('active map is re-sent to new screen window on reconnect', () => {
     const { manager, windows } = makeManager();
     manager.createGMWindow();
+    manager.setActiveMap(map);
     manager.selectDisplay(DISPLAY_1.id);
-    manager.addMaps(['/maps/a.jpg']);
-    const id = manager.getMaps()[0].id;
-    manager.setActiveMap(id);
-    manager.removeMap(id);
-    expect(windows[1].webContents.send).toHaveBeenCalledWith('map-update', null);
-  });
-
-  test('removing a non-active map does not send map-update', () => {
-    const { manager, windows } = makeManager();
-    manager.createGMWindow();
-    manager.selectDisplay(DISPLAY_1.id);
-    manager.addMaps(['/maps/a.jpg', '/maps/b.jpg']);
-    const [mapA, mapB] = manager.getMaps();
-    manager.setActiveMap(mapA.id);
-    windows[1].webContents.send.mockClear();
-
-    manager.removeMap(mapB.id); // remove non-active
-    const mapUpdateCalls = windows[1].webContents.send.mock.calls
-      .filter(([ch]) => ch === 'map-update');
-    expect(mapUpdateCalls).toHaveLength(0);
-  });
-
-  test('removing a non-existent map does not throw', () => {
-    const { manager } = makeManager();
-    expect(() => manager.removeMap('nonexistent')).not.toThrow();
+    windows[1]._fireWeb('did-finish-load');
+    expect(windows[1].webContents.send).toHaveBeenCalledWith('map-update', map);
   });
 });
 

@@ -1,27 +1,39 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Display management
+  // ── Display ──────────────────────────────────────────────────────────────
   getDisplays:    ()           => ipcRenderer.invoke('get-displays'),
   selectDisplay:  (id)         => ipcRenderer.send('select-display', id),
   closeScreen:    ()           => ipcRenderer.send('close-screen'),
   onScreenClosed: (cb)         => ipcRenderer.on('screen-closed', () => cb()),
   onScreenOpened: (cb)         => ipcRenderer.on('screen-opened', (_e, id, dpi) => cb(id, dpi)),
 
-  // Settings
+  // ── Settings ─────────────────────────────────────────────────────────────
   updateSettings:   (patch)    => ipcRenderer.send('update-settings', patch),
   onSettingsUpdate: (cb)       => ipcRenderer.on('settings-update', (_e, s) => cb(s)),
 
-  // Maps (GM → main)
-  openMapDialog:  ()           => ipcRenderer.invoke('open-map-dialog'),
-  getMaps:        ()           => ipcRenderer.invoke('get-maps'),
-  setActiveMap:   (id)         => ipcRenderer.send('set-active-map', id),
-  removeMap:      (id)         => ipcRenderer.send('remove-map', id),
-
-  // Map update (main → screen renderer)
+  // ── Active map (GM → main → screen) ──────────────────────────────────────
+  setActiveMap:   (map)        => ipcRenderer.send('set-active-map', map),
   onMapUpdate:    (cb)         => ipcRenderer.on('map-update', (_e, map) => cb(map)),
 
-  // Preview (main → GM)
+  // ── Preview ───────────────────────────────────────────────────────────────
   requestPreview: ()           => ipcRenderer.send('request-preview'),
-  onScreenPreview:(cb)         => ipcRenderer.on('screen-preview', (_e, dataUrl) => cb(dataUrl)),
+  onScreenPreview:(cb)         => ipcRenderer.on('screen-preview', (_e, url) => cb(url)),
+
+  // ── Library: folder ───────────────────────────────────────────────────────
+  getLibraryRoot:    ()        => ipcRenderer.invoke('get-library-root'),
+  selectRootFolder:  ()        => ipcRenderer.invoke('select-root-folder'),
+
+  // ── Library: scan ─────────────────────────────────────────────────────────
+  scanLibrary:       ()        => ipcRenderer.invoke('scan-library'),
+
+  // ── Library: projects ────────────────────────────────────────────────────
+  createProject:  (name)       => ipcRenderer.invoke('create-project', name),
+  renameProject:  (oldId, name)=> ipcRenderer.invoke('rename-project', oldId, name),
+  deleteProject:  (id)         => ipcRenderer.invoke('delete-project', id),
+
+  // ── Library: maps ────────────────────────────────────────────────────────
+  copyFiles:      (paths, pid) => ipcRenderer.invoke('copy-files', paths, pid),
+  moveMap:        (id, pid)    => ipcRenderer.invoke('move-map', id, pid),
+  deleteMap:      (id)         => ipcRenderer.send('delete-map', id),
 });

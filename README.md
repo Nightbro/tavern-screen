@@ -14,7 +14,8 @@ An Electron app for sharing a map on a second screen as a fullscreen display. De
 tavern-screen/
 ├── main.js                  # Electron main process, IPC wiring
 ├── preload.js               # IPC bridge (contextIsolation)
-├── windowManager.js         # Window lifecycle, map library, preview capture
+├── windowManager.js         # Window lifecycle, active map, preview capture
+├── library.js               # File-system map library (projects, copy, move, delete)
 ├── renderer/
 │   ├── gm/                  # GM screen (3-panel layout)
 │   │   ├── index.html
@@ -25,7 +26,8 @@ tavern-screen/
 │       ├── style.css
 │       └── screen.js
 ├── test/
-│   └── windowManager.test.js
+│   ├── windowManager.test.js
+│   └── library.test.js
 └── package.json
 ```
 
@@ -33,16 +35,25 @@ tavern-screen/
 
 | Panel | Contents |
 |-------|----------|
-| **Left — Map Library** | Upload images, thumbnail grid, click to switch active map, remove button |
-| **Center** | Monitor selector map, monitor cards, live player screen preview with refresh |
+| **Left — Map Library** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
+| **Center** | Monitor selector, live player screen preview |
 | **Right — Settings** | Grid toggle, cell size, color/opacity, DPI calibration, zoom |
+
+## Map Library
+
+- **Select Folder** — pick any folder; a `maps/` subdirectory is created inside it and remembered across sessions
+- **Projects** — subfolders inside `maps/`; create, rename, delete (maps moved to Unsorted on delete)
+- **Add Images** — file dialog (multi-select) or drag & drop files from the OS onto the GM window
+- **Switch Maps** — click any thumbnail to instantly display it on the player screen
+- **Move between projects** — drag a map card onto another project section
+- **Refresh** — re-scans the folder for any externally added/removed files
 
 ## Player Screen
 
 - Fullscreen Canvas on the selected monitor
 - Map image displayed behind the grid (contain-fit, centered)
 - Grid overlay with configurable size, color, opacity
-- Zoom applies to both map and grid together
+- Zoom applies to both map and grid
 
 ## Screen Settings
 

@@ -16,11 +16,30 @@
 
     <!-- ── Left: Map Library ── -->
     <aside class="panel" id="panel-maps">
-      <div class="panel-header">
+
+      <div class="lib-toolbar">
         <span class="panel-title">Maps</span>
-        <button id="btn-add-maps" class="btn-primary">+ Add</button>
+        <div class="lib-toolbar-actions">
+          <button id="btn-refresh-lib" class="btn-icon-sm" title="Refresh library">↺</button>
+          <button id="btn-select-folder" class="btn-ghost-sm" title="Change root folder">📁 Folder</button>
+        </div>
       </div>
-      <div id="map-library"></div>
+
+      <!-- No-folder state -->
+      <div id="lib-setup" style="display:none">
+        <p>Select a folder to store your maps.<br/>A <code>maps/</code> subfolder will be created inside it.</p>
+        <button id="btn-setup-folder" class="btn-primary">Select Folder</button>
+      </div>
+
+      <!-- Library content -->
+      <div id="lib-root-path"></div>
+      <div id="lib-content"></div>
+
+      <div class="lib-footer">
+        <button id="btn-new-project" class="btn-ghost-sm">+ New Project</button>
+        <button id="btn-add-images"  class="btn-primary-sm">+ Add Images</button>
+      </div>
+
     </aside>
 
     <!-- ── Center: Monitor selector + Preview ── -->
@@ -51,12 +70,10 @@
 
       <div class="settings-group">
         <div class="settings-group-title">Grid</div>
-
         <label class="toggle-row">
           <span>Show grid</span>
           <input type="checkbox" id="grid-visible" checked />
         </label>
-
         <label class="field-row">
           <span>Cell size</span>
           <div class="input-unit">
@@ -64,12 +81,10 @@
             <span class="unit">inch</span>
           </div>
         </label>
-
         <label class="field-row">
           <span>Color</span>
           <input type="color" id="grid-color" value="#ffffff" />
         </label>
-
         <label class="field-row">
           <span>Opacity</span>
           <div class="slider-row">
@@ -88,7 +103,7 @@
             <span class="unit">px / inch</span>
           </div>
         </label>
-        <p class="hint">Auto-suggested from display scale factor. Adjust until one grid cell measures 1 inch physically.</p>
+        <p class="hint">Auto-suggested from display scale factor. Adjust until one cell measures 1 inch physically.</p>
       </div>
 
       <div class="settings-group">
@@ -105,6 +120,9 @@
     </aside>
 
   </div>
+
+  <!-- Global drop overlay -->
+  <div id="drop-overlay">Drop images to add to library</div>
 
   <script src="gm.js"></script>
 </body>

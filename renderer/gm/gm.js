@@ -1,10 +1,18 @@
 // ── DOM refs ──────────────────────────────────────────────────────────────────
+const libSetup        = document.getElementById('lib-setup');
+const libRootPath     = document.getElementById('lib-root-path');
+const libContent      = document.getElementById('lib-content');
+const libFooter       = document.querySelector('.lib-footer');
+const btnRefreshLib   = document.getElementById('btn-refresh-lib');
+const btnSelectFolder = document.getElementById('btn-select-folder');
+const btnSetupFolder  = document.getElementById('btn-setup-folder');
+const btnNewProject   = document.getElementById('btn-new-project');
+const btnAddImages    = document.getElementById('btn-add-images');
+const dropOverlay     = document.getElementById('drop-overlay');
+
 const monitorMap      = document.getElementById('monitor-map');
 const monitorList     = document.getElementById('monitor-list');
 const btnCloseScreen  = document.getElementById('btn-close-screen');
-const mapLibrary      = document.getElementById('map-library');
-const btnAddMaps      = document.getElementById('btn-add-maps');
-const previewWrap     = document.getElementById('preview-wrap');
 const previewImg      = document.getElementById('preview-img');
 const previewPlaceholder = document.getElementById('preview-placeholder');
 const btnRefreshPreview  = document.getElementById('btn-refresh-preview');
@@ -22,13 +30,338 @@ const btnZoomOut      = document.getElementById('zoom-out');
 const btnZoomReset    = document.getElementById('zoom-reset');
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let displays       = [];
+let displays        = [];
 let activeDisplayId = null;
-let maps           = [];
-let activeMapId    = null;
-const settings     = { gridVisible: true, cellSizeInches: 1.0, zoom: 1.0, dpi: 96, gridColor: '#ffffff', gridOpacity: 0.25 };
+let activeMapId     = null;   // map.id (relative path from mapsDir)
+let dragMapId       = null;   // id of card being dragged internally
+let dropCounter     = 0;      // track enter/leave for nested children
+const settings      = { gridVisible: true, cellSizeInches: 1.0, zoom: 1.0, dpi: 96, gridColor: '#ffffff', gridOpacity: 0.25 };
 
-// ── Monitors ──────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// LIBRARY
+// ════════════════════════════════════════════════════════════════════════════
+
+async function initLibrary() {
+  const root = await window.electronAPI.getLibraryRoot();
+  if (!root) {
+    showLibSetup();
+  } else {
+    await refreshLibrary();
+  }
+}
+
+function showLibSetup() {
+  libSetup.style.display = '';
+  libRootPath.textContent = '';
+  libContent.innerHTML = '';
+  libFooter.style.visibility = 'hidden';
+}
+
+function hideLibSetup() {
+  libSetup.style.display = 'none';
+  libFooter.style.visibility = '';
+}
+
+async function refreshLibrary() {
+  const { rootFolder, mapsDir, projects, rootMaps } = await window.electronAPI.scanLibrary();
+  hideLibSetup();
+  libRootPath.textContent = mapsDir || '';
+  renderLibrary(projects, rootMaps);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function renderLibrary(projects, rootMaps) {
+  libContent.innerHTML = '';
+
+  // Named projects first
+  for (const proj of projects) {
+    libContent.appendChild(buildProjectSection(proj.id, proj.name, proj.maps, false));
+  }
+
+  // Unsorted (root maps) — always shown, can't be deleted
+  libContent.appendChild(buildProjectSection(null, 'Unsorted', rootMaps, true));
+}
+
+function buildProjectSection(projectId, label, maps, isUnsorted) {
+  const section = document.createElement('div');
+  section.className = 'project-section';
+  section.dataset.projectId = projectId ?? '';
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'project-header';
+
+  const chevron = document.createElement('span');
+  chevron.className = 'project-chevron';
+  chevron.textContent = '▾';
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'project-name';
+  nameEl.textContent = label;
+
+  const countEl = document.createElement('span');
+  countEl.className = 'project-count';
+  countEl.textContent = maps.length || '';
+
+  const actions = document.createElement('div');
+  actions.className = 'project-actions';
+
+  if (!isUnsorted) {
+    const btnRename = document.createElement('button');
+    btnRename.className = 'btn-icon-xs';
+    btnRename.title = 'Rename';
+    btnRename.textContent = '✏';
+    btnRename.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startRename(section, nameEl, projectId);
+    });
+
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-icon-xs danger';
+    btnDel.title = 'Delete project (maps moved to Unsorted)';
+    btnDel.textContent = '×';
+    btnDel.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await window.electronAPI.deleteProject(projectId);
+      await refreshLibrary();
+    });
+
+    actions.appendChild(btnRename);
+    actions.appendChild(btnDel);
+  }
+
+  header.appendChild(chevron);
+  header.appendChild(nameEl);
+  header.appendChild(countEl);
+  header.appendChild(actions);
+  header.addEventListener('click', () => {
+    section.classList.toggle('collapsed');
+    chevron.style.transform = section.classList.contains('collapsed') ? 'rotate(-90deg)' : '';
+  });
+
+  // Maps grid (drop zone)
+  const mapsGrid = document.createElement('div');
+  mapsGrid.className = 'project-maps';
+  mapsGrid.dataset.projectId = projectId ?? '';
+
+  if (maps.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'project-empty';
+    empty.textContent = 'Drop images here';
+    mapsGrid.appendChild(empty);
+  } else {
+    for (const map of maps) {
+      mapsGrid.appendChild(buildMapCard(map));
+    }
+  }
+
+  // Drop zone: accept internal drags + filesystem drops
+  mapsGrid.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = dragMapId ? 'move' : 'copy';
+    mapsGrid.classList.add('drag-over');
+  });
+  mapsGrid.addEventListener('dragleave', () => mapsGrid.classList.remove('drag-over'));
+  mapsGrid.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    mapsGrid.classList.remove('drag-over');
+    const targetProjectId = mapsGrid.dataset.projectId || null;
+
+    if (dragMapId) {
+      // Internal move
+      if (dragMapId !== targetProjectId && getProjectIdFromMapId(dragMapId) !== targetProjectId) {
+        await window.electronAPI.moveMap(dragMapId, targetProjectId);
+        // If the active map moved, update its id
+        if (activeMapId === dragMapId) {
+          const result = await window.electronAPI.scanLibrary();
+          const allMaps = [...result.rootMaps, ...result.projects.flatMap(p => p.maps)];
+          const moved = allMaps.find(m => m.name === getNameFromMapId(dragMapId) && m.projectId === targetProjectId);
+          if (moved) activateMap(moved);
+        }
+        await refreshLibrary();
+      }
+      dragMapId = null;
+    } else if (e.dataTransfer.files.length > 0) {
+      // Files dropped from filesystem — handled globally, but also accept here
+      const files = [...e.dataTransfer.files]
+        .filter(f => /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
+        .map(f => f.path);
+      if (files.length) {
+        const added = await window.electronAPI.copyFiles(files, targetProjectId);
+        if (added.length && !activeMapId) activateMap(added[0]);
+        await refreshLibrary();
+      }
+    }
+  });
+
+  section.appendChild(header);
+  section.appendChild(mapsGrid);
+  return section;
+}
+
+function buildMapCard(map) {
+  const card = document.createElement('div');
+  card.className = 'map-card' + (map.id === activeMapId ? ' active' : '');
+  card.title = map.name;
+  card.draggable = true;
+  card.dataset.mapId = map.id;
+
+  const img = document.createElement('img');
+  img.src  = 'file:///' + map.path.replace(/\\/g, '/');
+  img.alt  = map.name;
+  img.draggable = false;
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'map-card-name';
+  nameEl.textContent = map.name;
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'map-card-remove';
+  removeBtn.textContent = '×';
+  removeBtn.title = 'Remove from library';
+  removeBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (map.id === activeMapId) {
+      window.electronAPI.setActiveMap(null);
+      activeMapId = null;
+    }
+    window.electronAPI.deleteMap(map.id);
+    await refreshLibrary();
+  });
+
+  card.appendChild(img);
+  card.appendChild(nameEl);
+  card.appendChild(removeBtn);
+
+  card.addEventListener('click', () => activateMap(map));
+
+  // Internal drag
+  card.addEventListener('dragstart', (e) => {
+    dragMapId = map.id;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', map.id);
+  });
+  card.addEventListener('dragend', () => {
+    dragMapId = null;
+    card.classList.remove('dragging');
+  });
+
+  return card;
+}
+
+function activateMap(map) {
+  activeMapId = map.id;
+  window.electronAPI.setActiveMap(map);
+  // Re-render cards to show active state without full reload
+  document.querySelectorAll('.map-card').forEach((c) => {
+    c.classList.toggle('active', c.dataset.mapId === map.id);
+    c.querySelector('.map-card-name').style.color = c.dataset.mapId === map.id ? '' : '';
+  });
+  setTimeout(() => window.electronAPI.requestPreview(), 400);
+}
+
+function startRename(section, nameEl, projectId) {
+  const input = document.createElement('input');
+  input.className = 'project-name-input';
+  input.value = nameEl.textContent;
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  async function commit() {
+    const newName = input.value.trim();
+    if (newName && newName !== projectId) {
+      await window.electronAPI.renameProject(projectId, newName);
+    }
+    await refreshLibrary();
+  }
+  input.addEventListener('blur',    commit);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = projectId; input.blur(); } });
+}
+
+// Helper: get project id from a map id (e.g. "Session 1/map.jpg" → "Session 1")
+function getProjectIdFromMapId(mapId) {
+  const parts = mapId.split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : null;
+}
+function getNameFromMapId(mapId) {
+  return mapId.split('/').at(-1);
+}
+
+// ── Toolbar actions ───────────────────────────────────────────────────────────
+
+btnRefreshLib.addEventListener('click', refreshLibrary);
+
+async function pickFolder() {
+  const result = await window.electronAPI.selectRootFolder();
+  if (result) await refreshLibrary();
+}
+btnSelectFolder.addEventListener('click', pickFolder);
+btnSetupFolder.addEventListener('click',  pickFolder);
+
+btnNewProject.addEventListener('click', async () => {
+  const name = prompt('Project name:')?.trim();
+  if (!name) return;
+  await window.electronAPI.createProject(name);
+  await refreshLibrary();
+});
+
+btnAddImages.addEventListener('click', async () => {
+  // Use native file dialog (reuse copy-files IPC with null project = unsorted)
+  // We trigger via the existing openMapDialog equivalent by doing a hidden input
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', async () => {
+    const files = [...input.files].map((f) => f.path);
+    if (files.length) {
+      const added = await window.electronAPI.copyFiles(files, null);
+      if (added.length && !activeMapId) activateMap(added[0]);
+      await refreshLibrary();
+    }
+    input.remove();
+  });
+  input.click();
+});
+
+// ── Global drag & drop from filesystem ───────────────────────────────────────
+document.addEventListener('dragenter', (e) => {
+  if (e.dataTransfer.types.includes('Files') && !dragMapId) {
+    dropCounter++;
+    dropOverlay.classList.add('visible');
+  }
+});
+document.addEventListener('dragleave', () => {
+  dropCounter--;
+  if (dropCounter <= 0) { dropCounter = 0; dropOverlay.classList.remove('visible'); }
+});
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropCounter = 0;
+  dropOverlay.classList.remove('visible');
+  if (dragMapId) return; // internal drag handled by drop zone
+
+  const files = [...e.dataTransfer.files]
+    .filter(f => /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
+    .map(f => f.path);
+  if (!files.length) return;
+
+  const added = await window.electronAPI.copyFiles(files, null);
+  if (added.length && !activeMapId) activateMap(added[0]);
+  await refreshLibrary();
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// MONITORS
+// ════════════════════════════════════════════════════════════════════════════
+
 async function loadDisplays() {
   displays = await window.electronAPI.getDisplays();
   activeDisplayId = (displays.find((d) => d.active) || {}).id || null;
@@ -39,14 +372,14 @@ async function loadDisplays() {
 
 function renderMonitorMap() {
   monitorMap.innerHTML = '';
-  const pad = 12;
-  const mW  = monitorMap.clientWidth  - pad * 2;
-  const mH  = monitorMap.clientHeight - pad * 2;
+  const pad = 10;
+  const mW = monitorMap.clientWidth - pad * 2;
+  const mH = monitorMap.clientHeight - pad * 2;
   const rights  = displays.map((d) => d.bounds.x + d.bounds.width);
   const bottoms = displays.map((d) => d.bounds.y + d.bounds.height);
   const minX = Math.min(...displays.map((d) => d.bounds.x));
   const minY = Math.min(...displays.map((d) => d.bounds.y));
-  const totW = Math.max(...rights)  - minX;
+  const totW = Math.max(...rights) - minX;
   const totH = Math.max(...bottoms) - minY;
   const scale = Math.min(mW / totW, mH / totH);
   const offX  = pad + (mW - totW * scale) / 2;
@@ -59,11 +392,7 @@ function renderMonitorMap() {
     el.style.top    = offY + (d.bounds.y - minY) * scale + 'px';
     el.style.width  = d.bounds.width  * scale + 'px';
     el.style.height = d.bounds.height * scale + 'px';
-    el.innerHTML = `
-      <span class="map-label">Monitor ${i + 1}</span>
-      <span class="map-res">${d.bounds.width}×${d.bounds.height}</span>
-      ${d.isPrimary ? '<span class="map-badge">Primary</span>' : ''}
-    `;
+    el.innerHTML = `<span class="map-label">Monitor ${i + 1}</span><span class="map-res">${d.bounds.width}×${d.bounds.height}</span>${d.isPrimary ? '<span class="map-badge">Primary</span>' : ''}`;
     el.addEventListener('click', () => selectDisplay(d.id));
     monitorMap.appendChild(el);
   });
@@ -84,8 +413,7 @@ function renderMonitorCards() {
       <div class="monitor-res">${d.bounds.width} × ${d.bounds.height} &nbsp;|&nbsp; ×${d.scaleFactor}</div>
       <button class="btn-select ${isActive ? 'active' : ''}" data-id="${d.id}">
         ${isActive ? 'Screen active here' : 'Send screen here'}
-      </button>
-    `;
+      </button>`;
     monitorList.appendChild(card);
   });
   monitorList.querySelectorAll('.btn-select').forEach((btn) =>
@@ -128,78 +456,13 @@ window.electronAPI.onScreenOpened((displayId, suggestedDpi) => {
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = false;
-  if (suggestedDpi) {
-    elDpi.value = suggestedDpi;
-    sendSettings({ dpi: suggestedDpi });
-  }
+  if (suggestedDpi) { elDpi.value = suggestedDpi; sendSettings({ dpi: suggestedDpi }); }
 });
 
-// ── Map Library ───────────────────────────────────────────────────────────────
-async function loadMaps() {
-  maps = await window.electronAPI.getMaps();
-  renderMapLibrary();
-}
+// ════════════════════════════════════════════════════════════════════════════
+// PREVIEW
+// ════════════════════════════════════════════════════════════════════════════
 
-function renderMapLibrary() {
-  mapLibrary.innerHTML = '';
-
-  if (maps.length === 0) {
-    mapLibrary.innerHTML = '<div class="map-empty">No maps added yet.<br/>Click <strong>+ Add</strong> to import images.</div>';
-    return;
-  }
-
-  maps.forEach((m) => {
-    const card = document.createElement('div');
-    card.className = 'map-card' + (m.id === activeMapId ? ' active' : '');
-    card.dataset.id = m.id;
-
-    const img = document.createElement('img');
-    img.src = 'file:///' + m.path.replace(/\\/g, '/');
-    img.alt = m.name;
-
-    const label = document.createElement('div');
-    label.className = 'map-card-label';
-    label.textContent = m.name;
-
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'map-card-remove';
-    removeBtn.textContent = '×';
-    removeBtn.title = 'Remove map';
-    removeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.electronAPI.removeMap(m.id);
-      maps = maps.filter((x) => x.id !== m.id);
-      if (activeMapId === m.id) activeMapId = null;
-      renderMapLibrary();
-    });
-
-    card.appendChild(img);
-    card.appendChild(label);
-    card.appendChild(removeBtn);
-    card.addEventListener('click', () => activateMap(m.id));
-    mapLibrary.appendChild(card);
-  });
-}
-
-function activateMap(mapId) {
-  if (mapId === activeMapId) return;
-  activeMapId = mapId;
-  window.electronAPI.setActiveMap(mapId);
-  renderMapLibrary();
-  // Preview will auto-update via schedulePreview in windowManager
-  setTimeout(() => window.electronAPI.requestPreview(), 400);
-}
-
-btnAddMaps.addEventListener('click', async () => {
-  const added = await window.electronAPI.openMapDialog();
-  if (added.length === 0) return;
-  maps = [...maps, ...added];
-  renderMapLibrary();
-  // Auto-activate first import if nothing is active
-  if (!activeMapId && added.length > 0) activateMap(added[0].id);
-});
-
-// ── Preview ───────────────────────────────────────────────────────────────────
 function showPreviewPlaceholder() {
   previewImg.style.display = 'none';
   previewPlaceholder.style.display = '';
@@ -213,28 +476,27 @@ window.electronAPI.onScreenPreview((dataUrl) => {
 
 btnRefreshPreview.addEventListener('click', () => window.electronAPI.requestPreview());
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════════════════════════
+
 function sendSettings(patch) {
   Object.assign(settings, patch);
   window.electronAPI.updateSettings(patch);
 }
 
 elGridVisible.addEventListener('change',  () => sendSettings({ gridVisible: elGridVisible.checked }));
-
 elCellSize.addEventListener('change', () => {
   const v = Math.max(0.25, Math.min(4, parseFloat(elCellSize.value) || 1));
   elCellSize.value = v;
   sendSettings({ cellSizeInches: v });
 });
-
-elGridColor.addEventListener('input', () => sendSettings({ gridColor: elGridColor.value }));
-
+elGridColor.addEventListener('input',   () => sendSettings({ gridColor: elGridColor.value }));
 elGridOpacity.addEventListener('input', () => {
   const pct = parseInt(elGridOpacity.value);
   elGridOpacityVal.textContent = pct + '%';
   sendSettings({ gridOpacity: pct / 100 });
 });
-
 elDpi.addEventListener('change', () => {
   const v = Math.max(48, Math.min(600, parseInt(elDpi.value) || 96));
   elDpi.value = v;
@@ -248,7 +510,6 @@ function setZoom(value) {
   elZoomVal.textContent = Math.round(z * 100) + '%';
   window.electronAPI.updateSettings({ zoom: z });
 }
-
 btnZoomIn.addEventListener('click',    () => setZoom(settings.zoom + 0.1));
 btnZoomOut.addEventListener('click',   () => setZoom(settings.zoom - 0.1));
 btnZoomReset.addEventListener('click', () => setZoom(1.0));
@@ -256,4 +517,4 @@ elZoomSlider.addEventListener('input', () => setZoom(parseInt(elZoomSlider.value
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadDisplays();
-loadMaps();
+initLibrary();

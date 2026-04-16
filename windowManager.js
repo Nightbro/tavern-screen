@@ -1,5 +1,3 @@
-const path = require('path');
-
 const DEFAULT_SETTINGS = {
   gridVisible: true,
   cellSizeInches: 1.0,
@@ -14,12 +12,8 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
   let screenWindow = null;
   let activeDisplayId = null;
   let settings     = { ...DEFAULT_SETTINGS };
+  let currentMap   = null; // { id, path, name } or null
 
-  // Map library
-  let maps        = [];   // [{ id, path, name }]
-  let activeMapId = null;
-
-  // Preview
   let previewTimer = null;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -114,10 +108,7 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
 
     screenWindow.webContents.on('did-finish-load', () => {
       notifyScreen('settings-update', settings);
-      if (activeMapId) {
-        const map = maps.find((m) => m.id === activeMapId);
-        if (map) notifyScreen('map-update', map);
-      }
+      if (currentMap) notifyScreen('map-update', currentMap);
       schedulePreview();
     });
 
@@ -146,34 +137,12 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
     schedulePreview();
   }
 
-  // ── Maps ───────────────────────────────────────────────────────────────────
+  // ── Active map ─────────────────────────────────────────────────────────────
 
-  function addMaps(filePaths) {
-    const added = filePaths.map((p) => ({
-      id:   `map_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-      path: p,
-      name: path.basename(p),
-    }));
-    maps = [...maps, ...added];
-    return added;
-  }
-
-  function removeMap(mapId) {
-    maps = maps.filter((m) => m.id !== mapId);
-    if (activeMapId === mapId) {
-      activeMapId = null;
-      notifyScreen('map-update', null);
-      schedulePreview();
-    }
-  }
-
-  function setActiveMap(mapId) {
-    const map = maps.find((m) => m.id === mapId);
-    if (!map) return false;
-    activeMapId = mapId;
-    notifyScreen('map-update', map);
+  function setActiveMap(map) {
+    currentMap = map ?? null;
+    notifyScreen('map-update', currentMap);
     schedulePreview();
-    return true;
   }
 
   // ── Getters ────────────────────────────────────────────────────────────────
@@ -181,22 +150,21 @@ function createWindowManager({ BrowserWindow, screen, preloadPath, gmRendererPat
   function getDisplays() {
     const primary = screen.getPrimaryDisplay();
     return screen.getAllDisplays().map((d) => ({
-      id:        d.id,
-      bounds:    d.bounds,
+      id:          d.id,
+      bounds:      d.bounds,
       scaleFactor: d.scaleFactor,
-      isPrimary: d.id === primary.id,
-      active:    d.id === activeDisplayId,
+      isPrimary:   d.id === primary.id,
+      active:      d.id === activeDisplayId,
     }));
   }
 
-  function getMaps()     { return maps.map((m) => ({ ...m })); }
   function getSettings() { return { ...settings }; }
 
   return {
     createGMWindow,
     selectDisplay, closeScreen,
     updateSettings,
-    addMaps, removeMap, setActiveMap, getMaps,
+    setActiveMap,
     getDisplays, getSettings,
     capturePreview,
   };
