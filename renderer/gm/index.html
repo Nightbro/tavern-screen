@@ -7,26 +7,47 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <header>
     <h1>Tavern Screen</h1>
-    <p class="subtitle">Select a monitor to display the player screen</p>
   </header>
 
-  <div class="layout">
+  <div class="workspace">
 
-    <!-- Left: monitor selection -->
-    <section class="panel" id="panel-monitors">
-      <h2 class="panel-title">Monitors</h2>
+    <!-- ── Left: Map Library ── -->
+    <aside class="panel" id="panel-maps">
+      <div class="panel-header">
+        <span class="panel-title">Maps</span>
+        <button id="btn-add-maps" class="btn-primary">+ Add</button>
+      </div>
+      <div id="map-library"></div>
+    </aside>
+
+    <!-- ── Center: Monitor selector + Preview ── -->
+    <main class="panel" id="panel-center">
+
+      <div class="section-title">Monitors</div>
       <div id="monitor-map"></div>
       <div id="monitor-list"></div>
-      <div class="panel-footer">
+
+      <div class="section-title preview-title">
+        Player Screen Preview
+        <button id="btn-refresh-preview" class="btn-ghost-sm" title="Refresh preview">↺</button>
+      </div>
+      <div id="preview-wrap">
+        <div id="preview-placeholder">No player screen open</div>
+        <img id="preview-img" alt="Player screen preview" style="display:none" />
+      </div>
+
+      <div class="center-footer">
         <button id="btn-close-screen" class="btn-danger" disabled>Close Player Screen</button>
       </div>
-    </section>
 
-    <!-- Right: screen settings -->
-    <section class="panel" id="panel-settings">
-      <h2 class="panel-title">Screen Settings</h2>
+    </main>
+
+    <!-- ── Right: Settings ── -->
+    <aside class="panel" id="panel-settings">
+      <div class="panel-title">Screen Settings</div>
 
       <div class="settings-group">
         <div class="settings-group-title">Grid</div>
@@ -67,7 +88,7 @@
             <span class="unit">px / inch</span>
           </div>
         </label>
-        <p class="hint">Auto-suggested from display scale factor. Adjust until one grid cell measures physically 1 inch.</p>
+        <p class="hint">Auto-suggested from display scale factor. Adjust until one grid cell measures 1 inch physically.</p>
       </div>
 
       <div class="settings-group">
@@ -81,7 +102,7 @@
         <input type="range" id="zoom-slider" min="25" max="400" value="100" step="5" />
       </div>
 
-    </section>
+    </aside>
 
   </div>
 

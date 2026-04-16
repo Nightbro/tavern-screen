@@ -1,16 +1,27 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // GM screen — display management
-  getDisplays: () => ipcRenderer.invoke('get-displays'),
-  selectDisplay: (displayId) => ipcRenderer.send('select-display', displayId),
-  closeScreen: () => ipcRenderer.send('close-screen'),
-  onScreenClosed: (cb) => ipcRenderer.on('screen-closed', () => cb()),
-  onScreenOpened: (cb) => ipcRenderer.on('screen-opened', (_e, displayId, suggestedDpi) => cb(displayId, suggestedDpi)),
+  // Display management
+  getDisplays:    ()           => ipcRenderer.invoke('get-displays'),
+  selectDisplay:  (id)         => ipcRenderer.send('select-display', id),
+  closeScreen:    ()           => ipcRenderer.send('close-screen'),
+  onScreenClosed: (cb)         => ipcRenderer.on('screen-closed', () => cb()),
+  onScreenOpened: (cb)         => ipcRenderer.on('screen-opened', (_e, id, dpi) => cb(id, dpi)),
 
-  // GM screen — settings
-  updateSettings: (patch) => ipcRenderer.send('update-settings', patch),
+  // Settings
+  updateSettings:   (patch)    => ipcRenderer.send('update-settings', patch),
+  onSettingsUpdate: (cb)       => ipcRenderer.on('settings-update', (_e, s) => cb(s)),
 
-  // Player screen — receive settings
-  onSettingsUpdate: (cb) => ipcRenderer.on('settings-update', (_e, settings) => cb(settings)),
+  // Maps (GM → main)
+  openMapDialog:  ()           => ipcRenderer.invoke('open-map-dialog'),
+  getMaps:        ()           => ipcRenderer.invoke('get-maps'),
+  setActiveMap:   (id)         => ipcRenderer.send('set-active-map', id),
+  removeMap:      (id)         => ipcRenderer.send('remove-map', id),
+
+  // Map update (main → screen renderer)
+  onMapUpdate:    (cb)         => ipcRenderer.on('map-update', (_e, map) => cb(map)),
+
+  // Preview (main → GM)
+  requestPreview: ()           => ipcRenderer.send('request-preview'),
+  onScreenPreview:(cb)         => ipcRenderer.on('screen-preview', (_e, dataUrl) => cb(dataUrl)),
 });
