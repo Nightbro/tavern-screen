@@ -1,0 +1,128 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #000; overflow: hidden;
+}
+
+#map-canvas {
+  display: block;
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+}
+
+/* ── HUD root ── */
+#hud-root {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── Initiative / Status HUD panels ── */
+.hud-panel {
+  position: absolute;
+  pointer-events: auto;
+  background: rgba(10, 10, 20, 0.92);
+  border: 1px solid #2e2e4e;
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 280px;
+  backdrop-filter: blur(6px);
+  user-select: none;
+}
+
+/* ── HUD header (drag handle + title + collapse button) ── */
+.hud-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid #1e1e38;
+  cursor: grab;
+}
+.hud-header:active { cursor: grabbing; }
+
+.hud-title {
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px;
+  color: #3a3a5e; font-family: 'Segoe UI', sans-serif;
+}
+
+.hud-collapse-btn {
+  background: transparent; border: none;
+  color: #3a3a5e; font-size: 16px; line-height: 1;
+  cursor: pointer; padding: 0 0 0 8px;
+  transition: color 0.15s;
+}
+.hud-collapse-btn:hover { color: #888; }
+
+/* ── HUD body (entries list) ── */
+.hud-body {
+  padding: 8px 12px 10px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.initiative-entry {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #1a1a2e;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 14px; color: #aaa;
+  transition: color 0.2s;
+}
+.initiative-entry:last-child { border-bottom: none; }
+
+.initiative-entry.active-turn {
+  color: #c9a84c;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.initiative-badge {
+  font-size: 12px; font-weight: 700;
+  color: #4a4a6e; min-width: 28px;
+  text-align: right; flex-shrink: 0;
+}
+.initiative-entry.active-turn .initiative-badge { color: #c9a84c; }
+
+.initiative-name { flex: 1; }
+
+.initiative-statuses { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.status-pip {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 3px;
+}
+
+/* ── Ping ring (DOM-based) ── */
+.ping-ring {
+  position: fixed;
+  pointer-events: none;
+  z-index: 20;
+  border-radius: 50%;
+  border: 3px solid #c9a84c;
+  transform: translate(-50%, -50%) scale(0);
+  animation: ping-expand 1.4s ease-out forwards;
+}
+
+@keyframes ping-expand {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(5);   opacity: 0; }
+}
+
+.ping-dot {
+  position: fixed;
+  pointer-events: none;
+  z-index: 21;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #c9a84c;
+  transform: translate(-50%, -50%);
+  animation: ping-dot-fade 1.4s ease-out forwards;
+}
+
+@keyframes ping-dot-fade {
+  0%   { opacity: 1;   transform: translate(-50%, -50%) scale(1); }
+  60%  { opacity: 1;   transform: translate(-50%, -50%) scale(1.3); }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(0.5); }
+}

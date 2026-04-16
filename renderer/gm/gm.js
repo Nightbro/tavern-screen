@@ -273,12 +273,30 @@ function buildMapCard(map) {
 }
 
 function activateMap(map) {
+  if (screenModeAdvanced) {
+    // In advanced mode: add the map as an image layer instead of setting the background
+    const src = 'file:///' + map.path.replace(/\\/g, '/');
+    window.electronAPI.addLayer({
+      type: 'image', src, name: map.name,
+      visible: true, opacity: 1,
+      // No x/y/w/h → contain-fit rendering on the player screen
+    }).then(newLayers => {
+      if (newLayers) {
+        layers = newLayers;
+        renderLayerList();
+        // Switch to Layers tab so the GM sees the new layer
+        const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+        if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
+      }
+    });
+    setTimeout(() => window.electronAPI.requestPreview(), 400);
+    return;
+  }
   activeMapId = map.id;
   window.electronAPI.setActiveMap(map);
   // Re-render cards to show active state without full reload
   document.querySelectorAll('.map-card').forEach((c) => {
     c.classList.toggle('active', c.dataset.mapId === map.id);
-    c.querySelector('.map-card-name').style.color = c.dataset.mapId === map.id ? '' : '';
   });
   setTimeout(() => window.electronAPI.requestPreview(), 400);
 }
@@ -1256,6 +1274,25 @@ function renderLayerDetail(layer) {
     });
   }
 }
+
+// ── Quick asset buttons (left panel, advanced mode) ───────────────────────────
+
+document.querySelectorAll('.btn-asset').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const type = btn.dataset.asset;
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    const newLayers = await window.electronAPI.addLayer({
+      type: 'weather', weatherType: type, intensity: 1, visible: true, name: label,
+    });
+    if (newLayers) {
+      layers = newLayers;
+      renderLayerList();
+      // Switch to layers tab so the GM sees it
+      const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+      if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
+    }
+  });
+});
 
 // ── Add layer buttons ─────────────────────────────────────────────────────────
 

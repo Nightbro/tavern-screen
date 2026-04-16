@@ -514,3 +514,35 @@ body.advanced-mode .adv-only { display: flex; }
 /* Ping mode active state */
 #btn-ping-mode.ping-active { color: #c9a84c; border-color: #c9a84c55; background: #c9a84c0d; }
 #preview-wrap.ping-mode { cursor: crosshair; }
+
+/* ── Quick Assets (advanced mode, left panel) ── */
+#lib-assets {
+  flex-direction: column; gap: 6px; flex-shrink: 0;
+  border-top: 1px solid #2e2e4e; padding-top: 8px;
+}
+.lib-assets-header { display: flex; align-items: center; }
+.lib-assets-grid {
+  display: flex; flex-wrap: wrap; gap: 5px;
+}
+.btn-asset {
+  padding: 4px 8px; background: #11111f; border: 1px solid #2e2e4e;
+  border-radius: 5px; color: #888; font-size: 11px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn-asset:hover { border-color: #c9a84c55; color: #c9a84c; background: #c9a84c0a; }
+
+/* ── Map cards in advanced mode: indicate "click = add as layer" ── */
+body.advanced-mode .map-card:hover { border-color: #4a90d9; }
+body.advanced-mode .map-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+body.advanced-mode .map-card:hover::after {
+  content: '+ Layer';
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(74, 144, 217, 0.45);
+  color: #fff; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.5px;
+}
