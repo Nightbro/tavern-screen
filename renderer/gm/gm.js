@@ -21,6 +21,7 @@ const btnDeleteCampaign = document.getElementById('btn-delete-campaign');
 const sessionsContent   = document.getElementById('sessions-content');
 const notesTextarea     = document.getElementById('notes-textarea');
 const notesStatus       = document.getElementById('notes-status');
+const notesTitle        = document.getElementById('notes-title');
 const btnNewSession     = document.getElementById('btn-new-session');
 
 const monitorMap      = document.getElementById('monitor-map');
@@ -429,6 +430,7 @@ async function initCampaigns() {
     campaignSelect.value = selectedCampaignId;
     renderSessions();
   }
+  await loadCurrentNotes();
 }
 
 async function refreshCampaigns() {
@@ -477,6 +479,93 @@ function renderSessions() {
   }
 }
 
+// ── Inline confirmation helper ────────────────────────────────────────────────
+
+function confirmInline(deleteBtn, onConfirm) {
+  const wrapper = document.createElement('span');
+  wrapper.style.cssText = 'display:inline-flex;gap:3px;align-items:center;';
+
+  const label = document.createElement('span');
+  label.style.cssText = 'font-size:10px;color:#e05555;';
+  label.textContent = 'Sure?';
+
+  const btnYes = document.createElement('button');
+  btnYes.className = 'btn-icon-xs danger';
+  btnYes.title = 'Yes, delete';
+  btnYes.textContent = '✓';
+
+  const btnNo = document.createElement('button');
+  btnNo.className = 'btn-icon-xs';
+  btnNo.title = 'Cancel';
+  btnNo.textContent = '✕';
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(btnYes);
+  wrapper.appendChild(btnNo);
+  deleteBtn.replaceWith(wrapper);
+
+  btnYes.addEventListener('click', (e) => { e.stopPropagation(); onConfirm(); });
+  btnNo.addEventListener('click',  (e) => { e.stopPropagation(); wrapper.replaceWith(deleteBtn); });
+}
+
+// ── Notes helpers ─────────────────────────────────────────────────────────────
+
+function setNotesStatus(state) {
+  notesStatus.classList.remove('saved', 'unsaved');
+  if (state === 'saved')   { notesStatus.textContent = 'Saved';   notesStatus.classList.add('saved'); }
+  if (state === 'unsaved') { notesStatus.textContent = 'Unsaved'; notesStatus.classList.add('unsaved'); }
+  if (!state)              { notesStatus.textContent = ''; }
+}
+
+async function flushNotes() {
+  clearTimeout(notesDebounceTimer);
+  if (!notesStatus.classList.contains('unsaved')) return;
+  if (selectedSessionId) {
+    await window.electronAPI.writeNotes(selectedCampaignId, selectedSessionId, notesTextarea.value);
+  } else if (selectedCampaignId) {
+    await window.electronAPI.writeCampaignNotes(selectedCampaignId, notesTextarea.value);
+  }
+  setNotesStatus('');
+}
+
+async function loadCurrentNotes() {
+  if (!selectedCampaignId) {
+    notesTextarea.disabled = true;
+    notesTextarea.value = '';
+    notesTextarea.placeholder = 'Select a campaign to edit notes…';
+    notesTitle.textContent = 'Notes';
+    setNotesStatus('');
+    return;
+  }
+  notesTextarea.disabled = false;
+  if (selectedSessionId) {
+    notesTitle.textContent = selectedSessionId;
+    notesTextarea.placeholder = 'Session notes…';
+    notesTextarea.value = await window.electronAPI.readNotes(selectedCampaignId, selectedSessionId);
+  } else {
+    notesTitle.textContent = 'Campaign Notes';
+    notesTextarea.placeholder = 'Campaign notes…';
+    notesTextarea.value = await window.electronAPI.readCampaignNotes(selectedCampaignId);
+  }
+  setNotesStatus('');
+}
+
+notesTextarea.addEventListener('input', () => {
+  setNotesStatus('unsaved');
+  clearTimeout(notesDebounceTimer);
+  notesDebounceTimer = setTimeout(async () => {
+    if (selectedSessionId) {
+      await window.electronAPI.writeNotes(selectedCampaignId, selectedSessionId, notesTextarea.value);
+    } else if (selectedCampaignId) {
+      await window.electronAPI.writeCampaignNotes(selectedCampaignId, notesTextarea.value);
+    }
+    setNotesStatus('saved');
+    setTimeout(() => { if (notesStatus.classList.contains('saved')) setNotesStatus(''); }, 2000);
+  }, NOTES_DEBOUNCE_MS);
+});
+
+// ── Session rows ──────────────────────────────────────────────────────────────
+
 function buildSessionRow(session) {
   const row = document.createElement('div');
   row.className = 'session-row' + (session.id === selectedSessionId ? ' active' : '');
@@ -502,11 +591,15 @@ function buildSessionRow(session) {
   btnDel.className = 'btn-icon-xs danger';
   btnDel.title = 'Delete session';
   btnDel.textContent = '×';
-  btnDel.addEventListener('click', async (e) => {
+  btnDel.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (session.id === selectedSessionId) flushAndClearNotes();
-    await window.electronAPI.deleteSession(selectedCampaignId, session.id);
-    await refreshCampaigns();
+    confirmInline(btnDel, async () => {
+      await flushNotes();
+      if (session.id === selectedSessionId) selectedSessionId = null;
+      await window.electronAPI.deleteSession(selectedCampaignId, session.id);
+      await refreshCampaigns();
+      await loadCurrentNotes();
+    });
   });
 
   actions.appendChild(btnRename);
@@ -542,51 +635,28 @@ function startSessionRename(row, nameEl, sessionId) {
 }
 
 async function selectSession(campaignId, sessionId) {
-  flushAndClearNotes();
-  selectedCampaignId = campaignId;
-  selectedSessionId  = sessionId;
-  document.querySelectorAll('.session-row').forEach(r => {
-    r.classList.toggle('active', r.dataset.sessionId === sessionId);
-  });
-  notesTextarea.disabled = false;
-  notesTextarea.value = await window.electronAPI.readNotes(campaignId, sessionId);
-  setNotesStatus('');
-}
-
-function flushAndClearNotes() {
-  clearTimeout(notesDebounceTimer);
-  if (selectedSessionId && notesStatus.classList.contains('unsaved')) {
-    window.electronAPI.writeNotes(selectedCampaignId, selectedSessionId, notesTextarea.value);
+  await flushNotes();
+  // Clicking the active session deselects it
+  if (selectedCampaignId === campaignId && selectedSessionId === sessionId) {
+    selectedSessionId = null;
+  } else {
+    selectedCampaignId = campaignId;
+    selectedSessionId  = sessionId;
   }
-  notesTextarea.disabled = true;
-  notesTextarea.value = '';
-  setNotesStatus('');
-  selectedSessionId = null;
+  document.querySelectorAll('.session-row').forEach(r => {
+    r.classList.toggle('active', r.dataset.sessionId === selectedSessionId);
+  });
+  await loadCurrentNotes();
 }
-
-function setNotesStatus(state) {
-  notesStatus.classList.remove('saved', 'unsaved');
-  if (state === 'saved')   { notesStatus.textContent = 'Saved';   notesStatus.classList.add('saved'); }
-  if (state === 'unsaved') { notesStatus.textContent = 'Unsaved'; notesStatus.classList.add('unsaved'); }
-  if (!state)              { notesStatus.textContent = ''; }
-}
-
-notesTextarea.addEventListener('input', () => {
-  setNotesStatus('unsaved');
-  clearTimeout(notesDebounceTimer);
-  notesDebounceTimer = setTimeout(async () => {
-    await window.electronAPI.writeNotes(selectedCampaignId, selectedSessionId, notesTextarea.value);
-    setNotesStatus('saved');
-    setTimeout(() => { if (notesStatus.classList.contains('saved')) setNotesStatus(''); }, 2000);
-  }, NOTES_DEBOUNCE_MS);
-});
 
 // ── Campaign toolbar ──────────────────────────────────────────────────────────
 
-campaignSelect.addEventListener('change', () => {
-  flushAndClearNotes();
+campaignSelect.addEventListener('change', async () => {
+  await flushNotes();
   selectedCampaignId = campaignSelect.value;
+  selectedSessionId  = null;
   renderSessions();
+  await loadCurrentNotes();
 });
 
 btnNewCampaign.addEventListener('click', () => {
@@ -642,17 +712,21 @@ btnRenameCampaign.addEventListener('click', () => {
   });
 });
 
-btnDeleteCampaign.addEventListener('click', async () => {
+btnDeleteCampaign.addEventListener('click', () => {
   if (!selectedCampaignId) return;
-  flushAndClearNotes();
-  await window.electronAPI.deleteCampaign(selectedCampaignId);
-  selectedCampaignId = null;
-  await refreshCampaigns();
-  if (campaigns.length > 0) {
-    selectedCampaignId = campaigns[0].id;
-    campaignSelect.value = selectedCampaignId;
-    renderSessions();
-  }
+  confirmInline(btnDeleteCampaign, async () => {
+    await flushNotes();
+    selectedSessionId = null;
+    await window.electronAPI.deleteCampaign(selectedCampaignId);
+    selectedCampaignId = null;
+    await refreshCampaigns();
+    if (campaigns.length > 0) {
+      selectedCampaignId = campaigns[0].id;
+      campaignSelect.value = selectedCampaignId;
+      renderSessions();
+    }
+    await loadCurrentNotes();
+  });
 });
 
 btnNewSession.addEventListener('click', () => {

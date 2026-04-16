@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createSession:   (campaignId, name)                    => ipcRenderer.invoke('create-session', campaignId, name),
   renameSession:   (campaignId, oldId, newName)          => ipcRenderer.invoke('rename-session', campaignId, oldId, newName),
   deleteSession:   (campaignId, id)                      => ipcRenderer.invoke('delete-session', campaignId, id),
-  readNotes:       (campaignId, sessionId)               => ipcRenderer.invoke('read-notes', campaignId, sessionId),
-  writeNotes:      (campaignId, sessionId, content)      => ipcRenderer.invoke('write-notes', campaignId, sessionId, content),
+  readCampaignNotes:  (campaignId)                       => ipcRenderer.invoke('read-campaign-notes', campaignId),
+  writeCampaignNotes: (campaignId, content)              => ipcRenderer.invoke('write-campaign-notes', campaignId, content),
+  readNotes:          (campaignId, sessionId)            => ipcRenderer.invoke('read-notes', campaignId, sessionId),
+  writeNotes:         (campaignId, sessionId, content)   => ipcRenderer.invoke('write-notes', campaignId, sessionId, content),
 });

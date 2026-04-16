@@ -116,6 +116,21 @@ function createCampaignLibrary(config) {
 
   // ── Notes ──────────────────────────────────────────────────────────────────
 
+  function readCampaignNotes(campaignId) {
+    const dir = getCampaignsDir();
+    if (!dir) return '';
+    const file = path.join(dir, campaignId, NOTES_FILE);
+    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  }
+
+  function writeCampaignNotes(campaignId, content) {
+    const dir = getCampaignsDir();
+    if (!dir) return;
+    const campaignDir = path.join(dir, campaignId);
+    fs.mkdirSync(campaignDir, { recursive: true });
+    fs.writeFileSync(path.join(campaignDir, NOTES_FILE), content, 'utf8');
+  }
+
   function readNotes(campaignId, sessionId) {
     const file = notesPath(campaignId, sessionId);
     return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
@@ -132,6 +147,7 @@ function createCampaignLibrary(config) {
     scan,
     createCampaign, renameCampaign, deleteCampaign,
     createSession, renameSession, deleteSession,
+    readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
   };
 }

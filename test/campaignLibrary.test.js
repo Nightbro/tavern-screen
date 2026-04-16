@@ -246,6 +246,41 @@ describe('deleteSession', () => {
 
 // ── readNotes / writeNotes ────────────────────────────────────────────────────
 
+describe('readCampaignNotes / writeCampaignNotes', () => {
+  test('returns empty string when campaign notes.md does not exist', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.createCampaign('C');
+    expect(lib.readCampaignNotes('C')).toBe('');
+  });
+
+  test('writes and reads campaign-level notes.md', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.createCampaign('C');
+    lib.writeCampaignNotes('C', 'Campaign overview');
+    expect(lib.readCampaignNotes('C')).toBe('Campaign overview');
+  });
+
+  test('campaign notes file is at campaigns/<id>/notes.md (not inside sessions/)', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.createCampaign('C');
+    lib.writeCampaignNotes('C', 'top level');
+    const file = path.join(tmp, 'campaigns', 'C', 'notes.md');
+    expect(fs.existsSync(file)).toBe(true);
+  });
+
+  test('overwrites existing campaign notes', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.createCampaign('C');
+    lib.writeCampaignNotes('C', 'First');
+    lib.writeCampaignNotes('C', 'Second');
+    expect(lib.readCampaignNotes('C')).toBe('Second');
+  });
+});
+
 describe('readNotes', () => {
   test('returns empty string when notes.md does not exist', () => {
     const { lib, tmp } = setup();
