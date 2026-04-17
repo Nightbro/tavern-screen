@@ -138,6 +138,10 @@ ipcMain.handle('delete-scene-campaign', (_e, campaignId, sessionId, sceneId) => 
   campaignLib.deleteScene(campaignId, sessionId, sceneId);
 });
 
+ipcMain.handle('rename-scene-campaign', (_e, campaignId, sessionId, sceneId, newName) => {
+  return campaignLib.renameScene(campaignId, sessionId, sceneId, newName);
+});
+
 ipcMain.handle('save-scene-dialog', async (event, scene) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const { canceled, filePath } = await dialog.showSaveDialog(win, {

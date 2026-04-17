@@ -1056,7 +1056,8 @@ const btnLoadScene         = document.getElementById('btn-load-scene');
 const btnResetScene        = document.getElementById('btn-reset-scene');
 const sceneNameInput       = document.getElementById('scene-name-input');
 const sceneAutosaveBadge   = document.getElementById('scene-autosave-badge');
-const sceneListEl          = document.getElementById('scene-list');
+const scenesContent        = document.getElementById('scenes-content');
+const btnRefreshScenes     = document.getElementById('btn-refresh-scenes');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let layers           = [];
@@ -1677,37 +1678,81 @@ async function loadMostRecentScene() {
 }
 
 async function renderSceneList() {
-  sceneListEl.innerHTML = '';
+  scenesContent.innerHTML = '';
   if (!selectedCampaignId) return;
   const scenes = await window.electronAPI.listScenesCampaign(selectedCampaignId, selectedSessionId);
   if (!scenes.length) return;
   for (const s of scenes) {
-    const row = document.createElement('div');
-    const isActive = s.id === loadedSceneId;
-    row.className = 'scene-row' + (isActive ? ' active' : '');
-    row.title = s.savedAt ? new Date(s.savedAt).toLocaleString() : '';
-
-    const nameEl = document.createElement('span');
-    nameEl.className = 'scene-row-name';
-    nameEl.textContent = s.name || '(unnamed)';
-    row.addEventListener('click', () => applyLoadedScene(s.id));
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn-icon-xs danger';
-    delBtn.textContent = '×';
-    delBtn.title = 'Delete scene';
-    delBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!confirm(`Delete scene "${s.name || '(unnamed)'}"?`)) return;
-      if (loadedSceneId === s.id) loadedSceneId = null;
-      await window.electronAPI.deleteSceneCampaign(selectedCampaignId, selectedSessionId, s.id);
-      renderSceneList();
-    });
-
-    row.appendChild(nameEl);
-    row.appendChild(delBtn);
-    sceneListEl.appendChild(row);
+    scenesContent.appendChild(buildSceneRow(s));
   }
+}
+
+function buildSceneRow(s) {
+  const row = document.createElement('div');
+  row.className = 'scene-row' + (s.id === loadedSceneId ? ' active' : '');
+  row.dataset.sceneId = s.id;
+  row.title = s.savedAt ? new Date(s.savedAt).toLocaleString() : '';
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'scene-row-name';
+  nameEl.textContent = s.name || '(unnamed)';
+  row.addEventListener('click', () => applyLoadedScene(s.id));
+
+  const actions = document.createElement('div');
+  actions.className = 'scene-actions';
+
+  const btnRename = document.createElement('button');
+  btnRename.className = 'btn-icon-xs';
+  btnRename.title = 'Rename scene';
+  btnRename.textContent = '✏';
+  btnRename.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startSceneRename(row, nameEl, s);
+  });
+
+  const btnDel = document.createElement('button');
+  btnDel.className = 'btn-icon-xs danger';
+  btnDel.textContent = '×';
+  btnDel.title = 'Delete scene';
+  btnDel.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!confirm(`Delete scene "${s.name || '(unnamed)'}"?`)) return;
+    if (loadedSceneId === s.id) loadedSceneId = null;
+    await window.electronAPI.deleteSceneCampaign(selectedCampaignId, selectedSessionId, s.id);
+    renderSceneList();
+  });
+
+  actions.appendChild(btnRename);
+  actions.appendChild(btnDel);
+  row.appendChild(nameEl);
+  row.appendChild(actions);
+  return row;
+}
+
+function startSceneRename(row, nameEl, s) {
+  const input = document.createElement('input');
+  input.className = 'scene-row-name-input';
+  input.value = s.name || '';
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  async function commit() {
+    const newName = input.value.trim();
+    if (newName !== s.name) {
+      await window.electronAPI.renameSceneCampaign(selectedCampaignId, selectedSessionId, s.id, newName);
+      if (loadedSceneId === s.id) {
+        window.electronAPI.updateSceneMeta({ name: newName });
+        sceneNameInput.value = newName;
+      }
+    }
+    renderSceneList();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = s.name || ''; input.blur(); }
+  });
 }
 
 async function applyLoadedScene(sceneIdOrScene) {
@@ -1739,6 +1784,8 @@ sceneNameInput.addEventListener('input', () => {
   window.electronAPI.updateSceneMeta({ name: sceneNameInput.value.trim() });
   scheduleAutosave();
 });
+
+btnRefreshScenes.addEventListener('click', renderSceneList);
 
 // Export to file
 btnSaveScene.addEventListener('click', async () => {

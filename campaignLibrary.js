@@ -186,6 +186,15 @@ function createCampaignLibrary(config) {
     if (fs.existsSync(file)) fs.unlinkSync(file);
   }
 
+  function renameScene(campaignId, sessionId, sceneId, newName) {
+    const file = path.join(scenesDir(campaignId, sessionId), sceneId + SCENE_EXT);
+    if (!fs.existsSync(file)) return false;
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    data.name = newName;
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  }
+
   return {
     setRootFolder, getRootFolder, getCampaignsDir,
     scan,
@@ -193,7 +202,7 @@ function createCampaignLibrary(config) {
     createSession, renameSession, deleteSession,
     readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
-    saveScene, listScenes, loadScene, deleteScene,
+    saveScene, listScenes, loadScene, deleteScene, renameScene,
   };
 }
 

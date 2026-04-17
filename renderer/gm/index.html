@@ -81,6 +81,15 @@
         <!-- Sessions list -->
         <div id="sessions-content"></div>
 
+        <!-- Scenes list -->
+        <div id="scenes-area">
+          <div class="scenes-toolbar">
+            <span class="panel-title">Scenes</span>
+            <button id="btn-refresh-scenes" class="btn-icon-sm" title="Refresh scenes from disk">↺</button>
+          </div>
+          <div id="scenes-content" class="scenes-list"></div>
+        </div>
+
         <!-- Notes editor -->
         <div class="notes-area">
           <div class="notes-toolbar">
@@ -271,7 +280,6 @@
             <input type="text" id="scene-name-input" class="scene-name-input" placeholder="Scene name…" />
             <span id="scene-autosave-badge" class="scene-autosave-badge"></span>
           </div>
-          <div id="scene-list" class="scene-list"></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn-ghost-sm" id="btn-reset-scene">↺ New</button>
             <button class="btn-ghost-sm" id="btn-save-scene">⬆ Export</button>

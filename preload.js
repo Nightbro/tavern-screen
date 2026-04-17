@@ -81,6 +81,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listScenesCampaign:   (campaignId, sessionId)        => ipcRenderer.invoke('list-scenes-campaign', campaignId, sessionId),
   loadSceneCampaign:    (campaignId, sessionId, id)    => ipcRenderer.invoke('load-scene-campaign', campaignId, sessionId, id),
   deleteSceneCampaign:  (campaignId, sessionId, id)    => ipcRenderer.invoke('delete-scene-campaign', campaignId, sessionId, id),
+  renameSceneCampaign:  (campaignId, sessionId, id, n) => ipcRenderer.invoke('rename-scene-campaign', campaignId, sessionId, id, n),
 
   saveSceneDialog: (scene)        => ipcRenderer.invoke('save-scene-dialog', scene),
   loadSceneDialog: ()             => ipcRenderer.invoke('load-scene-dialog'),
