@@ -697,7 +697,7 @@ async function selectSession(campaignId, sessionId) {
     r.classList.toggle('active', r.dataset.sessionId === selectedSessionId);
   });
   await loadCurrentNotes();
-  renderSceneList();
+  await loadMostRecentScene();
 }
 
 // ── Campaign toolbar ──────────────────────────────────────────────────────────
@@ -708,7 +708,7 @@ campaignSelect.addEventListener('change', async () => {
   selectedSessionId  = null;
   renderSessions();
   await loadCurrentNotes();
-  renderSceneList();
+  await loadMostRecentScene();
 });
 
 btnNewCampaign.addEventListener('click', () => {
@@ -1067,6 +1067,7 @@ let vpCenterX        = 0.5;
 let vpCenterY        = 0.5;
 let sceneReady       = false;
 let autosaveTimer    = null;
+let loadedSceneId    = null;
 let selectedHudId    = null;
 let vpZoom           = 1.0;
 let pingMode         = false;
@@ -1657,12 +1658,22 @@ function scheduleAutosave() {
   clearTimeout(autosaveTimer);
   setAutosaveBadge('saving');
   autosaveTimer = setTimeout(async () => {
-    const scene = await window.electronAPI.getScene();
-    if (!scene?.name) { setAutosaveBadge(''); return; }
-    await window.electronAPI.saveSceneCampaign(selectedCampaignId, selectedSessionId);
+    const meta = await window.electronAPI.saveSceneCampaign(selectedCampaignId, selectedSessionId);
+    if (meta) loadedSceneId = meta.id;
     setAutosaveBadge('saved');
     renderSceneList();
   }, 800);
+}
+
+async function loadMostRecentScene() {
+  if (!sceneReady || !selectedCampaignId) { renderSceneList(); return; }
+  const scenes = await window.electronAPI.listScenesCampaign(selectedCampaignId, selectedSessionId);
+  if (scenes.length) {
+    await applyLoadedScene(scenes[0].id);
+  } else {
+    loadedSceneId = null;
+    renderSceneList();
+  }
 }
 
 async function renderSceneList() {
@@ -1672,18 +1683,14 @@ async function renderSceneList() {
   if (!scenes.length) return;
   for (const s of scenes) {
     const row = document.createElement('div');
-    row.className = 'scene-row';
+    const isActive = s.id === loadedSceneId;
+    row.className = 'scene-row' + (isActive ? ' active' : '');
+    row.title = s.savedAt ? new Date(s.savedAt).toLocaleString() : '';
 
     const nameEl = document.createElement('span');
     nameEl.className = 'scene-row-name';
     nameEl.textContent = s.name || '(unnamed)';
-    nameEl.title = s.savedAt ? new Date(s.savedAt).toLocaleString() : '';
-
-    const loadBtn = document.createElement('button');
-    loadBtn.className = 'btn-icon-xs';
-    loadBtn.textContent = '↩';
-    loadBtn.title = 'Load scene';
-    loadBtn.addEventListener('click', () => applyLoadedScene(s.id));
+    row.addEventListener('click', () => applyLoadedScene(s.id));
 
     const delBtn = document.createElement('button');
     delBtn.className = 'btn-icon-xs danger';
@@ -1691,13 +1698,13 @@ async function renderSceneList() {
     delBtn.title = 'Delete scene';
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!confirm(`Delete scene "${s.name}"?`)) return;
+      if (!confirm(`Delete scene "${s.name || '(unnamed)'}"?`)) return;
+      if (loadedSceneId === s.id) loadedSceneId = null;
       await window.electronAPI.deleteSceneCampaign(selectedCampaignId, selectedSessionId, s.id);
       renderSceneList();
     });
 
     row.appendChild(nameEl);
-    row.appendChild(loadBtn);
     row.appendChild(delBtn);
     sceneListEl.appendChild(row);
   }
@@ -1708,6 +1715,7 @@ async function applyLoadedScene(sceneIdOrScene) {
     ? await window.electronAPI.loadSceneCampaign(selectedCampaignId, selectedSessionId, sceneIdOrScene)
     : sceneIdOrScene;
   if (!scene) return;
+  loadedSceneId = scene.id ?? null;
   window.electronAPI.setScene(scene);
   layers    = scene.layers ?? [];
   huds      = scene.huds   ?? [];
@@ -1723,6 +1731,7 @@ async function applyLoadedScene(sceneIdOrScene) {
   layerDetail.style.display      = 'none';
   initiativeEditor.style.display = 'none';
   setAutosaveBadge('');
+  renderSceneList();
 }
 
 // Scene name: update meta + trigger autosave
@@ -1748,6 +1757,7 @@ btnLoadScene.addEventListener('click', async () => {
 btnResetScene.addEventListener('click', () => {
   confirmInline(btnResetScene, () => {
     window.electronAPI.resetScene();
+    loadedSceneId = null;
     layers    = [];
     huds      = [];
     vpZoom    = 1.0;
@@ -1762,6 +1772,7 @@ btnResetScene.addEventListener('click', () => {
     layerDetail.style.display      = 'none';
     initiativeEditor.style.display = 'none';
     setAutosaveBadge('');
+    renderSceneList();
   });
 });
 
