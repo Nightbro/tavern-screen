@@ -22,6 +22,7 @@ tavern-screen/
 │   ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
 │   │   ├── index.html
 │   │   ├── style.css
+│   │   ├── settings.js          # Static config: PF1e conditions, HUD defaults (loaded before gm.js)
 │   │   └── gm.js
 │   ├── screen/                  # Player screen — Simple mode (fullscreen map + grid)
 │   │   ├── index.html
@@ -94,8 +95,68 @@ The **Grid** section at the top of the Layers tab is collapsible — click the t
 | **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
 | **HUDs** | Add Initiative Tracker (In) or Status Panel (St); eye icon to show/hide; click row to expand editor |
-| **Initiative** | Add entries (name, roll, hidden checkbox); Start/Stop combat; Next/Prev turn; **Position** selector to pin to any of the four screen corners |
+| **Initiative** | Full initiative tracker — see HUD section below for details |
 | **Scene** | Named scenes auto-saved to the active campaign/session; scene list with load/delete; ⬆ Export to JSON file; ⬇ Import from JSON file; ↺ New (reset to empty) |
+
+## HUD System — Initiative Tracker
+
+### GM Controls (per tracker)
+
+| Control | Description |
+|---------|-------------|
+| **Positions** | Check any combination of the four screen corners; each corner has its own **Facing** (Up / Down / Left / Right) so players seated on any side of the table can read the tracker |
+| **Font size** | Scales all text in the HUD — title, entry names, badges, and HP — proportionally |
+| **Status labels** | Toggle to show full condition names next to the coloured dots on the player screen (GM-controlled, not clickable by players) |
+| **Custom Presets** | Add named colour presets that appear as quick-add buttons alongside the built-in Pathfinder 1e conditions |
+| **Combat** | ▶ Start / ■ Stop combat mode; ◀ ▶ step through turns |
+
+### Initiative Entries
+
+Each entry has a main row and two sub-rows:
+
+**Main row:**
+- Name input, initiative roll, **? checkbox** (lurking — shows `???` to players), **👁 checkbox** (invisible — entry hidden from player list entirely), delete button
+- New entries default to **lurking** so players are never spoiled accidentally; uncheck `?` to reveal
+
+**Status sub-row:**
+- Active conditions shown as coloured chips with `×` to remove
+- Click `+ status` to open the status picker:
+  - **Pathfinder 1e** — all 30 standard conditions (Blinded, Confused, Dying, Paralyzed, Stunned, etc.) with preset colours; one click to apply
+  - **Custom** — any presets added in the Custom Presets section above
+  - **Manual** — colour picker + free-text label for anything else
+
+**HP sub-row:**
+- `HP` — max HP input; red checkbox next to it hides the max from players (`current/???`)
+- `dmg` — accumulated damage dealt (editable to correct mistakes)
+- `| +dmg ↯` — type new damage and press ↯ to add it to the running total
+
+### Player Screen Display
+
+- Entry rows show: **initiative badge · name · HP · condition pips**
+- **HP display logic:**
+  - Lurking entry (`???` name) → `damage_dealt/???`
+  - Revealed + max HP hidden → `current_hp/???`
+  - Revealed + max HP shown → `current_hp/max_hp`
+  - No max HP set, but damage tracked → `damage_dealt/???`
+- Clicking `+ status` shows labels → toggled by **Status labels** checkbox in GM panel, not by players
+- HUD panels are **draggable** by their title bar so any player can reposition them on their side of the screen; all other panel interactions are disabled
+
+### Rotation
+
+When a corner is set to a facing other than Up, the panel is rotated so the text points toward that side of the table:
+
+| Facing | Readable from |
+|--------|---------------|
+| Up (default) | Bottom of screen |
+| Down | Top of screen |
+| Right | Right side of screen |
+| Left | Left side of screen |
+
+Multiple corners can be active simultaneously — useful for four-sided tables.
+
+### Settings File
+
+Built-in condition data lives in `renderer/gm/settings.js`. To change a condition colour or add house-rule conditions, edit that file — no other code needs to change. Custom per-session presets are saved to `localStorage` in the GM window.
 
 ## Persistence
 
@@ -174,11 +235,17 @@ The rendering transform is: `screenX = (canvasX − cx) × zoom + screenW/2`
 - **Canvas coordinates** — live pixel readout (bottom-left of preview) as the cursor moves
 - **Viewport zoom & pan** — drag the gold rectangle to pan what the player sees; zoom slider adjusts screen pixels per canvas pixel
 - **Background color** — configurable solid fill behind all layers
-- **HUD overlays** — screen-space panels unaffected by pan/zoom: initiative tracker with combat turn tracking
+- **HUD overlays** — screen-space panels unaffected by pan/zoom; draggable by title bar; multi-corner with per-corner facing direction
 - **Ping** — GM clicks preview → pulsing ring + dot appears at the corresponding canvas position on the player screen
 - **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON; scene survives screen reconnects
 
 ## Roadmap
+
+### Future Implementation — GM HUD Preview
+
+The GM screen will gain a dedicated **HUD Preview panel** — a scaled replica of the player screen where all HUD elements (initiative trackers, status panels, etc.) are visible and fully repositionable. The GM will be able to drag each HUD to any position, preview how multiple overlapping panels look, and confirm placement before it appears on the player screen. This removes the need for players to drag HUDs themselves and gives the GM full spatial control over the overlay layout.
+
+---
 
 ### Advanced Screen — Remaining enhancements
 
@@ -188,7 +255,6 @@ The core Advanced screen is implemented. Remaining polish items:
 - **Fog of War reveal tool** — GM draws on the preview to erase fog; currently fog is a static full-screen layer
 - **Default assets** — bundled quick-insert objects (fire GIF, fireflies, etc.)
 - **Status panel HUD** — names + status badges, no turn management
-- **Initiative enhancements** — sort by roll, per-entry status badge management, "???" hidden slot mode
 
 ---
 

@@ -533,6 +533,29 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   }
 
   panel.appendChild(body);
+
+  // ── Drag by header (header has pointer-events: auto in CSS) ───────────────
+  let dragX = 0, dragY = 0, startLeft = 0, startTop = 0;
+  const onMove = (e) => {
+    panel.style.left = Math.max(0, startLeft + e.clientX - dragX) + 'px';
+    panel.style.top  = Math.max(0, startTop  + e.clientY - dragY) + 'px';
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup',   onUp);
+    header.style.cursor = 'grab';
+  };
+  header.addEventListener('mousedown', (e) => {
+    dragX     = e.clientX;
+    dragY     = e.clientY;
+    startLeft = parseInt(panel.style.left) || 0;
+    startTop  = parseInt(panel.style.top)  || 0;
+    header.style.cursor = 'grabbing';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+    e.preventDefault();
+  });
+
   return panel;
 }
 

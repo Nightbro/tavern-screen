@@ -31,12 +31,15 @@ html, body {
   user-select: none;
 }
 
-/* ── HUD header (title only on player screen) ── */
+/* ── HUD header — drag handle for repositioning panels ── */
 .hud-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 12px 6px;
   border-bottom: 1px solid #1e1e38;
+  pointer-events: auto;
+  cursor: grab;
 }
+.hud-header:active { cursor: grabbing; }
 
 .hud-title {
   font-size: 0.7em; font-weight: 700;
