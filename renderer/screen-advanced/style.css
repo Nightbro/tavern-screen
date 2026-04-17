@@ -21,7 +21,7 @@ html, body {
 /* ── Initiative / Status HUD panels ── */
 .hud-panel {
   position: absolute;
-  pointer-events: auto;
+  /* pointer-events inherits none from #hud-root — player screen is read-only */
   background: rgba(10, 10, 20, 0.92);
   border: 1px solid #2e2e4e;
   border-radius: 8px;
@@ -31,14 +31,12 @@ html, body {
   user-select: none;
 }
 
-/* ── HUD header (drag handle + title + collapse button) ── */
+/* ── HUD header (title only on player screen) ── */
 .hud-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 12px 6px;
   border-bottom: 1px solid #1e1e38;
-  cursor: grab;
 }
-.hud-header:active { cursor: grabbing; }
 
 .hud-title {
   font-size: 0.7em; font-weight: 700;

@@ -1622,6 +1622,95 @@ document.getElementById('initiative-font-size')?.addEventListener('change', asyn
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// STATUS PRESETS
+// ════════════════════════════════════════════════════════════════════════════
+
+const PF1E_CONDITIONS = [
+  { name: 'Blinded',        color: '#555555' },
+  { name: 'Confused',       color: '#cc44cc' },
+  { name: 'Cowering',       color: '#777788' },
+  { name: 'Dazed',          color: '#8888bb' },
+  { name: 'Dazzled',        color: '#ffcc44' },
+  { name: 'Dead',           color: '#221111' },
+  { name: 'Deafened',       color: '#888888' },
+  { name: 'Dying',          color: '#cc2222' },
+  { name: 'Energy Drained', color: '#553355' },
+  { name: 'Entangled',      color: '#228822' },
+  { name: 'Exhausted',      color: '#884422' },
+  { name: 'Fascinated',     color: '#2266cc' },
+  { name: 'Fatigued',       color: '#996644' },
+  { name: 'Flat-Footed',    color: '#6666aa' },
+  { name: 'Frightened',     color: '#cc6633' },
+  { name: 'Grappled',       color: '#448844' },
+  { name: 'Helpless',       color: '#664444' },
+  { name: 'Incorporeal',    color: '#aaaacc' },
+  { name: 'Invisible',      color: '#cccccc' },
+  { name: 'Nauseated',      color: '#88aa22' },
+  { name: 'Panicked',       color: '#cc3311' },
+  { name: 'Paralyzed',      color: '#6633aa' },
+  { name: 'Petrified',      color: '#888866' },
+  { name: 'Pinned',         color: '#559944' },
+  { name: 'Prone',          color: '#997766' },
+  { name: 'Shaken',         color: '#cc8833' },
+  { name: 'Sickened',       color: '#669933' },
+  { name: 'Staggered',      color: '#cc7733' },
+  { name: 'Stunned',        color: '#8833cc' },
+  { name: 'Unconscious',    color: '#333355' },
+];
+
+function getCustomPresets() {
+  try { return JSON.parse(localStorage.getItem('customStatusPresets') ?? '[]'); }
+  catch { return []; }
+}
+function saveCustomPresets(presets) {
+  localStorage.setItem('customStatusPresets', JSON.stringify(presets));
+}
+
+function renderCustomPresetsPanel() {
+  const el = document.getElementById('initiative-custom-presets');
+  if (!el) return;
+  el.innerHTML = '';
+  for (const [i, p] of getCustomPresets().entries()) {
+    const chip = document.createElement('span');
+    chip.className = 'preset-chip';
+
+    const dot = document.createElement('span');
+    dot.className = 'preset-chip-dot';
+    dot.style.background = p.color;
+
+    const lbl = document.createElement('span');
+    lbl.textContent = p.name;
+
+    const del = document.createElement('button');
+    del.className = 'init-status-del';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      const list = getCustomPresets();
+      list.splice(i, 1);
+      saveCustomPresets(list);
+      renderCustomPresetsPanel();
+    });
+
+    chip.appendChild(dot);
+    chip.appendChild(lbl);
+    chip.appendChild(del);
+    el.appendChild(chip);
+  }
+}
+
+document.getElementById('btn-add-preset')?.addEventListener('click', () => {
+  const nameEl  = document.getElementById('new-preset-name');
+  const colorEl = document.getElementById('new-preset-color');
+  const name = nameEl?.value.trim();
+  if (!name) return;
+  const list = getCustomPresets();
+  list.push({ name, color: colorEl?.value ?? '#888' });
+  saveCustomPresets(list);
+  if (nameEl) nameEl.value = '';
+  renderCustomPresetsPanel();
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // INITIATIVE TRACKER EDITOR
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -1703,8 +1792,18 @@ function renderInitiativeEditor(hud) {
   renderInitiativePositions(hud);
   const fontSizeEl = document.getElementById('initiative-font-size');
   if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? 14;
+  const showLabelsEl = document.getElementById('initiative-show-labels');
+  if (showLabelsEl) showLabelsEl.checked = hud.showLabels ?? false;
+  renderCustomPresetsPanel();
   renderInitiativeEntries(hud);
 }
+
+document.getElementById('initiative-show-labels')?.addEventListener('change', async () => {
+  if (!selectedHudId) return;
+  const checked = document.getElementById('initiative-show-labels').checked;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
+  if (newHuds) { huds = newHuds; }
+});
 
 function renderInitiativeEntries(hud) {
   initiativeEntriesEl.innerHTML = '';
@@ -1806,14 +1905,15 @@ function renderInitiativeEntries(hud) {
 
 function buildEntryStatusRow(container, hud, idx, entry) {
   container.innerHTML = '';
-
   const statuses = entry.statuses ?? [];
 
-  // Existing status chips
+  // ── Active status chips (with × remove) ──────────────────────────────────
+  const chipsRow = document.createElement('div');
+  chipsRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;';
+
   statuses.forEach((s, si) => {
     const chip = document.createElement('span');
     chip.className = 'init-status-chip';
-    chip.title = s.label ?? '';
 
     const dot = document.createElement('span');
     dot.className = 'init-status-dot';
@@ -1827,28 +1927,93 @@ function buildEntryStatusRow(container, hud, idx, entry) {
     del.className = 'init-status-del';
     del.textContent = '×';
     del.addEventListener('click', async () => {
-      const newStatuses = statuses.filter((_, i) => i !== si);
-      await updateEntryField(hud, idx, { statuses: newStatuses });
+      await updateEntryField(hud, idx, { statuses: statuses.filter((_, i) => i !== si) });
       const updated = huds.find(h => h.id === hud.id);
       if (updated) renderInitiativeEntries(updated);
     });
 
-    chip.appendChild(dot);
-    chip.appendChild(lbl);
-    chip.appendChild(del);
-    container.appendChild(chip);
+    chip.appendChild(dot); chip.appendChild(lbl); chip.appendChild(del);
+    chipsRow.appendChild(chip);
   });
+  container.appendChild(chipsRow);
 
-  // Add-status button + inline form
-  let formOpen = false;
-  const addBtn = document.createElement('button');
-  addBtn.className = 'btn-icon-xs';
-  addBtn.textContent = '+ status';
-  addBtn.style.fontSize = '9px';
+  // ── Toggle preset picker ──────────────────────────────────────────────────
+  let pickerOpen = false;
 
-  const form = document.createElement('div');
-  form.className = 'init-status-form';
-  form.style.display = 'none';
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'btn-icon-xs';
+  toggleBtn.textContent = '+ status';
+  toggleBtn.style.fontSize = '9px';
+
+  const picker = document.createElement('div');
+  picker.className = 'status-preset-picker';
+  picker.style.display = 'none';
+
+  // Quick-add helper
+  const quickAdd = async (name, color) => {
+    await updateEntryField(hud, idx, { statuses: [...statuses, { color, label: name }] });
+    const updated = huds.find(h => h.id === hud.id);
+    if (updated) renderInitiativeEntries(updated);
+  };
+
+  // PF1e section
+  const pf1eTitle = document.createElement('div');
+  pf1eTitle.className = 'preset-section-title';
+  pf1eTitle.textContent = 'Pathfinder 1e';
+  picker.appendChild(pf1eTitle);
+
+  const pf1eGrid = document.createElement('div');
+  pf1eGrid.className = 'preset-grid';
+  for (const { name, color } of PF1E_CONDITIONS) {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.title = name;
+
+    const dot = document.createElement('span');
+    dot.className = 'preset-btn-dot';
+    dot.style.background = color;
+
+    btn.appendChild(dot);
+    btn.appendChild(document.createTextNode(name));
+    btn.addEventListener('click', () => quickAdd(name, color));
+    pf1eGrid.appendChild(btn);
+  }
+  picker.appendChild(pf1eGrid);
+
+  // Custom presets section
+  const customTitle = document.createElement('div');
+  customTitle.className = 'preset-section-title';
+  customTitle.textContent = 'Custom';
+  picker.appendChild(customTitle);
+
+  const customGrid = document.createElement('div');
+  customGrid.className = 'preset-grid';
+  for (const { name, color } of getCustomPresets()) {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.title = name;
+
+    const dot = document.createElement('span');
+    dot.className = 'preset-btn-dot';
+    dot.style.background = color;
+
+    btn.appendChild(dot);
+    btn.appendChild(document.createTextNode(name));
+    btn.addEventListener('click', () => quickAdd(name, color));
+    customGrid.appendChild(btn);
+  }
+  if (customGrid.childElementCount === 0) {
+    const none = document.createElement('span');
+    none.style.cssText = 'font-size:10px;color:#3a3a5e;font-style:italic;';
+    none.textContent = 'No custom presets yet';
+    customGrid.appendChild(none);
+  }
+  picker.appendChild(customGrid);
+
+  // Manual custom entry
+  const manualRow = document.createElement('div');
+  manualRow.className = 'init-status-form';
+  manualRow.style.marginTop = '4px';
 
   const colorIn = document.createElement('input');
   colorIn.type = 'color'; colorIn.value = '#c9a84c';
@@ -1856,38 +2021,30 @@ function buildEntryStatusRow(container, hud, idx, entry) {
 
   const labelIn = document.createElement('input');
   labelIn.className = 'init-entry-name';
-  labelIn.placeholder = 'Label…';
-  labelIn.style.cssText = 'width:70px;font-size:10px;';
+  labelIn.placeholder = 'Custom label…';
+  labelIn.style.cssText = 'flex:1;font-size:10px;min-width:0;';
 
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'btn-icon-xs';
   confirmBtn.textContent = '✓';
-  confirmBtn.addEventListener('click', async () => {
-    const newStatuses = [...statuses, { color: colorIn.value, label: labelIn.value.trim() }];
-    await updateEntryField(hud, idx, { statuses: newStatuses });
-    const updated = huds.find(h => h.id === hud.id);
-    if (updated) renderInitiativeEntries(updated);
+  confirmBtn.addEventListener('click', () => {
+    const n = labelIn.value.trim();
+    if (n) quickAdd(n, colorIn.value);
   });
 
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn-icon-xs';
-  cancelBtn.textContent = '✕';
-  cancelBtn.addEventListener('click', () => { form.style.display = 'none'; addBtn.style.display = ''; formOpen = false; });
+  manualRow.appendChild(colorIn);
+  manualRow.appendChild(labelIn);
+  manualRow.appendChild(confirmBtn);
+  picker.appendChild(manualRow);
 
-  form.appendChild(colorIn);
-  form.appendChild(labelIn);
-  form.appendChild(confirmBtn);
-  form.appendChild(cancelBtn);
-
-  addBtn.addEventListener('click', () => {
-    formOpen = !formOpen;
-    form.style.display = formOpen ? 'flex' : 'none';
-    addBtn.style.display = formOpen ? 'none' : '';
-    if (formOpen) labelIn.focus();
+  toggleBtn.addEventListener('click', () => {
+    pickerOpen = !pickerOpen;
+    picker.style.display = pickerOpen ? '' : 'none';
+    toggleBtn.textContent = pickerOpen ? '− status' : '+ status';
   });
 
-  container.appendChild(addBtn);
-  container.appendChild(form);
+  container.appendChild(toggleBtn);
+  container.appendChild(picker);
 }
 
 function buildEntryHpRow(container, hud, idx, entry) {
@@ -1909,6 +2066,13 @@ function buildEntryHpRow(container, hud, idx, entry) {
     const updated = huds.find(h => h.id === hud.id);
     if (updated) renderInitiativeEntries(updated);
   });
+
+  const hpMaxHiddenChk = document.createElement('input');
+  hpMaxHiddenChk.type = 'checkbox';
+  hpMaxHiddenChk.checked = entry.hpMaxHidden ?? false;
+  hpMaxHiddenChk.title = 'Hide max HP from players (show current/???)';
+  hpMaxHiddenChk.style.cssText = 'accent-color:#e05555;cursor:pointer;flex-shrink:0;';
+  hpMaxHiddenChk.addEventListener('change', () => updateEntryField(hud, idx, { hpMaxHidden: hpMaxHiddenChk.checked }));
 
   const sep1 = document.createElement('span');
   sep1.className = 'init-hp-sep';
@@ -1958,6 +2122,7 @@ function buildEntryHpRow(container, hud, idx, entry) {
 
   container.appendChild(lbl);
   container.appendChild(maxIn);
+  container.appendChild(hpMaxHiddenChk);
   container.appendChild(sep1);
   container.appendChild(dmgIn);
   container.appendChild(sep2);

@@ -735,3 +735,40 @@ body.advanced-mode .map-card:hover::after {
   padding: 1px 5px; cursor: pointer; flex-shrink: 0;
 }
 .btn-apply-dmg:hover { background: #2a2a5e; }
+
+/* ── Status preset picker ── */
+.status-preset-picker {
+  background: #0d0d1e; border: 1px solid #2e2e4e; border-radius: 6px;
+  padding: 6px; margin-top: 4px; width: 100%;
+}
+.preset-section-title {
+  font-size: 9px; color: #5a5a8e; text-transform: uppercase;
+  letter-spacing: 0.8px; margin-bottom: 4px; margin-top: 4px;
+}
+.preset-section-title:first-child { margin-top: 0; }
+
+.preset-grid {
+  display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 2px;
+}
+.preset-btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(255,255,255,0.05); border: 1px solid #2e2e4e;
+  border-radius: 10px; padding: 2px 7px 2px 4px;
+  font-size: 10px; color: #ccc; cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+.preset-btn:hover { background: rgba(255,255,255,0.12); border-color: #5a5a8e; }
+.preset-btn-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* ── Custom preset chips (in settings panel) ── */
+.preset-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(255,255,255,0.06); border: 1px solid #2e2e4e;
+  border-radius: 10px; padding: 2px 6px 2px 4px; font-size: 10px; color: #ccc;
+}
+.preset-chip-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}

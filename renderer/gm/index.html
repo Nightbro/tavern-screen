@@ -293,10 +293,23 @@
             <div style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Positions</div>
             <div id="initiative-positions"></div>
           </div>
-          <label class="field-row" style="padding: 0 0 6px 0">
+          <label class="field-row" style="padding: 0 0 4px 0">
             <span>Font size</span>
             <input type="number" id="initiative-font-size" class="field-select" min="8" max="48" value="14" style="width:56px;text-align:center">
           </label>
+          <label class="field-row" style="padding: 0 0 6px 0">
+            <span>Status labels</span>
+            <input type="checkbox" id="initiative-show-labels" style="accent-color:#c9a84c;cursor:pointer;">
+          </label>
+          <div style="margin-bottom:6px">
+            <div style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Custom Presets</div>
+            <div id="initiative-custom-presets" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px"></div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input type="color" id="new-preset-color" value="#c9a84c" style="width:24px;height:20px;border:1px solid #3a3a5e;border-radius:3px;padding:0;cursor:pointer;background:none;">
+              <input type="text" id="new-preset-name" placeholder="Preset name…" class="field-select" style="flex:1;min-width:0;">
+              <button class="btn-ghost-sm" id="btn-add-preset">+</button>
+            </div>
+          </div>
           <div class="initiative-controls">
             <button class="btn-ghost-sm" id="btn-combat-toggle">▶ Start</button>
             <button class="btn-icon-sm"  id="btn-combat-prev">◀</button>

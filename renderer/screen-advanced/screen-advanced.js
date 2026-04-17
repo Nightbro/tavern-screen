@@ -444,8 +444,9 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   panel.style.fontSize   = fontSize + 'px';
   panel.style.visibility = 'hidden'; // shown by positionPanel after layout
   panel.style.left = '-9999px'; panel.style.top = '0';
+  if (hud.showLabels) panel.classList.add('statuses-expanded');
 
-  // ── Header row (title + collapse toggle) ──────────────────────────────────
+  // ── Header (title only — player screen is non-interactive) ────────────────
   const header = document.createElement('div');
   header.className = 'hud-header';
 
@@ -454,25 +455,9 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   title.textContent = 'Initiative';
   header.appendChild(title);
 
-  const collapseBtn = document.createElement('button');
-  collapseBtn.className   = 'hud-collapse-btn';
-  collapseBtn.textContent = '−';
-  collapseBtn.title       = 'Collapse / Expand';
-  header.appendChild(collapseBtn);
-
-  const expandStatusBtn = document.createElement('button');
-  expandStatusBtn.className   = 'hud-collapse-btn';
-  expandStatusBtn.textContent = '⊞';
-  expandStatusBtn.title       = 'Show / hide status labels';
-  expandStatusBtn.addEventListener('click', () => {
-    const on = panel.classList.toggle('statuses-expanded');
-    expandStatusBtn.textContent = on ? '⊟' : '⊞';
-  });
-  header.appendChild(expandStatusBtn);
-
   panel.appendChild(header);
 
-  // ── Entry list (collapsible) ──────────────────────────────────────────────
+  // ── Entry list ────────────────────────────────────────────────────────────
   const body = document.createElement('div');
   body.className = 'hud-body';
 
@@ -497,13 +482,20 @@ function buildInitiativeHudPanel(hud, corner, facing) {
     row.appendChild(badge);
     row.appendChild(name);
 
-    // HP: show current/max when revealed; show damage/??? when hidden or max HP not set
+    // HP display logic:
+    //   lurking entry                → damage/???  (damage accumulates visibly)
+    //   revealed + hpMaxHidden       → current/???  (see wound level, not max)
+    //   revealed + hp set            → current/max
+    //   no max HP but damage tracked → damage/???
     const damage = entry.damage ?? 0;
     if (entry.hp > 0 || damage > 0) {
       const hpEl = document.createElement('span');
       hpEl.className = 'initiative-hp';
-      if (entry.hp > 0 && !entry.hidden) {
-        hpEl.textContent = `${Math.max(0, entry.hp - damage)}/${entry.hp}`;
+      if (entry.hidden) {
+        hpEl.textContent = `${damage}/???`;
+      } else if (entry.hp > 0) {
+        const cur = Math.max(0, entry.hp - damage);
+        hpEl.textContent = entry.hpMaxHidden ? `${cur}/???` : `${cur}/${entry.hp}`;
       } else {
         hpEl.textContent = `${damage}/???`;
       }
@@ -533,7 +525,7 @@ function buildInitiativeHudPanel(hud, corner, facing) {
     body.appendChild(row);
   });
 
-  if (entries.length === 0) {
+  if (entries.filter(e => !e.invisible).length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'font-size:0.8em;color:#3a3a5e;font-style:italic;padding:4px 0;';
     empty.textContent = 'No entries';
@@ -541,40 +533,6 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   }
 
   panel.appendChild(body);
-
-  // ── Collapse toggle ───────────────────────────────────────────────────────
-  let collapsed = false;
-  collapseBtn.addEventListener('click', () => {
-    collapsed = !collapsed;
-    body.style.display      = collapsed ? 'none' : '';
-    collapseBtn.textContent = collapsed ? '+' : '−';
-  });
-
-  // ── Drag by header (always uses left/top since positionPanel sets those) ──
-  let dragX = 0, dragY = 0, startLeft = 0, startTop = 0;
-
-  const onMove = (e) => {
-    panel.style.left = Math.max(0, startLeft + e.clientX - dragX) + 'px';
-    panel.style.top  = Math.max(0, startTop  + e.clientY - dragY) + 'px';
-  };
-  const onUp = () => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup',   onUp);
-    header.style.cursor = 'grab';
-  };
-  header.addEventListener('mousedown', (e) => {
-    if (e.target === collapseBtn) return;
-    dragX     = e.clientX;
-    dragY     = e.clientY;
-    startLeft = parseInt(panel.style.left) || 0;
-    startTop  = parseInt(panel.style.top)  || 0;
-    header.style.cursor = 'grabbing';
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup',   onUp);
-    e.preventDefault();
-  });
-  header.style.cursor = 'grab';
-
   return panel;
 }
 
