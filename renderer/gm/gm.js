@@ -24,9 +24,15 @@ const notesStatus       = document.getElementById('notes-status');
 const notesTitle        = document.getElementById('notes-title');
 const btnNewSession     = document.getElementById('btn-new-session');
 
-const monitorMap      = document.getElementById('monitor-map');
-const monitorList     = document.getElementById('monitor-list');
-const btnCloseScreen  = document.getElementById('btn-close-screen');
+const monitorMap          = document.getElementById('monitor-map');
+const monitorList         = document.getElementById('monitor-list');
+const monitorSectionBody  = document.getElementById('monitor-section-body');
+const btnToggleMonitors   = document.getElementById('btn-toggle-monitors');
+const btnCloseScreen      = document.getElementById('btn-close-screen');
+const panelMaps           = document.getElementById('panel-maps');
+const panelSettings       = document.getElementById('panel-settings');
+const resizeHandleLeft    = document.getElementById('resize-left');
+const resizeHandleRight   = document.getElementById('resize-right');
 const previewImg      = document.getElementById('preview-img');
 const previewPlaceholder = document.getElementById('preview-placeholder');
 const btnRefreshPreview  = document.getElementById('btn-refresh-preview');
@@ -871,6 +877,7 @@ function selectDisplay(displayId) {
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = false;
+  setMonitorSectionCollapsed(true);
 }
 
 btnCloseScreen.addEventListener('click', () => {
@@ -1050,6 +1057,8 @@ let layers           = [];
 let huds             = [];
 let selectedLayerId  = null;
 let dragSrcLayerId   = null;
+let vpCenterX        = 0.5;
+let vpCenterY        = 0.5;
 let selectedHudId    = null;
 let vpZoom           = 1.0;
 let pingMode         = false;
@@ -1088,7 +1097,9 @@ async function initScene() {
   if (!scene) return;
   layers = scene.layers ?? [];
   huds   = scene.huds   ?? [];
-  vpZoom = scene.viewport?.zoom ?? 1.0;
+  vpZoom    = scene.viewport?.zoom    ?? 1.0;
+  vpCenterX = scene.viewport?.centerX ?? 0.5;
+  vpCenterY = scene.viewport?.centerY ?? 0.5;
   renderLayerList();
   renderHudList();
   updateVpZoomUI();
@@ -1106,6 +1117,7 @@ function setVpZoom(value) {
   vpZoom = Math.max(0.25, Math.min(8, value));
   updateVpZoomUI();
   window.electronAPI.updateViewport({ zoom: vpZoom });
+  renderLayerOverlay();
 }
 
 vpZoomIn.addEventListener('click',     () => setVpZoom(vpZoom + 0.1));
@@ -1750,11 +1762,11 @@ function hitTestHandle(mx, my, px, py, pw, ph) {
   return null;
 }
 
-/** Returns { layerId, mode, handle? } or null. */
+/** Returns { layerId?, mode, handle? } or null. */
 function hitTestOverlay(mx, my) {
   const ca = getContentArea();
 
-  // Handles on the selected layer take priority
+  // Layer resize handles have highest priority
   if (selectedLayerId) {
     const layer = layers.find(l => l.id === selectedLayerId);
     if (layer && POSITIONABLE_TYPES.has(layer.type)) {
@@ -1780,6 +1792,19 @@ function hitTestOverlay(mx, my) {
       return { layerId: layer.id, mode: 'move' };
     }
   }
+
+  // Viewport rect pan — lowest priority, fallback when no layer was hit
+  if (vpZoom > 1) {
+    const z  = vpZoom;
+    const rx = ca.cx + (vpCenterX - 0.5 / z) * ca.cw;
+    const ry = ca.cy + (vpCenterY - 0.5 / z) * ca.ch;
+    const rw = ca.cw / z;
+    const rh = ca.ch / z;
+    if (mx >= rx && mx <= rx + rw && my >= ry && my <= ry + rh) {
+      return { mode: 'vpPan' };
+    }
+  }
+
   return null;
 }
 
@@ -1814,6 +1839,33 @@ function renderLayerOverlay() {
         ctx.strokeRect(pos.x + 0.5, pos.y + 0.5, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
       }
     }
+  }
+
+  // ── Viewport zoom region rectangle ───────────────────────────────────────────
+  if (vpZoom > 1) {
+    const z  = vpZoom;
+    const rx = ca.cx + (vpCenterX - 0.5 / z) * ca.cw;
+    const ry = ca.cy + (vpCenterY - 0.5 / z) * ca.ch;
+    const rw = ca.cw / z;
+    const rh = ca.ch / z;
+
+    // Dim everything outside the visible viewport region
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.beginPath();
+    ctx.rect(ca.cx, ca.cy, ca.cw, ca.ch);
+    ctx.rect(rx, ry, rw, rh);
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    // Bright border around the viewport rect
+    ctx.save();
+    ctx.strokeStyle = 'rgba(201,168,76,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = 'rgba(201,168,76,0.5)';
+    ctx.shadowBlur  = 4;
+    ctx.strokeRect(rx + 0.5, ry + 0.5, rw, rh);
+    ctx.restore();
   }
 }
 
@@ -1851,9 +1903,10 @@ layerOverlay.addEventListener('mousemove', (e) => {
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
   const hit = hitTestOverlay(mx, my);
-  if (!hit)                   layerOverlay.style.cursor = 'default';
-  else if (hit.mode === 'move') layerOverlay.style.cursor = 'move';
-  else                         layerOverlay.style.cursor = RESIZE_CURSORS[hit.handle] ?? 'default';
+  if (!hit)                     layerOverlay.style.cursor = 'default';
+  else if (hit.mode === 'vpPan') layerOverlay.style.cursor = 'grab';
+  else if (hit.mode === 'move')  layerOverlay.style.cursor = 'move';
+  else                           layerOverlay.style.cursor = RESIZE_CURSORS[hit.handle] ?? 'default';
 });
 
 layerOverlay.addEventListener('mousedown', (e) => {
@@ -1885,16 +1938,23 @@ layerOverlay.addEventListener('mousedown', (e) => {
     return;
   }
 
+  e.preventDefault();
+
+  // ── Viewport pan drag ────────────────────────────────────────────────────
+  if (hit.mode === 'vpPan') {
+    const ca = getContentArea();
+    overlayDrag = { mode: 'vpPan', startMx: mx, startMy: my, startCx: vpCenterX, startCy: vpCenterY, ca };
+    layerOverlay.style.cursor = 'grabbing';
+    return;
+  }
+
   // Select the hit layer if it isn't already
   if (hit.layerId !== selectedLayerId) {
-    // Directly set without toggle: selectLayer toggles, so set first if different
     selectedLayerId = hit.layerId;
     renderLayerList();
     const layer = layers.find(l => l.id === selectedLayerId);
     if (layer) renderLayerDetail(layer);
   }
-
-  e.preventDefault();
 
   const layer = layers.find(l => l.id === hit.layerId);
   if (!layer) return;
@@ -1928,8 +1988,20 @@ document.addEventListener('mousemove', (e) => {
   const rect = layerOverlay.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
-  const { startMx, startMy, startLayer, ca } = overlayDrag;
+  const { startMx, startMy, ca } = overlayDrag;
 
+  // ── Viewport pan ──────────────────────────────────────────────────────────
+  if (overlayDrag.mode === 'vpPan') {
+    const dxN = (mx - startMx) / ca.cw;
+    const dyN = (my - startMy) / ca.ch;
+    vpCenterX = Math.max(0, Math.min(1, overlayDrag.startCx - dxN / vpZoom));
+    vpCenterY = Math.max(0, Math.min(1, overlayDrag.startCy - dyN / vpZoom));
+    renderLayerOverlay();
+    window.electronAPI.updateViewport({ centerX: vpCenterX, centerY: vpCenterY });
+    return;
+  }
+
+  const { startLayer } = overlayDrag;
   const dxN = (mx - startMx) / ca.cw;
   const dyN = (my - startMy) / ca.ch;
   const MIN = MIN_LAYER_SIZE;
@@ -1963,20 +2035,25 @@ document.addEventListener('mousemove', (e) => {
 
 document.addEventListener('mouseup', async () => {
   if (!overlayDrag) return;
-  const { layerId } = overlayDrag;
+  const drag = overlayDrag;
   overlayDrag = null;
   clearTimeout(overlayThrottleTimer);
   overlayThrottleTimer = null;
+  layerOverlay.style.cursor = '';
 
-  // Flush the final position to main
-  const layer = layers.find(l => l.id === layerId);
-  if (layer) {
-    const { x, y, w, h } = layer;
-    const newLayers = await window.electronAPI.updateLayer(layerId, { x, y, w, h });
-    if (newLayers) { layers = newLayers; renderLayerOverlay(); }
+  if (drag.mode === 'vpPan') {
+    // Final flush already sent inline; nothing extra needed
+    renderLayerOverlay();
+    return;
   }
 
-  layerOverlay.style.cursor = '';
+  // Flush the final layer position to main
+  const layer = layers.find(l => l.id === drag.layerId);
+  if (layer) {
+    const { x, y, w, h } = layer;
+    const newLayers = await window.electronAPI.updateLayer(drag.layerId, { x, y, w, h });
+    if (newLayers) { layers = newLayers; renderLayerOverlay(); }
+  }
 });
 
 // Repaint overlay when a new preview screenshot arrives
@@ -1993,6 +2070,57 @@ window.electronAPI.onScreenPreview(() => {
 window.electronAPI.onInitialSettings(async (s) => {
   applySettingsToUI(s);
   if (s.screenMode === 'advanced') await initScene();
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PANEL RESIZE
+// ════════════════════════════════════════════════════════════════════════════
+
+let panelResizeDrag = null; // { side: 'left'|'right', startX, startWidth }
+
+resizeHandleLeft.addEventListener('mousedown', (e) => {
+  panelResizeDrag = { side: 'left', startX: e.clientX, startWidth: panelMaps.offsetWidth };
+  resizeHandleLeft.classList.add('dragging');
+  document.body.style.cursor = 'ew-resize';
+  e.preventDefault();
+});
+
+resizeHandleRight.addEventListener('mousedown', (e) => {
+  panelResizeDrag = { side: 'right', startX: e.clientX, startWidth: panelSettings.offsetWidth };
+  resizeHandleRight.classList.add('dragging');
+  document.body.style.cursor = 'ew-resize';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!panelResizeDrag) return;
+  const dx = e.clientX - panelResizeDrag.startX;
+  if (panelResizeDrag.side === 'left') {
+    panelMaps.style.width = Math.max(180, Math.min(520, panelResizeDrag.startWidth + dx)) + 'px';
+  } else {
+    panelSettings.style.width = Math.max(180, Math.min(520, panelResizeDrag.startWidth - dx)) + 'px';
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (!panelResizeDrag) return;
+  panelResizeDrag = null;
+  resizeHandleLeft.classList.remove('dragging');
+  resizeHandleRight.classList.remove('dragging');
+  document.body.style.cursor = '';
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// MONITOR SECTION COLLAPSE
+// ════════════════════════════════════════════════════════════════════════════
+
+function setMonitorSectionCollapsed(collapsed) {
+  monitorSectionBody.classList.toggle('collapsed', collapsed);
+  btnToggleMonitors.classList.toggle('collapsed', collapsed);
+}
+
+btnToggleMonitors.addEventListener('click', () => {
+  setMonitorSectionCollapsed(!monitorSectionBody.classList.contains('collapsed'));
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────

@@ -95,12 +95,19 @@
 
     </aside>
 
+    <div class="panel-resize-handle" id="resize-left"></div>
+
     <!-- ── Center: Monitor selector + Preview ── -->
     <main class="panel" id="panel-center">
 
-      <div class="section-title">Monitors</div>
-      <div id="monitor-map"></div>
-      <div id="monitor-list"></div>
+      <div class="section-title monitors-title">
+        Monitors
+        <button id="btn-toggle-monitors" class="btn-icon-xs" title="Collapse monitors">▾</button>
+      </div>
+      <div id="monitor-section-body">
+        <div id="monitor-map"></div>
+        <div id="monitor-list"></div>
+      </div>
 
       <div class="section-title preview-title">
         Player Screen Preview
@@ -117,6 +124,8 @@
       </div>
 
     </main>
+
+    <div class="panel-resize-handle" id="resize-right"></div>
 
     <!-- ── Right: Settings / Layers ── -->
     <aside class="panel" id="panel-settings">

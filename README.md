@@ -76,9 +76,11 @@ Output is in the `dist/` folder:
 |-------|----------|
 | **Left — Maps tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
 | **Left — Campaign tab** | Campaign selector, sessions list, notes editor |
-| **Center** | Monitor selector, live player screen preview (click to ping in advanced mode) |
+| **Center** | Collapsible monitor selector (auto-collapses after selection); live player screen preview with viewport zoom-region overlay |
 | **Right — Settings tab** | Grid toggle, cell size, color/opacity, DPI calibration, zoom |
 | **Right — Layers tab** | Screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
+
+All three panels are resizable: drag the thin divider between any two panels. Side panels show scrollbars when their content exceeds the panel height.
 
 ### Layers Tab (Advanced Mode)
 
@@ -86,7 +88,7 @@ Enabled by toggling **Advanced (Layer) Mode** in the Layers tab. Switching reloa
 
 | Section | Controls |
 |---------|----------|
-| **Viewport** | Zoom in/out/reset slider; 🎯 Ping button — click then click the preview to send a pulsing marker to the player screen |
+| **Viewport** | Zoom in/out/reset slider; drag the gold viewport rectangle on the preview to pan; 🎯 Ping button — click then click the preview to send a pulsing marker to the player screen |
 | **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
 | **HUDs** | Add Initiative Tracker; eye icon to show/hide; click row to expand editor |
@@ -148,7 +150,7 @@ Switched to via the Layers tab in the GM panel. Fully separate renderer (`screen
 
 - **Layer stack** — image, GIF, video, light/shadow, fog of war, weather particle layers; drag ⠿ grip to reorder
 - **Layer move/resize** — drag any layer on the GM preview to move it; resize via 8-point handles; all layer types (including fog and weather) supported; images added from the library appear at natural pixel size, centred
-- **Viewport zoom** — GM can zoom into a map region; player screen shows that region
+- **Viewport zoom & pan** — GM zooms and drags the gold region rectangle on the preview to choose what the player sees; viewport rect dims everything outside the visible area
 - **HUD overlays** — screen-space panels unaffected by pan/zoom: initiative tracker with combat turn tracking
 - **Ping** — GM clicks preview → pulsing ring + dot appears at that position on the player screen
 - **Scene persistence** — save/load full layer state as JSON
@@ -164,7 +166,6 @@ The core Advanced screen is implemented. Remaining polish items:
 - **Default assets** — bundled quick-insert objects (fire GIF, fireflies, etc.)
 - **Status panel HUD** — names + status badges, no turn management
 - **Initiative enhancements** — sort by roll, per-entry status badge management, "???" hidden slot mode
-- **Preview viewport overlay** — rectangle on GM preview showing the current zoom region
 
 ---
 
