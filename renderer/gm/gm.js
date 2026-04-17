@@ -1049,6 +1049,7 @@ const btnResetScene        = document.getElementById('btn-reset-scene');
 let layers           = [];
 let huds             = [];
 let selectedLayerId  = null;
+let dragSrcLayerId   = null;
 let selectedHudId    = null;
 let vpZoom           = 1.0;
 let pingMode         = false;
@@ -1204,6 +1205,52 @@ function buildLayerRow(layer) {
     if (newLayers) { layers = newLayers; renderLayerList(); }
   });
 
+  const grip = document.createElement('span');
+  grip.className = 'layer-drag-grip';
+  grip.textContent = '⠿';
+  grip.title = 'Drag to reorder';
+
+  row.draggable = true;
+
+  row.addEventListener('dragstart', (e) => {
+    dragSrcLayerId = layer.id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', layer.id);
+    setTimeout(() => row.classList.add('dragging'), 0);
+  });
+  row.addEventListener('dragend', () => {
+    dragSrcLayerId = null;
+    row.classList.remove('dragging');
+    layerListEl.querySelectorAll('.layer-row').forEach(r => r.classList.remove('drag-over'));
+  });
+  row.addEventListener('dragover', (e) => {
+    if (!dragSrcLayerId || dragSrcLayerId === layer.id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    layerListEl.querySelectorAll('.layer-row').forEach(r => r.classList.remove('drag-over'));
+    row.classList.add('drag-over');
+  });
+  row.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    if (!dragSrcLayerId || dragSrcLayerId === layer.id) return;
+    layerListEl.querySelectorAll('.layer-row').forEach(r => r.classList.remove('drag-over'));
+
+    // Collect visual order (top → bottom) from current DOM rows
+    const rows = [...layerListEl.querySelectorAll('.layer-row[data-layer-id]')];
+    const ids  = rows.map(r => r.dataset.layerId);
+
+    const srcIdx = ids.indexOf(dragSrcLayerId);
+    const tgtIdx = ids.indexOf(layer.id);
+    ids.splice(srcIdx, 1);
+    const adjusted = srcIdx < tgtIdx ? tgtIdx - 1 : tgtIdx;
+    ids.splice(adjusted, 0, dragSrcLayerId);
+
+    // Visual list is top→bottom; data array is bottom→top, so reverse
+    const newLayers = await window.electronAPI.reorderLayers([...ids].reverse());
+    if (newLayers) { layers = newLayers; renderLayerList(); }
+  });
+
+  row.appendChild(grip);
   row.appendChild(eye);
   row.appendChild(badge);
   row.appendChild(name);
@@ -1720,10 +1767,14 @@ function hitTestOverlay(mx, my) {
     }
   }
 
-  // Scan layers top-to-bottom (highest index = visually on top)
+  // Scan layers top-to-bottom (highest index = visually on top).
+  // Fog and weather are excluded here — they fill the full screen and would
+  // intercept every click. They are only interactive when pre-selected via
+  // the layer list (handled by the selected-layer block above).
   for (let i = layers.length - 1; i >= 0; i--) {
     const layer = layers[i];
     if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
+    if (layer.type === 'fog' || layer.type === 'weather') continue;
     const b = layerBoundsOnCanvas(layer, ca);
     if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph) {
       return { layerId: layer.id, mode: 'move' };

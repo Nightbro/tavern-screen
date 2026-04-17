@@ -110,8 +110,8 @@ const WEATHER_CFG = {
     },
   },
   fog: {
-    count: 18, speed: 0.25, spreadX: 0.06, size: [90, 220],
-    color: () => `rgba(130,145,165,${0.06 + Math.random() * 0.08})`,
+    count: 28, speed: 0.25, spreadX: 0.06, size: [90, 220],
+    color: () => `rgba(130,145,165,${0.14 + Math.random() * 0.14})`,
     draw(ctx, p) {
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
       g.addColorStop(0, p.color);

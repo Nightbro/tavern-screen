@@ -462,6 +462,14 @@ body.advanced-mode .adv-only { display: flex; }
 .layer-row:hover  { background: #1e1e38; }
 .layer-row.active { background: #1a2e24; }
 .layer-row.active .layer-name { color: #81e0ab; }
+.layer-row.dragging  { opacity: 0.4; }
+.layer-row.drag-over { background: #1e2e3e; outline: 1px dashed #4a90d9; }
+
+.layer-drag-grip {
+  font-size: 14px; color: #333; cursor: grab; flex-shrink: 0;
+  line-height: 1; padding: 0 1px;
+}
+.layer-drag-grip:hover { color: #777; }
 
 .layer-type-badge {
   font-size: 9px; background: #1e1e38; color: #555;
