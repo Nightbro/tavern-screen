@@ -87,7 +87,7 @@ Enabled by toggling **Advanced (Layer) Mode** in the Layers tab. Switching reloa
 | Section | Controls |
 |---------|----------|
 | **Viewport** | Zoom in/out/reset slider; 🎯 Ping button — click then click the preview to send a pulsing marker to the player screen |
-| **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; click row to expand detail editor; × to delete |
+| **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
 | **HUDs** | Add Initiative Tracker; eye icon to show/hide; click row to expand editor |
 | **Initiative** | Add entries (name, roll, hidden checkbox); Start/Stop combat; Next/Prev turn |
@@ -146,7 +146,8 @@ Campaigns and sessions are stored alongside the map library under the same root 
 
 Switched to via the Layers tab in the GM panel. Fully separate renderer (`screen-advanced`).
 
-- **Layer stack** — image, GIF, video, light/shadow, fog of war, weather particle layers
+- **Layer stack** — image, GIF, video, light/shadow, fog of war, weather particle layers; drag ⠿ grip to reorder
+- **Layer move/resize** — drag any layer on the GM preview to move it; resize via 8-point handles; all layer types (including fog and weather) supported; images added from the library appear at natural pixel size, centred
 - **Viewport zoom** — GM can zoom into a map region; player screen shows that region
 - **HUD overlays** — screen-space panels unaffected by pan/zoom: initiative tracker with combat turn tracking
 - **Ping** — GM clicks preview → pulsing ring + dot appears at that position on the player screen
@@ -158,8 +159,6 @@ Switched to via the Layers tab in the GM panel. Fully separate renderer (`screen
 
 The core Advanced screen is implemented. Remaining polish items:
 
-- **Layer move/resize on preview** — drag handles on the GM preview to reposition and resize image/light layers
-- **Drag to reorder layers** — drag-and-drop handles in the layer list
 - **Per-layer delayed reveal** — countdown shown on the player screen before the object appears
 - **Fog of War reveal tool** — GM draws on the preview to erase fog; currently fog is a static full-screen layer
 - **Default assets** — bundled quick-insert objects (fire GIF, fireflies, etc.)
