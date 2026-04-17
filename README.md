@@ -247,6 +247,14 @@ The GM screen will gain a dedicated **HUD Preview panel** — a scaled replica o
 
 ---
 
+### Future Implementation — Initiative Persistence & Sorting
+
+- **Auto-save** — every change to the initiative tracker (adding entries, rolling initiative, dealing damage, toggling visibility) is saved immediately so no data is lost on accidental close or reconnect
+- **Load on open** — when a session is resumed, the last saved initiative state is restored automatically (entries, HP, statuses, current turn, combat state)
+- **Sort by initiative** — a one-click sort button that reorders entries from highest to lowest initiative roll; ties broken by entry order
+
+---
+
 ### Advanced Screen — Remaining enhancements
 
 The core Advanced screen is implemented. Remaining polish items:

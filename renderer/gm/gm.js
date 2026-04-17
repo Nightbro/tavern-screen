@@ -1603,7 +1603,7 @@ function selectHud(id) {
 btnAddInitiative.addEventListener('click', async () => {
   const newHuds = await window.electronAPI.addHud({
     type: 'initiative', visible: true, combat: false, currentIndex: 0, entries: [],
-    sides: [{ corner: 'top-left', facing: 'up' }], fontSize: 14,
+    sides: [{ corner: 'top-left', facing: 'up' }], fontSize: DEFAULT_HUD_FONT_SIZE,
   });
   if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
@@ -1760,7 +1760,7 @@ function renderInitiativeEditor(hud) {
   btnCombatNext.disabled = !inCombat;
   renderInitiativePositions(hud);
   const fontSizeEl = document.getElementById('initiative-font-size');
-  if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? 14;
+  if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? DEFAULT_HUD_FONT_SIZE;
   const showLabelsEl = document.getElementById('initiative-show-labels');
   if (showLabelsEl) showLabelsEl.checked = hud.showLabels ?? false;
   renderCustomPresetsPanel();
@@ -1952,7 +1952,7 @@ function buildEntryStatusRow(container, hud, idx, entry) {
   // Custom presets section
   const customTitle = document.createElement('div');
   customTitle.className = 'preset-section-title';
-  customTitle.textContent = 'Custom';
+  customTitle.textContent = 'Saved Presets';
   picker.appendChild(customTitle);
 
   const customGrid = document.createElement('div');
@@ -2147,7 +2147,7 @@ btnCombatPrev.addEventListener('click', async () => {
 btnAddEntry.addEventListener('click', async () => {
   const hud = huds.find(h => h.id === selectedHudId);
   if (!hud) return;
-  const newEntry = { id: genId(), name: '', initiative: 0, hidden: true, invisible: false, statuses: [] };
+  const newEntry = { id: genId(), name: '', initiative: 0, hidden: false, invisible: true, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
   if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
