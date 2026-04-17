@@ -267,10 +267,15 @@
         <!-- Scene I/O -->
         <div class="settings-group adv-only" id="group-scene-io">
           <div class="settings-group-title">Scene</div>
+          <div class="scene-name-row">
+            <input type="text" id="scene-name-input" class="scene-name-input" placeholder="Scene name…" />
+            <span id="scene-autosave-badge" class="scene-autosave-badge"></span>
+          </div>
+          <div id="scene-list" class="scene-list"></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn-ghost-sm" id="btn-save-scene">💾 Save</button>
-            <button class="btn-ghost-sm" id="btn-load-scene">📂 Load</button>
-            <button class="btn-ghost-sm" id="btn-reset-scene">↺ Reset</button>
+            <button class="btn-ghost-sm" id="btn-reset-scene">↺ New</button>
+            <button class="btn-ghost-sm" id="btn-save-scene">⬆ Export</button>
+            <button class="btn-ghost-sm" id="btn-load-scene">⬇ Import</button>
           </div>
         </div>
 

@@ -697,6 +697,7 @@ async function selectSession(campaignId, sessionId) {
     r.classList.toggle('active', r.dataset.sessionId === selectedSessionId);
   });
   await loadCurrentNotes();
+  renderSceneList();
 }
 
 // ── Campaign toolbar ──────────────────────────────────────────────────────────
@@ -707,6 +708,7 @@ campaignSelect.addEventListener('change', async () => {
   selectedSessionId  = null;
   renderSessions();
   await loadCurrentNotes();
+  renderSceneList();
 });
 
 btnNewCampaign.addEventListener('click', () => {
@@ -1015,6 +1017,7 @@ rightTabBtns.forEach(btn => {
     const tab = btn.dataset.rightTab;
     rightTabPaneSettings.style.display = tab === 'settings' ? '' : 'none';
     rightTabPaneLayers.style.display   = tab === 'layers'   ? '' : 'none';
+    if (tab === 'layers') renderSceneList();
   });
 });
 
@@ -1051,6 +1054,9 @@ const btnAddWeatherLayer   = document.getElementById('btn-add-weather-layer');
 const btnSaveScene         = document.getElementById('btn-save-scene');
 const btnLoadScene         = document.getElementById('btn-load-scene');
 const btnResetScene        = document.getElementById('btn-reset-scene');
+const sceneNameInput       = document.getElementById('scene-name-input');
+const sceneAutosaveBadge   = document.getElementById('scene-autosave-badge');
+const sceneListEl          = document.getElementById('scene-list');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let layers           = [];
@@ -1059,6 +1065,8 @@ let selectedLayerId  = null;
 let dragSrcLayerId   = null;
 let vpCenterX        = 0.5;
 let vpCenterY        = 0.5;
+let sceneReady       = false;
+let autosaveTimer    = null;
 let selectedHudId    = null;
 let vpZoom           = 1.0;
 let pingMode         = false;
@@ -1100,9 +1108,12 @@ async function initScene() {
   vpZoom    = scene.viewport?.zoom    ?? 1.0;
   vpCenterX = scene.viewport?.centerX ?? 0.5;
   vpCenterY = scene.viewport?.centerY ?? 0.5;
+  sceneNameInput.value = scene.name ?? '';
   renderLayerList();
   renderHudList();
   updateVpZoomUI();
+  sceneReady = true;
+  renderSceneList();
 }
 
 // ── Viewport zoom ─────────────────────────────────────────────────────────────
@@ -1118,6 +1129,7 @@ function setVpZoom(value) {
   updateVpZoomUI();
   window.electronAPI.updateViewport({ zoom: vpZoom });
   renderLayerOverlay();
+  scheduleAutosave();
 }
 
 vpZoomIn.addEventListener('click',     () => setVpZoom(vpZoom + 0.1));
@@ -1172,6 +1184,7 @@ function renderLayerList() {
     empty.textContent = 'No layers yet';
     layerListEl.appendChild(empty);
     renderLayerOverlay();
+    scheduleAutosave();
     return;
   }
   // Render in reverse (top of stack first visually)
@@ -1179,6 +1192,7 @@ function renderLayerList() {
     layerListEl.appendChild(buildLayerRow(layers[i]));
   }
   renderLayerOverlay();
+  scheduleAutosave();
 }
 
 function buildLayerRow(layer) {
@@ -1442,11 +1456,13 @@ function renderHudList() {
     empty.className = 'layer-empty';
     empty.textContent = 'No HUDs';
     hudListEl.appendChild(empty);
+    scheduleAutosave();
     return;
   }
   for (const hud of huds) {
     hudListEl.appendChild(buildHudRow(hud));
   }
+  scheduleAutosave();
 }
 
 function buildHudRow(hud) {
@@ -1629,18 +1645,76 @@ btnAddEntry.addEventListener('click', async () => {
 // SCENE I/O
 // ════════════════════════════════════════════════════════════════════════════
 
-btnSaveScene.addEventListener('click', async () => {
-  const scene = await window.electronAPI.getScene();
-  if (scene) await window.electronAPI.saveSceneDialog(scene);
-});
+function setAutosaveBadge(state) {
+  sceneAutosaveBadge.dataset.state = state;
+  sceneAutosaveBadge.textContent =
+    state === 'saving' ? 'Saving…' :
+    state === 'saved'  ? '✓ Saved' : '';
+}
 
-btnLoadScene.addEventListener('click', async () => {
-  const scene = await window.electronAPI.loadSceneDialog();
+function scheduleAutosave() {
+  if (!sceneReady || !selectedCampaignId) return;
+  clearTimeout(autosaveTimer);
+  setAutosaveBadge('saving');
+  autosaveTimer = setTimeout(async () => {
+    const scene = await window.electronAPI.getScene();
+    if (!scene?.name) { setAutosaveBadge(''); return; }
+    await window.electronAPI.saveSceneCampaign(selectedCampaignId, selectedSessionId);
+    setAutosaveBadge('saved');
+    renderSceneList();
+  }, 800);
+}
+
+async function renderSceneList() {
+  sceneListEl.innerHTML = '';
+  if (!selectedCampaignId) return;
+  const scenes = await window.electronAPI.listScenesCampaign(selectedCampaignId, selectedSessionId);
+  if (!scenes.length) return;
+  for (const s of scenes) {
+    const row = document.createElement('div');
+    row.className = 'scene-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'scene-row-name';
+    nameEl.textContent = s.name || '(unnamed)';
+    nameEl.title = s.savedAt ? new Date(s.savedAt).toLocaleString() : '';
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'btn-icon-xs';
+    loadBtn.textContent = '↩';
+    loadBtn.title = 'Load scene';
+    loadBtn.addEventListener('click', () => applyLoadedScene(s.id));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-icon-xs danger';
+    delBtn.textContent = '×';
+    delBtn.title = 'Delete scene';
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete scene "${s.name}"?`)) return;
+      await window.electronAPI.deleteSceneCampaign(selectedCampaignId, selectedSessionId, s.id);
+      renderSceneList();
+    });
+
+    row.appendChild(nameEl);
+    row.appendChild(loadBtn);
+    row.appendChild(delBtn);
+    sceneListEl.appendChild(row);
+  }
+}
+
+async function applyLoadedScene(sceneIdOrScene) {
+  const scene = typeof sceneIdOrScene === 'string'
+    ? await window.electronAPI.loadSceneCampaign(selectedCampaignId, selectedSessionId, sceneIdOrScene)
+    : sceneIdOrScene;
   if (!scene) return;
   window.electronAPI.setScene(scene);
-  layers = scene.layers ?? [];
-  huds   = scene.huds   ?? [];
-  vpZoom = scene.viewport?.zoom ?? 1.0;
+  layers    = scene.layers ?? [];
+  huds      = scene.huds   ?? [];
+  vpZoom    = scene.viewport?.zoom    ?? 1.0;
+  vpCenterX = scene.viewport?.centerX ?? 0.5;
+  vpCenterY = scene.viewport?.centerY ?? 0.5;
+  sceneNameInput.value = scene.name ?? '';
   updateVpZoomUI();
   renderLayerList();
   renderHudList();
@@ -1648,14 +1722,38 @@ btnLoadScene.addEventListener('click', async () => {
   selectedHudId   = null;
   layerDetail.style.display      = 'none';
   initiativeEditor.style.display = 'none';
+  setAutosaveBadge('');
+}
+
+// Scene name: update meta + trigger autosave
+sceneNameInput.addEventListener('input', () => {
+  window.electronAPI.updateSceneMeta({ name: sceneNameInput.value.trim() });
+  scheduleAutosave();
 });
 
+// Export to file
+btnSaveScene.addEventListener('click', async () => {
+  const scene = await window.electronAPI.getScene();
+  if (scene) await window.electronAPI.saveSceneDialog(scene);
+});
+
+// Import from file
+btnLoadScene.addEventListener('click', async () => {
+  const scene = await window.electronAPI.loadSceneDialog();
+  if (!scene) return;
+  await applyLoadedScene(scene);
+});
+
+// New scene
 btnResetScene.addEventListener('click', () => {
   confirmInline(btnResetScene, () => {
     window.electronAPI.resetScene();
-    layers = [];
-    huds   = [];
-    vpZoom = 1.0;
+    layers    = [];
+    huds      = [];
+    vpZoom    = 1.0;
+    vpCenterX = 0.5;
+    vpCenterY = 0.5;
+    sceneNameInput.value = '';
     updateVpZoomUI();
     renderLayerList();
     renderHudList();
@@ -1663,6 +1761,7 @@ btnResetScene.addEventListener('click', () => {
     selectedHudId   = null;
     layerDetail.style.display      = 'none';
     initiativeEditor.style.display = 'none';
+    setAutosaveBadge('');
   });
 });
 

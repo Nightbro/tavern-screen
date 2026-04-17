@@ -4,6 +4,8 @@ const path = require('path');
 const CAMPAIGNS_DIR = 'campaigns';
 const SESSIONS_DIR  = 'sessions';
 const NOTES_FILE    = 'notes.md';
+const SCENES_DIR    = 'scenes';
+const SCENE_EXT     = '.json';
 
 function createCampaignLibrary(config) {
   let rootFolder = (() => {
@@ -38,6 +40,12 @@ function createCampaignLibrary(config) {
 
   function notesPath(campaignId, sessionId) {
     return path.join(sessionPath(campaignId, sessionId), NOTES_FILE);
+  }
+
+  function scenesDir(campaignId, sessionId) {
+    return sessionId
+      ? path.join(sessionPath(campaignId, sessionId), SCENES_DIR)
+      : path.join(campaignPath(campaignId), SCENES_DIR);
   }
 
   // ── Root folder ────────────────────────────────────────────────────────────
@@ -142,6 +150,42 @@ function createCampaignLibrary(config) {
     fs.writeFileSync(notesPath(campaignId, sessionId), content, 'utf8');
   }
 
+  // ── Scenes ─────────────────────────────────────────────────────────────────
+
+  function saveScene(campaignId, sessionId, scene) {
+    const dir = scenesDir(campaignId, sessionId);
+    fs.mkdirSync(dir, { recursive: true });
+    const data = { ...scene, savedAt: new Date().toISOString() };
+    fs.writeFileSync(path.join(dir, scene.id + SCENE_EXT), JSON.stringify(data, null, 2), 'utf8');
+    return { id: scene.id, name: scene.name || '', savedAt: data.savedAt };
+  }
+
+  function listScenes(campaignId, sessionId) {
+    const dir = scenesDir(campaignId, sessionId);
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir)
+      .filter(f => f.endsWith(SCENE_EXT))
+      .map(f => {
+        try {
+          const d = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+          return { id: d.id, name: d.name || '(unnamed)', savedAt: d.savedAt ?? '' };
+        } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  }
+
+  function loadScene(campaignId, sessionId, sceneId) {
+    const file = path.join(scenesDir(campaignId, sessionId), sceneId + SCENE_EXT);
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  }
+
+  function deleteScene(campaignId, sessionId, sceneId) {
+    const file = path.join(scenesDir(campaignId, sessionId), sceneId + SCENE_EXT);
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+  }
+
   return {
     setRootFolder, getRootFolder, getCampaignsDir,
     scan,
@@ -149,6 +193,7 @@ function createCampaignLibrary(config) {
     createSession, renameSession, deleteSession,
     readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
+    saveScene, listScenes, loadScene, deleteScene,
   };
 }
 

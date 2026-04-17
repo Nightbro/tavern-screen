@@ -611,4 +611,47 @@ describe('scene state', () => {
     expect(manager.getScene().layers[0].id).toBe('l1');
     expect(windows[1].webContents.send).toHaveBeenCalledWith('scene-update', expect.objectContaining({ layers: newScene.layers }));
   });
+
+  test('buildDefaultScene includes id (UUID) and empty name', () => {
+    const { manager } = makeAdvancedWithScreen();
+    const scene = manager.getScene();
+    expect(typeof scene.id).toBe('string');
+    expect(scene.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(scene.name).toBe('');
+  });
+
+  test('resetScene assigns a new UUID id and resets name', () => {
+    const { manager } = makeAdvancedWithScreen();
+    const firstId = manager.getScene().id;
+    manager.updateSceneMeta({ name: 'Old Name' });
+    manager.resetScene();
+    const scene = manager.getScene();
+    expect(scene.id).not.toBe(firstId);
+    expect(scene.name).toBe('');
+  });
+
+  test('updateSceneMeta sets the scene name', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.updateSceneMeta({ name: 'My Scene' });
+    expect(manager.getScene().name).toBe('My Scene');
+  });
+
+  test('updateSceneMeta does not pollute scene with unknown fields', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.updateSceneMeta({ name: 'Valid', evilField: 'injected', layers: ['hacked'] });
+    const scene = manager.getScene();
+    expect(scene.name).toBe('Valid');
+    expect(scene.evilField).toBeUndefined();
+    expect(scene.layers).toEqual([]);
+  });
+
+  test('updateSceneMeta does nothing when no scene exists', () => {
+    const { manager } = makeManager(undefined, {
+      screenAdvancedRendererPath: '/fake/screen-advanced.html',
+      initialSettings: { screenMode: 'advanced' },
+    });
+    manager.createGMWindow();
+    expect(() => manager.updateSceneMeta({ name: 'x' })).not.toThrow();
+    expect(manager.getScene()).toBeNull();
+  });
 });

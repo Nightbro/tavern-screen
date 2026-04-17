@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS = {
 
 function buildDefaultScene() {
   return {
+    id:       randomUUID(),
+    name:     '',
     map:      null,
     viewport: { centerX: 0.5, centerY: 0.5, zoom: 1.0 },
     layers:   [],
@@ -205,6 +207,13 @@ function createWindowManager({
     notifyScreen('scene-update', currentScene);
   }
 
+  function updateSceneMeta(patch) {
+    if (!currentScene) return;
+    const allowed = {};
+    if (patch.name !== undefined) allowed.name = patch.name;
+    currentScene = { ...currentScene, ...allowed };
+  }
+
   function updateViewport(patch) {
     if (!currentScene) return;
     currentScene = { ...currentScene, viewport: { ...currentScene.viewport, ...patch } };
@@ -297,7 +306,7 @@ function createWindowManager({
     updateSettings, setActiveMap,
     getDisplays, getSettings,
     capturePreview,
-    getScene, setScene, resetScene,
+    getScene, setScene, resetScene, updateSceneMeta,
     updateViewport,
     addLayer, updateLayer, removeLayer, reorderLayers,
     addHud, updateHud, removeHud,

@@ -93,7 +93,7 @@ Enabled by toggling **Advanced (Layer) Mode** in the Layers tab. Switching reloa
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
 | **HUDs** | Add Initiative Tracker; eye icon to show/hide; click row to expand editor |
 | **Initiative** | Add entries (name, roll, hidden checkbox); Start/Stop combat; Next/Prev turn |
-| **Scene** | 💾 Save scene to JSON; 📂 Load scene from JSON; ↺ Reset to empty |
+| **Scene** | Named scenes auto-saved to the active campaign/session; scene list with load/delete; ⬆ Export to JSON file; ⬇ Import from JSON file; ↺ New (reset to empty) |
 
 ## Persistence
 
@@ -127,7 +127,9 @@ Campaigns and sessions are stored alongside the map library under the same root 
         ├── notes.md             # campaign-level notes
         └── sessions/
             └── Session 1/
-                └── notes.md     # session notes
+                ├── notes.md     # session notes
+                └── scenes/
+                    └── <uuid>.json  # auto-saved scenes
 ```
 
 - **Campaigns** — create, rename, delete (with confirmation); switch via dropdown
@@ -153,7 +155,7 @@ Switched to via the Layers tab in the GM panel. Fully separate renderer (`screen
 - **Viewport zoom & pan** — GM zooms and drags the gold region rectangle on the preview to choose what the player sees; viewport rect dims everything outside the visible area
 - **HUD overlays** — screen-space panels unaffected by pan/zoom: initiative tracker with combat turn tracking
 - **Ping** — GM clicks preview → pulsing ring + dot appears at that position on the player screen
-- **Scene persistence** — save/load full layer state as JSON
+- **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON
 
 ## Roadmap
 
@@ -276,7 +278,7 @@ Campaign/
 ├── Sessions/          # one entry per session played
 │   ├── Session 1/
 │   │   ├── notes.md   # freeform session notes
-│   │   ├── scenes/    # scene presets used in this session
+│   │   ├── scenes/    # named scene saves for this session (JSON)
 │   │   └── handouts/  # handouts shown in this session
 │   └── Session 2/ …
 ├── NPCs/              # reusable NPC cards (linked to character roster)
@@ -312,7 +314,6 @@ Campaign/
 
 ### Other planned features
 
-- **Scene presets** — save the complete state (active map + all layers + zoom) as a named preset; switch scenes instantly from a preset list; presets are attached to sessions in the campaign
 - **Status panel** promotion — if the status panel grows complex enough, consider making it a full dockable window like the initiative tracker
 
 

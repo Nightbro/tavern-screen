@@ -76,6 +76,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendPing:        (x, y)         => ipcRenderer.send('send-ping', x, y),
   onPing:          (cb)           => ipcRenderer.on('ping',        (_e, x, y) => cb(x, y)),
 
+  updateSceneMeta:      (patch)                       => ipcRenderer.send('update-scene-meta', patch),
+  saveSceneCampaign:    (campaignId, sessionId)        => ipcRenderer.invoke('save-scene-campaign', campaignId, sessionId),
+  listScenesCampaign:   (campaignId, sessionId)        => ipcRenderer.invoke('list-scenes-campaign', campaignId, sessionId),
+  loadSceneCampaign:    (campaignId, sessionId, id)    => ipcRenderer.invoke('load-scene-campaign', campaignId, sessionId, id),
+  deleteSceneCampaign:  (campaignId, sessionId, id)    => ipcRenderer.invoke('delete-scene-campaign', campaignId, sessionId, id),
+
   saveSceneDialog: (scene)        => ipcRenderer.invoke('save-scene-dialog', scene),
   loadSceneDialog: ()             => ipcRenderer.invoke('load-scene-dialog'),
 });

@@ -116,7 +116,27 @@ ipcMain.handle('add-hud',        (_e, hud)       => { manager.addHud(hud);      
 ipcMain.handle('update-hud',     (_e, id, patch) => { manager.updateHud(id, patch);   return manager.getScene()?.huds ?? []; });
 ipcMain.handle('remove-hud',     (_e, id)        => { manager.removeHud(id);          return manager.getScene()?.huds ?? []; });
 
-ipcMain.on('send-ping', (_e, x, y) => manager.sendPing(x, y));
+ipcMain.on('send-ping',         (_e, x, y)    => manager.sendPing(x, y));
+ipcMain.on('update-scene-meta', (_e, patch)   => manager.updateSceneMeta(patch));
+
+// ── Campaign-scoped scene persistence ──────────────────────────────────────────
+ipcMain.handle('save-scene-campaign', (_e, campaignId, sessionId) => {
+  const scene = manager.getScene();
+  if (!scene) return null;
+  return campaignLib.saveScene(campaignId, sessionId, scene);
+});
+
+ipcMain.handle('list-scenes-campaign', (_e, campaignId, sessionId) =>
+  campaignLib.listScenes(campaignId, sessionId)
+);
+
+ipcMain.handle('load-scene-campaign', (_e, campaignId, sessionId, sceneId) =>
+  campaignLib.loadScene(campaignId, sessionId, sceneId)
+);
+
+ipcMain.handle('delete-scene-campaign', (_e, campaignId, sessionId, sceneId) => {
+  campaignLib.deleteScene(campaignId, sessionId, sceneId);
+});
 
 ipcMain.handle('save-scene-dialog', async (event, scene) => {
   const win = BrowserWindow.fromWebContents(event.sender);
