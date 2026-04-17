@@ -94,12 +94,21 @@ html, body {
 }
 .initiative-entry.active-turn .initiative-hp { color: #e08040; }
 
-.initiative-statuses { display: flex; gap: 4px; flex-wrap: wrap; }
+.initiative-statuses { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.hud-panel.statuses-expanded .initiative-statuses { flex-direction: column; align-items: flex-start; gap: 3px; }
+
+.status-pip-wrap { display: flex; align-items: center; gap: 5px; }
 
 .status-pip {
   width: 8px; height: 8px; border-radius: 50%;
-  flex-shrink: 0; margin-top: 3px;
+  flex-shrink: 0;
 }
+
+.status-pip-lbl {
+  display: none;
+  font-size: 0.78em; color: #ccc;
+}
+.hud-panel.statuses-expanded .status-pip-lbl { display: inline; }
 
 /* ── Ping ring (DOM-based) ── */
 .ping-ring {

@@ -606,9 +606,14 @@ body.advanced-mode .adv-only { display: flex; }
 #initiative-entries { display: flex; flex-direction: column; margin-top: 4px; }
 .initiative-entry-row {
   display: flex; gap: 4px; align-items: center;
-  padding: 4px 0; border-bottom: 1px solid #1a1a2e;
+  padding: 4px 0;
 }
-.initiative-entry-row:last-child { border-bottom: none; }
+.init-vis-group {
+  display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+}
+.init-vis-label {
+  font-size: 9px; color: #5a5a8e; line-height: 1; user-select: none;
+}
 .init-entry-active {
   font-size: 9px; color: #c9a84c; min-width: 9px; text-align: center; flex-shrink: 0;
 }

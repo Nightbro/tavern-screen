@@ -1744,10 +1744,17 @@ function renderInitiativeEntries(hud) {
 
     const hiddenChk = document.createElement('input');
     hiddenChk.type = 'checkbox';
-    hiddenChk.title = 'Hide from players (show as ???)';
+    hiddenChk.title = 'Lurking – shows as ??? in player list';
     hiddenChk.checked = entry.hidden ?? false;
     hiddenChk.style.cssText = 'accent-color:#c9a84c;cursor:pointer;flex-shrink:0;';
     hiddenChk.addEventListener('change', () => updateEntryField(hud, idx, { hidden: hiddenChk.checked }));
+
+    const invisibleChk = document.createElement('input');
+    invisibleChk.type = 'checkbox';
+    invisibleChk.title = 'Invisible – not shown in player list at all';
+    invisibleChk.checked = entry.invisible ?? false;
+    invisibleChk.style.cssText = 'accent-color:#e05555;cursor:pointer;flex-shrink:0;';
+    invisibleChk.addEventListener('change', () => updateEntryField(hud, idx, { invisible: invisibleChk.checked }));
 
     const delBtn = document.createElement('button');
     delBtn.className = 'btn-icon-xs danger';
@@ -1755,10 +1762,29 @@ function renderInitiativeEntries(hud) {
     delBtn.title = 'Remove entry';
     delBtn.addEventListener('click', () => removeEntry(hud, idx));
 
+    const visGroup = document.createElement('div');
+    visGroup.className = 'init-vis-group';
+
+    const lbl1 = document.createElement('span');
+    lbl1.className = 'init-vis-label';
+    lbl1.title = 'Lurking – shows as ???';
+    lbl1.textContent = '?';
+
+    const lbl2 = document.createElement('span');
+    lbl2.className = 'init-vis-label';
+    lbl2.title = 'Invisible – not shown to players';
+    lbl2.textContent = '👁';
+    lbl2.style.fontSize = '10px';
+
+    visGroup.appendChild(lbl1);
+    visGroup.appendChild(hiddenChk);
+    visGroup.appendChild(lbl2);
+    visGroup.appendChild(invisibleChk);
+
     row.appendChild(turnInd);
     row.appendChild(nameInput);
     row.appendChild(rollInput);
-    row.appendChild(hiddenChk);
+    row.appendChild(visGroup);
     row.appendChild(delBtn);
 
     // ── Status row ────────────────────────────────────────────────────────────
@@ -1987,7 +2013,7 @@ btnCombatPrev.addEventListener('click', async () => {
 btnAddEntry.addEventListener('click', async () => {
   const hud = huds.find(h => h.id === selectedHudId);
   if (!hud) return;
-  const newEntry = { id: genId(), name: '', initiative: 0, hidden: false, statuses: [] };
+  const newEntry = { id: genId(), name: '', initiative: 0, hidden: true, invisible: false, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
   if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });

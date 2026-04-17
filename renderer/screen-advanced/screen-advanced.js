@@ -460,6 +460,16 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   collapseBtn.title       = 'Collapse / Expand';
   header.appendChild(collapseBtn);
 
+  const expandStatusBtn = document.createElement('button');
+  expandStatusBtn.className   = 'hud-collapse-btn';
+  expandStatusBtn.textContent = '⊞';
+  expandStatusBtn.title       = 'Show / hide status labels';
+  expandStatusBtn.addEventListener('click', () => {
+    const on = panel.classList.toggle('statuses-expanded');
+    expandStatusBtn.textContent = on ? '⊟' : '⊞';
+  });
+  header.appendChild(expandStatusBtn);
+
   panel.appendChild(header);
 
   // ── Entry list (collapsible) ──────────────────────────────────────────────
@@ -468,6 +478,8 @@ function buildInitiativeHudPanel(hud, corner, facing) {
 
   const entries = hud.entries ?? [];
   entries.forEach((entry, i) => {
+    if (entry.invisible) return; // completely hidden from players
+
     const isActive = hud.combat && i === (hud.currentIndex ?? 0);
 
     const row = document.createElement('div');
@@ -479,28 +491,42 @@ function buildInitiativeHudPanel(hud, corner, facing) {
 
     const name = document.createElement('span');
     name.className   = 'initiative-name';
-    // hidden = true → show as ??? (the GM is hiding their identity but players know someone is there)
+    // hidden = lurking: players see ??? instead of real name
     name.textContent = entry.hidden ? '???' : (entry.name || '—');
 
     row.appendChild(badge);
     row.appendChild(name);
 
-    if (entry.hp > 0) {
-      const currentHp = Math.max(0, entry.hp - (entry.damage ?? 0));
+    // HP: show current/max when revealed; show damage/??? when hidden or max HP not set
+    const damage = entry.damage ?? 0;
+    if (entry.hp > 0 || damage > 0) {
       const hpEl = document.createElement('span');
-      hpEl.className   = 'initiative-hp';
-      hpEl.textContent = `${currentHp}/${entry.hp}`;
+      hpEl.className = 'initiative-hp';
+      if (entry.hp > 0 && !entry.hidden) {
+        hpEl.textContent = `${Math.max(0, entry.hp - damage)}/${entry.hp}`;
+      } else {
+        hpEl.textContent = `${damage}/???`;
+      }
       row.appendChild(hpEl);
     }
 
     const statuses = document.createElement('span');
     statuses.className = 'initiative-statuses';
     for (const s of (entry.statuses ?? [])) {
+      const wrap = document.createElement('span');
+      wrap.className = 'status-pip-wrap';
+
       const pip = document.createElement('span');
       pip.className        = 'status-pip';
       pip.style.background = s.color ?? '#888';
-      pip.title            = s.label ?? '';
-      statuses.appendChild(pip);
+
+      const lbl = document.createElement('span');
+      lbl.className   = 'status-pip-lbl';
+      lbl.textContent = s.label ?? '';
+
+      wrap.appendChild(pip);
+      wrap.appendChild(lbl);
+      statuses.appendChild(wrap);
     }
     row.appendChild(statuses);
 
