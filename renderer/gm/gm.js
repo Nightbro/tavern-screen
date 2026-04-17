@@ -12,7 +12,7 @@ const dropOverlay     = document.getElementById('drop-overlay');
 
 // ── Campaign tab ──────────────────────────────────────────────────────────────
 const tabBtns           = document.querySelectorAll('#left-panel-tabs .panel-tab');
-const tabPaneMaps       = document.getElementById('tab-pane-maps');
+const tabPaneAssets     = document.getElementById('tab-pane-assets');
 const tabPaneCampaign   = document.getElementById('tab-pane-campaign');
 const campaignSelect    = document.getElementById('campaign-select');
 const btnNewCampaign    = document.getElementById('btn-new-campaign');
@@ -460,7 +460,7 @@ tabBtns.forEach(btn => {
     tabBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const tab = btn.dataset.tab;
-    tabPaneMaps.style.display     = tab === 'maps'     ? '' : 'none';
+    tabPaneAssets.style.display   = tab === 'assets'   ? '' : 'none';
     tabPaneCampaign.style.display = tab === 'campaign' ? '' : 'none';
   });
 });
@@ -652,6 +652,10 @@ function buildSessionRow(session) {
 
   actions.appendChild(btnRename);
   actions.appendChild(btnDel);
+  const badge = document.createElement('span');
+  badge.className = 'session-badge';
+  badge.textContent = 'SES';
+  row.appendChild(badge);
   row.appendChild(nameEl);
   row.appendChild(actions);
 
@@ -962,7 +966,7 @@ function applySettingsToUI(s) {
   if (s.screenMode !== undefined) {
     const isAdv = s.screenMode === 'advanced';
     screenModeAdvanced = isAdv;
-    if (elScreenModeAdvanced) elScreenModeAdvanced.checked = isAdv;
+    if (elScreenModeSimple) elScreenModeSimple.checked = !isAdv;
     document.body.classList.toggle('advanced-mode', isAdv);
     if (isAdv && !sceneReady) initScene();
     else renderLayerOverlay();
@@ -1030,7 +1034,7 @@ rightTabBtns.forEach(btn => {
 // ════════════════════════════════════════════════════════════════════════════
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
-const elScreenModeAdvanced = document.getElementById('screen-mode-advanced');
+const elScreenModeSimple   = document.getElementById('screen-mode-simple');
 const elAdvGridVisible     = document.getElementById('adv-grid-visible');
 const elGridScaleViewport  = document.getElementById('grid-scale-viewport');
 const vpZoomOut            = document.getElementById('vp-zoom-out');
@@ -1051,6 +1055,7 @@ const btnCombatPrev        = document.getElementById('btn-combat-prev');
 const btnCombatNext        = document.getElementById('btn-combat-next');
 const btnAddEntry          = document.getElementById('btn-add-entry');
 const btnAddInitiative     = document.getElementById('btn-add-initiative');
+const btnAddStatusHud      = document.getElementById('btn-add-status-hud');
 const btnAddImageLayer     = document.getElementById('btn-add-image-layer');
 const btnAddLightLayer     = document.getElementById('btn-add-light-layer');
 const btnAddFogLayer       = document.getElementById('btn-add-fog-layer');
@@ -1101,13 +1106,14 @@ function genId() {
 
 // ── Screen mode toggle ────────────────────────────────────────────────────────
 
-elScreenModeAdvanced.addEventListener('change', async () => {
-  const isAdv = elScreenModeAdvanced.checked;
+elScreenModeSimple.addEventListener('change', async () => {
+  const isSimple = elScreenModeSimple.checked;
+  const isAdv = !isSimple;
   screenModeAdvanced = isAdv;
   document.body.classList.toggle('advanced-mode', isAdv);
   sendSettings({ screenMode: isAdv ? 'advanced' : 'simple' });
   if (isAdv) await initScene();
-  else renderLayerOverlay(); // clear overlay when switching to simple
+  else renderLayerOverlay();
 });
 
 // Grid visibility shortcut (syncs with Settings-tab checkbox)
@@ -1129,6 +1135,21 @@ elCanvasBg?.addEventListener('input', () => {
 });
 
 btnFitView?.addEventListener('click', fitView);
+
+// Grid group collapse
+const btnToggleGrid  = document.getElementById('btn-toggle-grid');
+const gridGroupBody  = document.getElementById('grid-group-body');
+if (btnToggleGrid && gridGroupBody) {
+  btnToggleGrid.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const collapsed = gridGroupBody.classList.toggle('group-body-collapsed');
+    btnToggleGrid.classList.toggle('collapsed', collapsed);
+  });
+  document.getElementById('grid-group-title')?.addEventListener('click', () => {
+    const collapsed = gridGroupBody.classList.toggle('group-body-collapsed');
+    btnToggleGrid.classList.toggle('collapsed', collapsed);
+  });
+}
 
 elSnapToGrid?.addEventListener('change', () => { snapToGrid = elSnapToGrid.checked; });
 
@@ -1572,8 +1593,13 @@ function selectHud(id) {
   selectedHudId = (id === selectedHudId) ? null : id;
   renderHudList();
   const hud = huds.find(h => h.id === selectedHudId);
-  if (hud && hud.type === 'initiative') renderInitiativeEditor(hud);
-  else initiativeEditor.style.display = 'none';
+  if (hud && hud.type === 'initiative') {
+    renderInitiativeEditor(hud);
+    const elInitiativeSide = document.getElementById('initiative-side');
+    if (elInitiativeSide) elInitiativeSide.value = hud.side ?? 'top-left';
+  } else {
+    initiativeEditor.style.display = 'none';
+  }
 }
 
 btnAddInitiative.addEventListener('click', async () => {
@@ -1581,6 +1607,18 @@ btnAddInitiative.addEventListener('click', async () => {
     type: 'initiative', visible: true, combat: false, currentIndex: 0, entries: [],
   });
   if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
+});
+
+btnAddStatusHud?.addEventListener('click', async () => {
+  const newHuds = await window.electronAPI.addHud({ type: 'status', visible: true, side: 'top-right', entries: [] });
+  if (newHuds) { huds = newHuds; renderHudList(); }
+});
+
+const elInitiativeSide = document.getElementById('initiative-side');
+elInitiativeSide?.addEventListener('change', async () => {
+  if (!selectedHudId) return;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { side: elInitiativeSide.value });
+  if (newHuds) { huds = newHuds; renderHudList(); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2441,7 +2479,12 @@ function setMonitorSectionCollapsed(collapsed) {
 }
 
 btnToggleMonitors.addEventListener('click', () => {
-  setMonitorSectionCollapsed(!monitorSectionBody.classList.contains('collapsed'));
+  const willCollapse = !monitorSectionBody.classList.contains('collapsed');
+  setMonitorSectionCollapsed(willCollapse);
+  if (!willCollapse) {
+    // Re-render monitor map so it uses the correct (now-visible) clientWidth
+    setTimeout(() => renderMonitorMap(), 0);
+  }
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────

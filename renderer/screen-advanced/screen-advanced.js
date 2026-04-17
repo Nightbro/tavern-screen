@@ -360,14 +360,25 @@ function renderHuds() {
   for (const hud of (scene.huds ?? [])) {
     if (hud.visible === false) continue;
     if (hud.type === 'initiative') hudRoot.appendChild(buildInitiativeHud(hud));
+    else if (hud.type === 'status') hudRoot.appendChild(buildStatusHud(hud));
+  }
+}
+
+function applyHudSide(el, side) {
+  el.style.left = el.style.right = el.style.top = el.style.bottom = '';
+  switch (side) {
+    case 'top-left':     el.style.left = '20px'; el.style.top    = '20px'; break;
+    case 'top-right':    el.style.right = '20px'; el.style.top   = '20px'; break;
+    case 'bottom-left':  el.style.left = '20px'; el.style.bottom = '20px'; break;
+    case 'bottom-right': el.style.right = '20px'; el.style.bottom = '20px'; break;
+    default:             el.style.left = '20px'; el.style.top    = '20px';
   }
 }
 
 function buildInitiativeHud(hud) {
   const panel = document.createElement('div');
   panel.className = 'hud-panel';
-  panel.style.left = (hud.x ?? 20) + 'px';
-  panel.style.top  = (hud.y ?? 20) + 'px';
+  applyHudSide(panel, hud.side ?? 'top-left');
 
   // ── Header row (title + collapse toggle) ──────────────────────────────────
   const header = document.createElement('div');
@@ -464,6 +475,59 @@ function buildInitiativeHud(hud) {
   });
   header.style.cursor = 'grab';
 
+  return panel;
+}
+
+function buildStatusHud(hud) {
+  const panel = document.createElement('div');
+  panel.className = 'hud-panel';
+  applyHudSide(panel, hud.side ?? 'top-right');
+
+  const header = document.createElement('div');
+  header.className = 'hud-header';
+  const title = document.createElement('div');
+  title.className = 'hud-title';
+  title.textContent = hud.label ?? 'Status';
+  header.appendChild(title);
+
+  const collapseBtn = document.createElement('button');
+  collapseBtn.className = 'hud-collapse-btn';
+  collapseBtn.textContent = '−';
+  header.appendChild(collapseBtn);
+  panel.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'hud-body';
+  const entries = hud.entries ?? [];
+  entries.forEach(entry => {
+    const row = document.createElement('div');
+    row.className = 'status-entry';
+    const name = document.createElement('span');
+    name.className = 'status-name';
+    name.textContent = entry.name || '—';
+    row.appendChild(name);
+    if (entry.hp != null) {
+      const hp = document.createElement('span');
+      hp.className = 'status-hp';
+      hp.textContent = entry.hp;
+      row.appendChild(hp);
+    }
+    body.appendChild(row);
+  });
+  if (!entries.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:11px;color:#3a3a5e;font-style:italic;padding:4px 0;';
+    empty.textContent = 'No entries';
+    body.appendChild(empty);
+  }
+  panel.appendChild(body);
+
+  let collapsed = false;
+  collapseBtn.addEventListener('click', () => {
+    collapsed = !collapsed;
+    body.style.display = collapsed ? 'none' : '';
+    collapseBtn.textContent = collapsed ? '+' : '−';
+  });
   return panel;
 }
 

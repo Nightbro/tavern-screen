@@ -74,25 +74,27 @@ Output is in the `dist/` folder:
 
 | Panel | Contents |
 |-------|----------|
-| **Left — Maps tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
+| **Left — Assets tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
 | **Left — Campaign tab** | Campaign selector, sessions list, notes editor |
 | **Center** | Collapsible monitor selector (auto-collapses after selection); live player screen preview with viewport zoom-region overlay |
-| **Right — Settings tab** | Grid toggle, cell size, color/opacity, DPI calibration, zoom |
-| **Right — Layers tab** | Screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
+| **Right — Screen tab** | DPI calibration, zoom |
+| **Right — Layers tab** | Grid (collapsible), screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
 
 All three panels are resizable: drag the thin divider between any two panels. Side panels show scrollbars when their content exceeds the panel height.
 
 ### Layers Tab (Advanced Mode)
 
-Enabled by toggling **Advanced (Layer) Mode** in the Layers tab. Switching reloads the player screen with the layer renderer.
+Advanced (Layer) Mode is the default. Toggle **Simple Mode** in the Layers tab to switch to the basic renderer (no layers, just a map image + grid). Switching reloads the player screen.
+
+The **Grid** section at the top of the Layers tab is collapsible — click the title or the ▾ button to collapse/expand it. Grid settings (show/hide, cell size, color, opacity) were moved here from the Screen tab.
 
 | Section | Controls |
 |---------|----------|
 | **Viewport** | Zoom in/out/reset slider; drag the gold viewport rectangle on the preview to pan; 🎯 Ping button — click then click the preview to send a pulsing marker to the player screen |
 | **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
-| **HUDs** | Add Initiative Tracker; eye icon to show/hide; click row to expand editor |
-| **Initiative** | Add entries (name, roll, hidden checkbox); Start/Stop combat; Next/Prev turn |
+| **HUDs** | Add Initiative Tracker (In) or Status Panel (St); eye icon to show/hide; click row to expand editor |
+| **Initiative** | Add entries (name, roll, hidden checkbox); Start/Stop combat; Next/Prev turn; **Position** selector to pin to any of the four screen corners |
 | **Scene** | Named scenes auto-saved to the active campaign/session; scene list with load/delete; ⬆ Export to JSON file; ⬇ Import from JSON file; ↺ New (reset to empty) |
 
 ## Persistence
@@ -334,6 +336,10 @@ Campaign/
 ### Other planned features
 
 - **Status panel** promotion — if the status panel grows complex enough, consider making it a full dockable window like the initiative tracker
+- **Detachable panels** — allow left/right panels to be dragged off and repositioned as floating windows
+- **Rich-text campaign notes** — markdown formatting in notes editor (bold, italic, headings, lists)
+- **Both notes visible** — split view or tabs to show campaign notes and session notes simultaneously
+- **Status HUD enhancements** — health tracking, handout display, NPC cards in status panel
 
 
 ---
