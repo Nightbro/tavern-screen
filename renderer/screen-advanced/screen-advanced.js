@@ -495,7 +495,7 @@ function buildInitiativeHudPanel(hud, corner, facing) {
         hpEl.textContent = `${damage}/???`;
       } else if (entry.hp > 0) {
         const cur = Math.max(0, entry.hp - damage);
-        hpEl.textContent = entry.hpMaxHidden ? `${cur}/???` : `${cur}/${entry.hp}`;
+        hpEl.textContent = entry.hpMaxHidden ? `${damage}/???` : `${cur}/${entry.hp}`;
       } else {
         hpEl.textContent = `${damage}/???`;
       }
