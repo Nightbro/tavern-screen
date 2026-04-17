@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDisplay:  (id)         => ipcRenderer.send('select-display', id),
   closeScreen:    ()           => ipcRenderer.send('close-screen'),
   onScreenClosed: (cb)         => ipcRenderer.on('screen-closed', () => cb()),
-  onScreenOpened: (cb)         => ipcRenderer.on('screen-opened', (_e, id, dpi) => cb(id, dpi)),
+  onScreenOpened: (cb)         => ipcRenderer.on('screen-opened', (_e, id, dpi, sw, sh) => cb(id, dpi, sw, sh)),
 
   // ── Settings ─────────────────────────────────────────────────────────────
   updateSettings:    (patch)   => ipcRenderer.send('update-settings', patch),

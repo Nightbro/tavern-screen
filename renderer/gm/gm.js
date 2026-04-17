@@ -279,23 +279,21 @@ function buildMapCard(map) {
 }
 
 /**
- * Loads an image from src and returns normalised {x, y, w, h} bounds so it
- * appears at its natural pixel size, centred on the screen.  Falls back to
- * full-screen contain-fit when no preview reference is available.
+ * Loads an image from src and returns canvas-pixel {x, y, w, h} bounds so it
+ * appears at its natural pixel size, centred on the 8192×8192 canvas.
  */
 function imageBoundsFromSrc(src) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const sw = previewImg?.naturalWidth  || 0;
-      const sh = previewImg?.naturalHeight || 0;
-      if (!sw || !sh || !img.naturalWidth || !img.naturalHeight) {
-        resolve({});
-        return;
-      }
-      const w = Math.min(img.naturalWidth  / sw, 1);
-      const h = Math.min(img.naturalHeight / sh, 1);
-      resolve({ x: (1 - w) / 2, y: (1 - h) / 2, w, h });
+      if (!img.naturalWidth || !img.naturalHeight) { resolve({}); return; }
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      resolve({
+        x: Math.round((CANVAS_SIZE - w) / 2),
+        y: Math.round((CANVAS_SIZE - h) / 2),
+        w, h,
+      });
     };
     img.onerror = () => resolve({});
     img.src = src;
@@ -901,13 +899,15 @@ window.electronAPI.onScreenClosed(() => {
   showPreviewPlaceholder();
 });
 
-window.electronAPI.onScreenOpened(async (displayId, suggestedDpi) => {
+window.electronAPI.onScreenOpened(async (displayId, suggestedDpi, sw, sh) => {
   activeDisplayId = displayId;
   displays = displays.map((d) => ({ ...d, active: d.id === displayId }));
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = false;
   if (suggestedDpi) { elDpi.value = suggestedDpi; sendSettings({ dpi: suggestedDpi }); }
+  if (sw) playerScreenW = sw;
+  if (sh) playerScreenH = sh;
   if (screenModeAdvanced) await initScene();
 });
 
@@ -921,9 +921,12 @@ function showPreviewPlaceholder() {
 }
 
 window.electronAPI.onScreenPreview((dataUrl) => {
-  previewImg.src = dataUrl;
-  previewImg.style.display = 'block';
-  previewPlaceholder.style.display = 'none';
+  if (!screenModeAdvanced) {
+    previewImg.src = dataUrl;
+    previewImg.style.display = 'block';
+    previewPlaceholder.style.display = 'none';
+    setTimeout(renderLayerOverlay, 50);
+  }
 });
 
 btnRefreshPreview.addEventListener('click', () => window.electronAPI.requestPreview());
@@ -961,7 +964,8 @@ function applySettingsToUI(s) {
     screenModeAdvanced = isAdv;
     if (elScreenModeAdvanced) elScreenModeAdvanced.checked = isAdv;
     document.body.classList.toggle('advanced-mode', isAdv);
-    renderLayerOverlay();
+    if (isAdv && !sceneReady) initScene();
+    else renderLayerOverlay();
   }
   if (s.gridScaleWithViewport !== undefined) {
     if (elGridScaleViewport) elGridScaleViewport.checked = s.gridScaleWithViewport;
@@ -1058,21 +1062,38 @@ const sceneNameInput       = document.getElementById('scene-name-input');
 const sceneAutosaveBadge   = document.getElementById('scene-autosave-badge');
 const scenesContent        = document.getElementById('scenes-content');
 const btnRefreshScenes     = document.getElementById('btn-refresh-scenes');
+const elCanvasBg           = document.getElementById('canvas-bg');
+const btnFitView           = document.getElementById('btn-fit-view');
+const elSnapToGrid         = document.getElementById('snap-to-grid');
+const canvasCoordsEl       = document.getElementById('canvas-coords');
+
+const CANVAS_SIZE    = 8192;
+const MIN_LAYER_SIZE = 20; // canvas pixels minimum
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let layers           = [];
 let huds             = [];
 let selectedLayerId  = null;
 let dragSrcLayerId   = null;
-let vpCenterX        = 0.5;
-let vpCenterY        = 0.5;
+let vpCx             = 4096;  // player viewport center, canvas px
+let vpCy             = 4096;
+let vpZoom           = 1.0;   // screen px per canvas px
+let gmCamX           = 4096;  // GM camera center, canvas px
+let gmCamY           = 4096;
+let gmCamZoom        = 0.05;  // preview px per canvas px
+let gmCamPanDrag     = null;
+let playerScreenW    = 1920;  // updated on screen-opened
+let playerScreenH    = 1080;
+let snapToGrid       = false;
+let canvasBg         = '#1a1a2e';
 let sceneReady       = false;
 let autosaveTimer    = null;
 let loadedSceneId    = null;
 let selectedHudId    = null;
-let vpZoom           = 1.0;
 let pingMode         = false;
 let screenModeAdvanced = false;
+
+const gmImageCache   = new Map();
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -1100,22 +1121,60 @@ elGridScaleViewport.addEventListener('change', () => {
   sendSettings({ gridScaleWithViewport: elGridScaleViewport.checked });
 });
 
+elCanvasBg?.addEventListener('input', () => {
+  canvasBg = elCanvasBg.value;
+  window.electronAPI.updateSceneMeta({ background: canvasBg });
+  renderLayerOverlay();
+  scheduleAutosave();
+});
+
+btnFitView?.addEventListener('click', fitView);
+
+elSnapToGrid?.addEventListener('change', () => { snapToGrid = elSnapToGrid.checked; });
+
 // ── Scene init ────────────────────────────────────────────────────────────────
 
 async function initScene() {
   const scene = await window.electronAPI.getScene();
   if (!scene) return;
-  layers = scene.layers ?? [];
-  huds   = scene.huds   ?? [];
-  vpZoom    = scene.viewport?.zoom    ?? 1.0;
-  vpCenterX = scene.viewport?.centerX ?? 0.5;
-  vpCenterY = scene.viewport?.centerY ?? 0.5;
+  layers    = scene.layers   ?? [];
+  huds      = scene.huds     ?? [];
+  vpCx      = scene.viewport?.cx   ?? 4096;
+  vpCy      = scene.viewport?.cy   ?? 4096;
+  vpZoom    = scene.viewport?.zoom  ?? 1.0;
+  canvasBg  = scene.background ?? '#1a1a2e';
   sceneNameInput.value = scene.name ?? '';
   renderLayerList();
   renderHudList();
   updateVpZoomUI();
+  fitGMCamera();
   sceneReady = true;
   renderSceneList();
+}
+
+function fitGMCamera() {
+  const ow = layerOverlay.width  || 400;
+  const oh = layerOverlay.height || 300;
+  gmCamZoom = Math.min(ow / CANVAS_SIZE, oh / CANVAS_SIZE) * 0.9;
+  gmCamX = CANVAS_SIZE / 2;
+  gmCamY = CANVAS_SIZE / 2;
+  renderLayerOverlay();
+}
+
+function fitView() {
+  if (layers.length === 0) { fitGMCamera(); return; }
+  const visible = layers.filter(l => l.visible !== false && l.x != null);
+  if (!visible.length) { fitGMCamera(); return; }
+  const minX = Math.min(...visible.map(l => l.x));
+  const minY = Math.min(...visible.map(l => l.y));
+  const maxX = Math.max(...visible.map(l => l.x + l.w));
+  const maxY = Math.max(...visible.map(l => l.y + l.h));
+  const ow = layerOverlay.width, oh = layerOverlay.height;
+  const padding = 40;
+  gmCamZoom = Math.min((ow - padding * 2) / (maxX - minX), (oh - padding * 2) / (maxY - minY));
+  gmCamX = (minX + maxX) / 2;
+  gmCamY = (minY + maxY) / 2;
+  renderLayerOverlay();
 }
 
 // ── Viewport zoom ─────────────────────────────────────────────────────────────
@@ -1127,7 +1186,7 @@ function updateVpZoomUI() {
 }
 
 function setVpZoom(value) {
-  vpZoom = Math.max(0.25, Math.min(8, value));
+  vpZoom = Math.max(0.1, Math.min(4, value));
   updateVpZoomUI();
   window.electronAPI.updateViewport({ zoom: vpZoom });
   renderLayerOverlay();
@@ -1144,7 +1203,7 @@ vpZoomSlider.addEventListener('input', () => setVpZoom(parseInt(vpZoomSlider.val
 btnPingMode.addEventListener('click', () => {
   pingMode = !pingMode;
   btnPingMode.classList.toggle('ping-active', pingMode);
-  previewImg.parentElement.classList.toggle('ping-mode', pingMode);
+  layerOverlay.parentElement.classList.toggle('ping-mode', pingMode);
 });
 
 previewImg.addEventListener('click', (e) => {
@@ -1762,11 +1821,13 @@ async function applyLoadedScene(sceneIdOrScene) {
   if (!scene) return;
   loadedSceneId = scene.id ?? null;
   window.electronAPI.setScene(scene);
-  layers    = scene.layers ?? [];
-  huds      = scene.huds   ?? [];
-  vpZoom    = scene.viewport?.zoom    ?? 1.0;
-  vpCenterX = scene.viewport?.centerX ?? 0.5;
-  vpCenterY = scene.viewport?.centerY ?? 0.5;
+  layers    = scene.layers   ?? [];
+  huds      = scene.huds     ?? [];
+  vpCx      = scene.viewport?.cx    ?? 4096;
+  vpCy      = scene.viewport?.cy    ?? 4096;
+  vpZoom    = scene.viewport?.zoom   ?? 1.0;
+  canvasBg  = scene.background ?? '#1a1a2e';
+  if (elCanvasBg) elCanvasBg.value = canvasBg;
   sceneNameInput.value = scene.name ?? '';
   updateVpZoomUI();
   renderLayerList();
@@ -1807,9 +1868,9 @@ btnResetScene.addEventListener('click', () => {
     loadedSceneId = null;
     layers    = [];
     huds      = [];
-    vpZoom    = 1.0;
-    vpCenterX = 0.5;
-    vpCenterY = 0.5;
+    vpCx = 4096; vpCy = 4096; vpZoom = 1.0;
+    canvasBg = '#1a1a2e';
+    if (elCanvasBg) elCanvasBg.value = canvasBg;
     sceneNameInput.value = '';
     updateVpZoomUI();
     renderLayerList();
@@ -1832,10 +1893,9 @@ const overlayCtx    = layerOverlay.getContext('2d');
 
 const POSITIONABLE_TYPES = new Set(['image', 'gif', 'video', 'light', 'fog', 'weather']);
 const HANDLE_SIZE        = 8;   // px, square handle side
-const MIN_LAYER_SIZE     = 0.02; // minimum 2% of screen in each dimension
 
 // Drag state: null when idle
-let overlayDrag = null; // { layerId, mode:'move'|'resize', handle, startMx, startMy, startLayer:{x,y,w,h}, ca }
+let overlayDrag = null; // { layerId, mode:'move'|'resize', handle, startMx, startMy, startLayer:{x,y,w,h} }
 let overlayThrottleTimer = null;
 
 // ── Canvas sizing ─────────────────────────────────────────────────────────────
@@ -1852,14 +1912,27 @@ new ResizeObserver(resizeOverlayCanvas).observe(document.getElementById('preview
 
 // ── Coordinate helpers ────────────────────────────────────────────────────────
 
+/** Converts canvas pixel coordinates to overlay pixel coordinates. */
+function canvasToOverlay(cx, cy) {
+  const ow = layerOverlay.width, oh = layerOverlay.height;
+  return { x: (cx - gmCamX) * gmCamZoom + ow / 2, y: (cy - gmCamY) * gmCamZoom + oh / 2 };
+}
+
+/** Converts overlay pixel coordinates to canvas pixel coordinates. */
+function overlayToCanvas(px, py) {
+  const ow = layerOverlay.width, oh = layerOverlay.height;
+  return { x: (px - ow / 2) / gmCamZoom + gmCamX, y: (py - oh / 2) / gmCamZoom + gmCamY };
+}
+
 /**
  * Returns the pixel rect within the overlay canvas that corresponds to the
- * "screen" content (the area the player actually sees), accounting for the
- * preview image's object-fit:contain letterboxing.
+ * "screen" content. In advanced mode returns the full overlay; in simple mode
+ * accounts for the preview image's object-fit:contain letterboxing.
  */
 function getContentArea() {
   const cw = layerOverlay.width;
   const ch = layerOverlay.height;
+  if (screenModeAdvanced) return { cx: 0, cy: 0, cw, ch };
   if (previewImg.style.display === 'none' || !previewImg.naturalWidth) {
     return { cx: 0, cy: 0, cw, ch };
   }
@@ -1878,18 +1951,15 @@ function getContentArea() {
   return { cx, cy, cw: contentW, ch: contentH };
 }
 
-/** Converts a layer's normalised (0-1) coords to canvas pixels. */
-function layerBoundsOnCanvas(layer, ca) {
+/** Converts a layer's canvas-pixel coords to overlay pixel bounds. */
+function layerBoundsOnCanvas(layer) {
   if (layer.x == null || layer.y == null || layer.w == null || layer.h == null) {
-    // Contain-fit: fills the entire content area
-    return { px: ca.cx, py: ca.cy, pw: ca.cw, ph: ca.ch };
+    // fullscreen: map entire canvas to overlay
+    const tl = canvasToOverlay(0, 0);
+    return { px: tl.x, py: tl.y, pw: CANVAS_SIZE * gmCamZoom, ph: CANVAS_SIZE * gmCamZoom };
   }
-  return {
-    px: ca.cx + layer.x * ca.cw,
-    py: ca.cy + layer.y * ca.ch,
-    pw: layer.w * ca.cw,
-    ph: layer.h * ca.ch,
-  };
+  const tl = canvasToOverlay(layer.x, layer.y);
+  return { px: tl.x, py: tl.y, pw: layer.w * gmCamZoom, ph: layer.h * gmCamZoom };
 }
 
 /** Returns the 8 handle rects (top-left corner, HANDLE_SIZE square). */
@@ -1921,46 +1991,35 @@ function hitTestHandle(mx, my, px, py, pw, ph) {
 
 /** Returns { layerId?, mode, handle? } or null. */
 function hitTestOverlay(mx, my) {
-  const ca = getContentArea();
-
-  // Layer resize handles have highest priority
+  // 1. Selected layer handles
   if (selectedLayerId) {
     const layer = layers.find(l => l.id === selectedLayerId);
     if (layer && POSITIONABLE_TYPES.has(layer.type)) {
-      const b = layerBoundsOnCanvas(layer, ca);
+      const b = layerBoundsOnCanvas(layer);
       const handle = hitTestHandle(mx, my, b.px, b.py, b.pw, b.ph);
       if (handle) return { layerId: layer.id, mode: 'resize', handle };
-      if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph) {
+      if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph)
         return { layerId: layer.id, mode: 'move' };
-      }
     }
   }
 
-  // Scan layers top-to-bottom (highest index = visually on top).
-  // Fog and weather are excluded here — they fill the full screen and would
-  // intercept every click. They are only interactive when pre-selected via
-  // the layer list (handled by the selected-layer block above).
+  // 2. Passive layer scan (fog/weather excluded)
   for (let i = layers.length - 1; i >= 0; i--) {
     const layer = layers[i];
     if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
     if (layer.type === 'fog' || layer.type === 'weather') continue;
-    const b = layerBoundsOnCanvas(layer, ca);
-    if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph) {
+    const b = layerBoundsOnCanvas(layer);
+    if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph)
       return { layerId: layer.id, mode: 'move' };
-    }
   }
 
-  // Viewport rect pan — lowest priority, fallback when no layer was hit
-  if (vpZoom > 1) {
-    const z  = vpZoom;
-    const rx = ca.cx + (vpCenterX - 0.5 / z) * ca.cw;
-    const ry = ca.cy + (vpCenterY - 0.5 / z) * ca.ch;
-    const rw = ca.cw / z;
-    const rh = ca.ch / z;
-    if (mx >= rx && mx <= rx + rw && my >= ry && my <= ry + rh) {
-      return { mode: 'vpPan' };
-    }
-  }
+  // 3. Viewport rect pan (always available)
+  const halfW = playerScreenW / (2 * vpZoom);
+  const halfH = playerScreenH / (2 * vpZoom);
+  const vpTL = canvasToOverlay(vpCx - halfW, vpCy - halfH);
+  const vpBR = canvasToOverlay(vpCx + halfW, vpCy + halfH);
+  if (mx >= vpTL.x && mx <= vpBR.x && my >= vpTL.y && my <= vpBR.y)
+    return { mode: 'vpPan' };
 
   return null;
 }
@@ -1969,19 +2028,83 @@ function hitTestOverlay(mx, my) {
 
 function renderLayerOverlay() {
   const ctx = overlayCtx;
-  ctx.clearRect(0, 0, layerOverlay.width, layerOverlay.height);
+  const ow = layerOverlay.width, oh = layerOverlay.height;
+  ctx.clearRect(0, 0, ow, oh);
   if (!screenModeAdvanced) return;
 
-  const ca = getContentArea();
+  // Background fill
+  ctx.fillStyle = canvasBg;
+  ctx.fillRect(0, 0, ow, oh);
 
+  // Canvas boundary
+  const tl = canvasToOverlay(0, 0);
+  const br = canvasToOverlay(CANVAS_SIZE, CANVAS_SIZE);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(100,100,160,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 6]);
+  ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+  ctx.restore();
+
+  // Grid (if enabled and cell is large enough)
+  if (settings.gridVisible) {
+    const cellPx = settings.cellSizeInches * settings.dpi * gmCamZoom;
+    if (cellPx >= 4) {
+      ctx.save();
+      const hex = (settings.gridColor || '#ffffff').replace('#', '');
+      const rr  = parseInt(hex.slice(0, 2), 16);
+      const gg  = parseInt(hex.slice(2, 4), 16);
+      const bb  = parseInt(hex.slice(4, 6), 16);
+      const alpha = Math.round((settings.gridOpacity ?? 0.25) * 255).toString(16).padStart(2, '0');
+      ctx.strokeStyle = `rgba(${rr},${gg},${bb},${settings.gridOpacity ?? 0.25})`;
+      ctx.lineWidth = 0.5;
+      const gridOriginX = canvasToOverlay(0, 0).x;
+      const gridOriginY = canvasToOverlay(0, 0).y;
+      const startX = ((gridOriginX % cellPx) + cellPx) % cellPx;
+      const startY = ((gridOriginY % cellPx) + cellPx) % cellPx;
+      ctx.beginPath();
+      for (let x = startX; x <= ow; x += cellPx) { ctx.moveTo(x, 0); ctx.lineTo(x, oh); }
+      for (let y = startY; y <= oh; y += cellPx) { ctx.moveTo(0, y); ctx.lineTo(ow, y); }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Layer outlines + images
   for (const layer of layers) {
     if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
-    const b = layerBoundsOnCanvas(layer, ca);
+    const b = layerBoundsOnCanvas(layer);
     const isSelected = layer.id === selectedLayerId;
 
+    // For image layers: draw the actual image
+    if ((layer.type === 'image' || layer.type === 'gif') && layer.src) {
+      const key = layer.id + '::' + layer.src;
+      if (!gmImageCache.has(key)) {
+        const img = new Image();
+        img.onload = () => { img.loaded = true; renderLayerOverlay(); };
+        img.src = layer.src;
+        gmImageCache.set(key, img);
+      }
+      const img = gmImageCache.get(key);
+      if (img?.loaded) {
+        ctx.save();
+        ctx.globalAlpha = layer.opacity ?? 1;
+        ctx.drawImage(img, b.px, b.py, b.pw, b.ph);
+        ctx.restore();
+      }
+    } else {
+      // Colored fill for non-image layers
+      const TYPE_COLORS = { light: 'rgba(80,120,200,0.25)', fog: 'rgba(20,20,30,0.6)', weather: 'rgba(80,160,220,0.2)', video: 'rgba(80,80,80,0.3)' };
+      ctx.save();
+      ctx.fillStyle = TYPE_COLORS[layer.type] ?? 'rgba(74,144,217,0.15)';
+      ctx.fillRect(b.px, b.py, b.pw, b.ph);
+      ctx.restore();
+    }
+
+    // Outline
     ctx.save();
     ctx.strokeStyle = isSelected ? '#c9a84c' : 'rgba(74,144,217,0.45)';
-    ctx.lineWidth   = isSelected ? 1.5 : 1;
+    ctx.lineWidth = isSelected ? 1.5 : 1;
     if (!isSelected) ctx.setLineDash([4, 4]);
     ctx.strokeRect(b.px + 0.5, b.py + 0.5, b.pw, b.ph);
     ctx.restore();
@@ -1998,32 +2121,30 @@ function renderLayerOverlay() {
     }
   }
 
-  // ── Viewport zoom region rectangle ───────────────────────────────────────────
-  if (vpZoom > 1) {
-    const z  = vpZoom;
-    const rx = ca.cx + (vpCenterX - 0.5 / z) * ca.cw;
-    const ry = ca.cy + (vpCenterY - 0.5 / z) * ca.ch;
-    const rw = ca.cw / z;
-    const rh = ca.ch / z;
+  // Player viewport rectangle
+  const halfW = playerScreenW / (2 * vpZoom);
+  const halfH = playerScreenH / (2 * vpZoom);
+  const vpTL = canvasToOverlay(vpCx - halfW, vpCy - halfH);
+  const vpBR = canvasToOverlay(vpCx + halfW, vpCy + halfH);
+  const rx = vpTL.x, ry = vpTL.y, rw = vpBR.x - vpTL.x, rh = vpBR.y - vpTL.y;
 
-    // Dim everything outside the visible viewport region
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.38)';
-    ctx.beginPath();
-    ctx.rect(ca.cx, ca.cy, ca.cw, ca.ch);
-    ctx.rect(rx, ry, rw, rh);
-    ctx.fill('evenodd');
-    ctx.restore();
+  // Dim outside
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  ctx.beginPath();
+  ctx.rect(0, 0, ow, oh);
+  ctx.rect(rx, ry, rw, rh);
+  ctx.fill('evenodd');
+  ctx.restore();
 
-    // Bright border around the viewport rect
-    ctx.save();
-    ctx.strokeStyle = 'rgba(201,168,76,0.9)';
-    ctx.lineWidth = 1.5;
-    ctx.shadowColor = 'rgba(201,168,76,0.5)';
-    ctx.shadowBlur  = 4;
-    ctx.strokeRect(rx + 0.5, ry + 0.5, rw, rh);
-    ctx.restore();
-  }
+  // Gold border
+  ctx.save();
+  ctx.strokeStyle = 'rgba(201,168,76,0.9)';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(201,168,76,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.strokeRect(rx + 0.5, ry + 0.5, rw, rh);
+  ctx.restore();
 }
 
 // ── Throttled IPC update ──────────────────────────────────────────────────────
@@ -2053,31 +2174,77 @@ const RESIZE_CURSORS = {
 };
 
 layerOverlay.addEventListener('mousemove', (e) => {
-  if (overlayDrag) return; // cursor locked during drag
-  if (pingMode) { layerOverlay.style.cursor = 'crosshair'; return; }
-  if (!screenModeAdvanced) return;
   const rect = layerOverlay.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
+
+  // Update canvas coordinates readout
+  if (screenModeAdvanced && canvasCoordsEl) {
+    const { x, y } = overlayToCanvas(mx, my);
+    canvasCoordsEl.textContent = `${Math.round(x)}, ${Math.round(y)} px`;
+  }
+
+  if (gmCamPanDrag) {
+    const dx = (mx - gmCamPanDrag.startMx) / gmCamZoom;
+    const dy = (my - gmCamPanDrag.startMy) / gmCamZoom;
+    gmCamX = gmCamPanDrag.startCamX - dx;
+    gmCamY = gmCamPanDrag.startCamY - dy;
+    renderLayerOverlay();
+    return;
+  }
+
+  if (overlayDrag) return; // cursor locked during drag
+  if (pingMode) { layerOverlay.style.cursor = 'crosshair'; return; }
+  if (!screenModeAdvanced) return;
   const hit = hitTestOverlay(mx, my);
-  if (!hit)                     layerOverlay.style.cursor = 'default';
+  if (!hit)                      layerOverlay.style.cursor = 'default';
   else if (hit.mode === 'vpPan') layerOverlay.style.cursor = 'grab';
   else if (hit.mode === 'move')  layerOverlay.style.cursor = 'move';
   else                           layerOverlay.style.cursor = RESIZE_CURSORS[hit.handle] ?? 'default';
 });
+
+layerOverlay.addEventListener('wheel', (e) => {
+  if (!screenModeAdvanced) return;
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  const rect = layerOverlay.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const before = overlayToCanvas(mx, my);
+  gmCamZoom = Math.max(0.01, Math.min(4, gmCamZoom * factor));
+  const ow = layerOverlay.width, oh = layerOverlay.height;
+  gmCamX = before.x - (mx - ow / 2) / gmCamZoom;
+  gmCamY = before.y - (my - oh / 2) / gmCamZoom;
+  renderLayerOverlay();
+}, { passive: false });
+
+layerOverlay.addEventListener('contextmenu', e => e.preventDefault());
 
 layerOverlay.addEventListener('mousedown', (e) => {
   const rect = layerOverlay.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
 
+  // Middle-click or right-click: GM camera pan
+  if ((e.button === 1 || e.button === 2) && screenModeAdvanced) {
+    e.preventDefault();
+    gmCamPanDrag = { startMx: mx, startMy: my, startCamX: gmCamX, startCamY: gmCamY };
+    layerOverlay.style.cursor = 'grabbing';
+    return;
+  }
+
   // ── Ping mode ────────────────────────────────────────────────────────────
   if (pingMode) {
-    const ca = getContentArea();
-    const nx = (mx - ca.cx) / ca.cw;
-    const ny = (my - ca.cy) / ca.ch;
-    if (nx >= 0 && nx <= 1 && ny >= 0 && ny <= 1) {
-      window.electronAPI.sendPing(nx, ny);
+    if (screenModeAdvanced) {
+      const canvasCoords = overlayToCanvas(mx, my);
+      window.electronAPI.sendPing(canvasCoords.x, canvasCoords.y);
+    } else {
+      const ca = getContentArea();
+      const nx = (mx - ca.cx) / ca.cw;
+      const ny = (my - ca.cy) / ca.ch;
+      if (nx >= 0 && nx <= 1 && ny >= 0 && ny <= 1) {
+        window.electronAPI.sendPing(nx, ny);
+      }
     }
     pingMode = false;
     btnPingMode.classList.remove('ping-active');
@@ -2099,8 +2266,7 @@ layerOverlay.addEventListener('mousedown', (e) => {
 
   // ── Viewport pan drag ────────────────────────────────────────────────────
   if (hit.mode === 'vpPan') {
-    const ca = getContentArea();
-    overlayDrag = { mode: 'vpPan', startMx: mx, startMy: my, startCx: vpCenterX, startCy: vpCenterY, ca };
+    overlayDrag = { mode: 'vpPan', startMx: mx, startMy: my, startCx: vpCx, startCy: vpCy };
     layerOverlay.style.cursor = 'grabbing';
     return;
   }
@@ -2116,9 +2282,6 @@ layerOverlay.addEventListener('mousedown', (e) => {
   const layer = layers.find(l => l.id === hit.layerId);
   if (!layer) return;
 
-  const ca = getContentArea();
-  const b  = layerBoundsOnCanvas(layer, ca);
-
   overlayDrag = {
     layerId: hit.layerId,
     mode:    hit.mode,
@@ -2126,12 +2289,11 @@ layerOverlay.addEventListener('mousedown', (e) => {
     startMx: mx,
     startMy: my,
     startLayer: {
-      x: layer.x ?? (b.px - ca.cx) / ca.cw,
-      y: layer.y ?? (b.py - ca.cy) / ca.ch,
-      w: layer.w ?? b.pw / ca.cw,
-      h: layer.h ?? b.ph / ca.ch,
+      x: layer.x ?? 0,
+      y: layer.y ?? 0,
+      w: layer.w ?? CANVAS_SIZE,
+      h: layer.h ?? CANVAS_SIZE,
     },
-    ca,
   };
 
   // Lock cursor while dragging
@@ -2145,44 +2307,48 @@ document.addEventListener('mousemove', (e) => {
   const rect = layerOverlay.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
-  const { startMx, startMy, ca } = overlayDrag;
+  const { startMx, startMy } = overlayDrag;
 
   // ── Viewport pan ──────────────────────────────────────────────────────────
   if (overlayDrag.mode === 'vpPan') {
-    const dxN = (mx - startMx) / ca.cw;
-    const dyN = (my - startMy) / ca.ch;
-    vpCenterX = Math.max(0, Math.min(1, overlayDrag.startCx - dxN / vpZoom));
-    vpCenterY = Math.max(0, Math.min(1, overlayDrag.startCy - dyN / vpZoom));
+    const dx_canvas = (mx - startMx) / gmCamZoom;
+    const dy_canvas = (my - startMy) / gmCamZoom;
+    vpCx = overlayDrag.startCx + dx_canvas;
+    vpCy = overlayDrag.startCy + dy_canvas;
     renderLayerOverlay();
-    window.electronAPI.updateViewport({ centerX: vpCenterX, centerY: vpCenterY });
+    window.electronAPI.updateViewport({ cx: vpCx, cy: vpCy });
     return;
   }
 
   const { startLayer } = overlayDrag;
-  const dxN = (mx - startMx) / ca.cw;
-  const dyN = (my - startMy) / ca.ch;
+  const dx_canvas = (mx - startMx) / gmCamZoom;
+  const dy_canvas = (my - startMy) / gmCamZoom;
   const MIN = MIN_LAYER_SIZE;
 
   let patch;
 
   if (overlayDrag.mode === 'move') {
-    patch = {
-      x: startLayer.x + dxN,
-      y: startLayer.y + dyN,
-      w: startLayer.w,
-      h: startLayer.h,
-    };
+    if (snapToGrid && settings.cellSizeInches && settings.dpi) {
+      const cellPx = settings.cellSizeInches * settings.dpi;
+      patch = {
+        x: Math.round((startLayer.x + dx_canvas) / cellPx) * cellPx,
+        y: Math.round((startLayer.y + dy_canvas) / cellPx) * cellPx,
+        w: startLayer.w, h: startLayer.h,
+      };
+    } else {
+      patch = { x: startLayer.x + dx_canvas, y: startLayer.y + dy_canvas, w: startLayer.w, h: startLayer.h };
+    }
   } else {
     let { x, y, w, h } = startLayer;
     switch (overlayDrag.handle) {
-      case 'TL': x = startLayer.x + dxN; y = startLayer.y + dyN; w = Math.max(MIN, startLayer.w - dxN); h = Math.max(MIN, startLayer.h - dyN); break;
-      case 'TC':                          y = startLayer.y + dyN;                                         h = Math.max(MIN, startLayer.h - dyN); break;
-      case 'TR':                          y = startLayer.y + dyN; w = Math.max(MIN, startLayer.w + dxN); h = Math.max(MIN, startLayer.h - dyN); break;
-      case 'ML': x = startLayer.x + dxN;                         w = Math.max(MIN, startLayer.w - dxN);                                        break;
-      case 'MR':                                                  w = Math.max(MIN, startLayer.w + dxN);                                        break;
-      case 'BL': x = startLayer.x + dxN;                         w = Math.max(MIN, startLayer.w - dxN); h = Math.max(MIN, startLayer.h + dyN); break;
-      case 'BC':                                                                                          h = Math.max(MIN, startLayer.h + dyN); break;
-      case 'BR':                                                  w = Math.max(MIN, startLayer.w + dxN); h = Math.max(MIN, startLayer.h + dyN); break;
+      case 'TL': x = startLayer.x + dx_canvas; y = startLayer.y + dy_canvas; w = Math.max(MIN, startLayer.w - dx_canvas); h = Math.max(MIN, startLayer.h - dy_canvas); break;
+      case 'TC':                                y = startLayer.y + dy_canvas;                                               h = Math.max(MIN, startLayer.h - dy_canvas); break;
+      case 'TR':                                y = startLayer.y + dy_canvas; w = Math.max(MIN, startLayer.w + dx_canvas); h = Math.max(MIN, startLayer.h - dy_canvas); break;
+      case 'ML': x = startLayer.x + dx_canvas;                               w = Math.max(MIN, startLayer.w - dx_canvas);                                              break;
+      case 'MR':                                                              w = Math.max(MIN, startLayer.w + dx_canvas);                                              break;
+      case 'BL': x = startLayer.x + dx_canvas;                               w = Math.max(MIN, startLayer.w - dx_canvas); h = Math.max(MIN, startLayer.h + dy_canvas); break;
+      case 'BC':                                                                                                            h = Math.max(MIN, startLayer.h + dy_canvas); break;
+      case 'BR':                                                              w = Math.max(MIN, startLayer.w + dx_canvas); h = Math.max(MIN, startLayer.h + dy_canvas); break;
     }
     patch = { x, y, w, h };
   }
@@ -2191,6 +2357,7 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('mouseup', async () => {
+  if (gmCamPanDrag) { gmCamPanDrag = null; layerOverlay.style.cursor = ''; return; }
   if (!overlayDrag) return;
   const drag = overlayDrag;
   overlayDrag = null;
@@ -2213,11 +2380,7 @@ document.addEventListener('mouseup', async () => {
   }
 });
 
-// Repaint overlay when a new preview screenshot arrives
-window.electronAPI.onScreenPreview(() => {
-  // Small delay so the img element has updated naturalWidth/Height
-  setTimeout(renderLayerOverlay, 50);
-});
+// (onScreenPreview is handled above in the PREVIEW section)
 
 // ════════════════════════════════════════════════════════════════════════════
 // SETTINGS (continued)
@@ -2226,7 +2389,8 @@ window.electronAPI.onScreenPreview(() => {
 // Receive persisted settings from main process on startup
 window.electronAPI.onInitialSettings(async (s) => {
   applySettingsToUI(s);
-  if (s.screenMode === 'advanced') await initScene();
+  // applySettingsToUI calls initScene if advanced and not ready; call directly if needed
+  if (s.screenMode === 'advanced' && !sceneReady) await initScene();
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -13,12 +13,13 @@ const DEFAULT_SETTINGS = {
 
 function buildDefaultScene() {
   return {
-    id:       randomUUID(),
-    name:     '',
-    map:      null,
-    viewport: { centerX: 0.5, centerY: 0.5, zoom: 1.0 },
-    layers:   [],
-    huds:     [],
+    id:         randomUUID(),
+    name:       '',
+    map:        null,
+    viewport:   { cx: 4096, cy: 4096, zoom: 1.0 },
+    background: '#1a1a2e',
+    layers:     [],
+    huds:       [],
   };
 }
 
@@ -33,7 +34,7 @@ function createWindowManager({
   let activeDisplayId = null;
   let settings        = { ...DEFAULT_SETTINGS, ...(initialSettings ?? {}) };
   let currentMap      = null;
-  let currentScene    = null;
+  let currentScene    = buildDefaultScene();
 
   let previewTimer = null;
 
@@ -129,10 +130,6 @@ function createWindowManager({
     const isAdvanced = settings.screenMode === 'advanced' && screenAdvancedRendererPath;
     screenWindow.loadFile(isAdvanced ? screenAdvancedRendererPath : screenRendererPath);
 
-    if (isAdvanced && !currentScene) {
-      currentScene = buildDefaultScene();
-    }
-
     screenWindow.webContents.on('did-finish-load', () => {
       notifyScreen('settings-update', settings);
       if (settings.screenMode === 'advanced') {
@@ -150,7 +147,7 @@ function createWindowManager({
       notifyGM('screen-closed');
     });
 
-    notifyGM('screen-opened', displayId, suggestedDpi);
+    notifyGM('screen-opened', displayId, suggestedDpi, display.bounds.width, display.bounds.height);
     return true;
   }
 
@@ -210,7 +207,8 @@ function createWindowManager({
   function updateSceneMeta(patch) {
     if (!currentScene) return;
     const allowed = {};
-    if (patch.name !== undefined) allowed.name = patch.name;
+    if (patch.name       !== undefined) allowed.name       = patch.name;
+    if (patch.background !== undefined) allowed.background = patch.background;
     currentScene = { ...currentScene, ...allowed };
   }
 

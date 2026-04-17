@@ -113,12 +113,13 @@ describe('selectDisplay', () => {
     expect(opts.frame).toBe(false);
   });
 
-  test('notifies GM of screen-opened with displayId and suggestedDpi', () => {
+  test('notifies GM of screen-opened with displayId, suggestedDpi, width and height', () => {
     const { manager, windows } = makeManager();
     manager.createGMWindow();
     manager.selectDisplay(DISPLAY_2.id);
     expect(windows[0].webContents.send).toHaveBeenCalledWith(
-      'screen-opened', DISPLAY_2.id, Math.round(96 * DISPLAY_2.scaleFactor)
+      'screen-opened', DISPLAY_2.id, Math.round(96 * DISPLAY_2.scaleFactor),
+      DISPLAY_2.bounds.width, DISPLAY_2.bounds.height
     );
   });
 
@@ -471,13 +472,16 @@ describe('scene state', () => {
     return result;
   }
 
-  test('getScene returns null before selectDisplay in advanced mode', () => {
+  test('getScene returns a default scene before selectDisplay in advanced mode', () => {
     const { manager } = makeManager(undefined, {
       screenAdvancedRendererPath: '/fake/screen-advanced.html',
       initialSettings: { screenMode: 'advanced' },
     });
     manager.createGMWindow();
-    expect(manager.getScene()).toBeNull();
+    const scene = manager.getScene();
+    expect(scene).not.toBeNull();
+    expect(scene.layers).toEqual([]);
+    expect(scene.huds).toEqual([]);
   });
 
   test('getScene returns scene with empty layers and huds after selectDisplay', () => {
@@ -537,7 +541,7 @@ describe('scene state', () => {
     const { manager } = makeAdvancedWithScreen();
     manager.updateViewport({ zoom: 2.0 });
     expect(manager.getScene().viewport.zoom).toBe(2.0);
-    expect(manager.getScene().viewport.centerX).toBe(0.5); // unchanged
+    expect(manager.getScene().viewport.cx).toBe(4096); // unchanged
   });
 
   test('updateViewport sends viewport-update to screen', () => {
@@ -602,7 +606,7 @@ describe('scene state', () => {
     const { manager, windows } = makeAdvancedWithScreen();
     const newScene = {
       map: null,
-      viewport: { centerX: 0.5, centerY: 0.5, zoom: 2.0 },
+      viewport: { cx: 4096, cy: 4096, zoom: 2.0 },
       layers: [{ id: 'l1', type: 'fog' }],
       huds: [],
     };
@@ -612,12 +616,16 @@ describe('scene state', () => {
     expect(windows[1].webContents.send).toHaveBeenCalledWith('scene-update', expect.objectContaining({ layers: newScene.layers }));
   });
 
-  test('buildDefaultScene includes id (UUID) and empty name', () => {
+  test('buildDefaultScene includes id (UUID), empty name, cx/cy viewport, and background', () => {
     const { manager } = makeAdvancedWithScreen();
     const scene = manager.getScene();
     expect(typeof scene.id).toBe('string');
     expect(scene.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(scene.name).toBe('');
+    expect(scene.viewport.cx).toBe(4096);
+    expect(scene.viewport.cy).toBe(4096);
+    expect(scene.viewport.zoom).toBe(1.0);
+    expect(scene.background).toBe('#1a1a2e');
   });
 
   test('resetScene assigns a new UUID id and resets name', () => {
@@ -636,6 +644,12 @@ describe('scene state', () => {
     expect(manager.getScene().name).toBe('My Scene');
   });
 
+  test('updateSceneMeta sets the background color', () => {
+    const { manager } = makeAdvancedWithScreen();
+    manager.updateSceneMeta({ background: '#ff0000' });
+    expect(manager.getScene().background).toBe('#ff0000');
+  });
+
   test('updateSceneMeta does not pollute scene with unknown fields', () => {
     const { manager } = makeAdvancedWithScreen();
     manager.updateSceneMeta({ name: 'Valid', evilField: 'injected', layers: ['hacked'] });
@@ -645,13 +659,13 @@ describe('scene state', () => {
     expect(scene.layers).toEqual([]);
   });
 
-  test('updateSceneMeta does nothing when no scene exists', () => {
+  test('updateSceneMeta does not throw and updates the always-ready scene', () => {
     const { manager } = makeManager(undefined, {
       screenAdvancedRendererPath: '/fake/screen-advanced.html',
       initialSettings: { screenMode: 'advanced' },
     });
     manager.createGMWindow();
     expect(() => manager.updateSceneMeta({ name: 'x' })).not.toThrow();
-    expect(manager.getScene()).toBeNull();
+    expect(manager.getScene().name).toBe('x');
   });
 });

@@ -150,12 +150,31 @@ Campaigns and sessions are stored alongside the map library under the same root 
 
 Switched to via the Layers tab in the GM panel. Fully separate renderer (`screen-advanced`).
 
+### Virtual Canvas
+
+Advanced Mode uses a fixed **8192 × 8192 pixel virtual canvas**. All layer positions and sizes are stored as canvas pixels (integers). The viewport maps a window into this canvas onto the physical player screen.
+
+**Coordinate system:**
+
+| Concept | Unit |
+|---------|------|
+| Layer `x`, `y`, `w`, `h` | Canvas pixels (0 – 8192) |
+| Viewport `cx`, `cy` | Canvas pixel coordinates of the screen centre |
+| Viewport `zoom` | Screen pixels per canvas pixel (`1.0` = 1:1) |
+
+The rendering transform is: `screenX = (canvasX − cx) × zoom + screenW/2`
+
+### Features
+
 - **Layer stack** — image, GIF, video, light/shadow, fog of war, weather particle layers; drag ⠿ grip to reorder
-- **Layer move/resize** — drag any layer on the GM preview to move it; resize via 8-point handles; all layer types (including fog and weather) supported; images added from the library appear at natural pixel size, centred
-- **Viewport zoom & pan** — GM zooms and drags the gold region rectangle on the preview to choose what the player sees; viewport rect dims everything outside the visible area
+- **Layer move/resize** — drag any layer on the GM preview to move it; resize via 8-point handles; snap-to-grid toggle available; images added from the library are placed at their natural pixel size, centred on the canvas
+- **GM camera** — the preview shows the full virtual canvas; scroll-wheel to zoom, middle-click or right-click drag to pan; ⊞ Fit View to auto-fit all layers
+- **Canvas coordinates** — live pixel readout (bottom-left of preview) as the cursor moves
+- **Viewport zoom & pan** — drag the gold rectangle to pan what the player sees; zoom slider adjusts screen pixels per canvas pixel
+- **Background color** — configurable solid fill behind all layers
 - **HUD overlays** — screen-space panels unaffected by pan/zoom: initiative tracker with combat turn tracking
-- **Ping** — GM clicks preview → pulsing ring + dot appears at that position on the player screen
-- **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON
+- **Ping** — GM clicks preview → pulsing ring + dot appears at the corresponding canvas position on the player screen
+- **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON; scene survives screen reconnects
 
 ## Roadmap
 

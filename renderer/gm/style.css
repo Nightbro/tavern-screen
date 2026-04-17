@@ -376,6 +376,13 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
 }
 body.advanced-mode #layer-overlay { pointer-events: auto; }
 
+.canvas-coords {
+  position: absolute; bottom: 4px; left: 4px;
+  font-size: 10px; color: rgba(200,200,200,0.5);
+  pointer-events: none; font-family: monospace;
+  background: rgba(0,0,0,0.4); padding: 2px 5px; border-radius: 3px;
+}
+
 .center-footer {
   flex-shrink: 0; display: flex; justify-content: flex-end;
   padding-top: 6px; border-top: 1px solid #2e2e4e;

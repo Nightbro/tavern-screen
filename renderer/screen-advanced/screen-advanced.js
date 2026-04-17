@@ -1,3 +1,5 @@
+const CANVAS_SIZE = 8192;
+
 const canvas  = document.getElementById('map-canvas');
 const ctx     = canvas.getContext('2d');
 const hudRoot = document.getElementById('hud-root');
@@ -9,7 +11,7 @@ let settings = {
 };
 let scene = {
   map: null,
-  viewport: { centerX: 0.5, centerY: 0.5, zoom: 1.0 },
+  viewport: { cx: 4096, cy: 4096, zoom: 1.0 },
   layers: [],
   huds: [],
 };
@@ -29,19 +31,17 @@ function resize() {
 }
 
 // ── Viewport transform ────────────────────────────────────────────────────────
-// In advanced mode there is no base map — use the screen itself as the reference
-// frame and apply viewport zoom on top of it.
+// In advanced mode there is no base map — use a fixed 8192×8192 virtual canvas.
+// cx/cy are canvas pixel coordinates of the screen centre.
+// zoom = screen pixels per canvas pixel.
 function computeMapTransform(vp) {
-  const cw    = window.innerWidth;
-  const ch    = window.innerHeight;
-  const scale = vp.zoom;
-  const dispW = cw * scale;
-  const dispH = ch * scale;
+  const cw = window.innerWidth;
+  const ch = window.innerHeight;
+  const { cx, cy, zoom } = vp;
   return {
-    originX: cw / 2 - vp.centerX * dispW,
-    originY: ch / 2 - vp.centerY * dispH,
-    dispW,
-    dispH,
+    originX: cw / 2 - cx * zoom,
+    originY: ch / 2 - cy * zoom,
+    zoom,
   };
 }
 
@@ -183,10 +183,10 @@ function drawWeatherLayer(layer, timestamp) {
     const tx = computeMapTransform(scene.viewport);
     ctx.beginPath();
     ctx.rect(
-      tx.originX + layer.x * tx.dispW,
-      tx.originY + layer.y * tx.dispH,
-      layer.w * tx.dispW,
-      layer.h * tx.dispH,
+      tx.originX + layer.x * tx.zoom,
+      tx.originY + layer.y * tx.zoom,
+      layer.w * tx.zoom,
+      layer.h * tx.zoom,
     );
     ctx.clip();
   }
@@ -226,10 +226,10 @@ function drawLayer(layer, tx) {
       if (!img?.loaded) break;
       ctx.globalAlpha = layer.opacity ?? 1;
       if (layer.w != null && layer.h != null) {
-        // Explicitly positioned within the viewport reference frame
-        const x = tx.originX + (layer.x ?? 0) * tx.dispW;
-        const y = tx.originY + (layer.y ?? 0) * tx.dispH;
-        ctx.drawImage(img, x, y, layer.w * tx.dispW, layer.h * tx.dispH);
+        // Explicitly positioned in canvas pixel coordinates
+        const x = tx.originX + (layer.x ?? 0) * tx.zoom;
+        const y = tx.originY + (layer.y ?? 0) * tx.zoom;
+        ctx.drawImage(img, x, y, layer.w * tx.zoom, layer.h * tx.zoom);
       } else {
         // No explicit size → contain-fit to screen, centered
         const cw = window.innerWidth;
@@ -246,29 +246,29 @@ function drawLayer(layer, tx) {
       if (!vid?.loaded) break;
       ctx.globalAlpha = layer.opacity ?? 1;
       if (layer.w != null && layer.h != null) {
-        const x = tx.originX + (layer.x ?? 0) * tx.dispW;
-        const y = tx.originY + (layer.y ?? 0) * tx.dispH;
-        ctx.drawImage(vid, x, y, layer.w * tx.dispW, layer.h * tx.dispH);
+        const x = tx.originX + (layer.x ?? 0) * tx.zoom;
+        const y = tx.originY + (layer.y ?? 0) * tx.zoom;
+        ctx.drawImage(vid, x, y, layer.w * tx.zoom, layer.h * tx.zoom);
       } else {
         ctx.drawImage(vid, 0, 0, window.innerWidth, window.innerHeight);
       }
       break;
     }
     case 'light': {
-      const x = layer.x != null ? tx.originX + layer.x * tx.dispW : 0;
-      const y = layer.y != null ? tx.originY + layer.y * tx.dispH : 0;
-      const w = layer.w != null ? layer.w * tx.dispW : window.innerWidth;
-      const h = layer.h != null ? layer.h * tx.dispH : window.innerHeight;
+      const x = layer.x != null ? tx.originX + layer.x * tx.zoom : 0;
+      const y = layer.y != null ? tx.originY + layer.y * tx.zoom : 0;
+      const w = layer.w != null ? layer.w * tx.zoom : window.innerWidth;
+      const h = layer.h != null ? layer.h * tx.zoom : window.innerHeight;
       ctx.globalAlpha = layer.opacity ?? 0.5;
       ctx.fillStyle   = layer.color ?? '#1a2a4a';
       ctx.fillRect(x, y, w, h);
       break;
     }
     case 'fog': {
-      const fx = layer.x != null ? tx.originX + layer.x * tx.dispW : tx.originX;
-      const fy = layer.y != null ? tx.originY + layer.y * tx.dispH : tx.originY;
-      const fw = layer.w != null ? layer.w * tx.dispW : tx.dispW;
-      const fh = layer.h != null ? layer.h * tx.dispH : tx.dispH;
+      const fx = layer.x != null ? tx.originX + layer.x * tx.zoom : tx.originX + 0 * tx.zoom;
+      const fy = layer.y != null ? tx.originY + layer.y * tx.zoom : tx.originY + 0 * tx.zoom;
+      const fw = layer.w != null ? layer.w * tx.zoom : CANVAS_SIZE * tx.zoom;
+      const fh = layer.h != null ? layer.h * tx.zoom : CANVAS_SIZE * tx.zoom;
       ctx.globalAlpha = layer.opacity ?? 0.9;
       ctx.fillStyle   = '#050508';
       ctx.fillRect(fx, fy, fw, fh);
@@ -278,9 +278,9 @@ function drawLayer(layer, tx) {
         for (const c of layer.revealed) {
           ctx.beginPath();
           ctx.arc(
-            tx.originX + c.x * tx.dispW,
-            tx.originY + c.y * tx.dispH,
-            c.r * tx.dispW,
+            tx.originX + c.x * tx.zoom,
+            tx.originY + c.y * tx.zoom,
+            c.r * tx.zoom,
             0, Math.PI * 2
           );
           ctx.fill();
@@ -300,8 +300,7 @@ function drawGrid(tx) {
   // (useful for placing minis at a consistent physical size regardless of zoom).
   // When true (default) the grid scales and pans with the viewport.
   const scalesWithVp = settings.gridScaleWithViewport !== false;
-  const zoom   = scalesWithVp ? scene.viewport.zoom : 1.0;
-  const cellPx = settings.cellSizeInches * settings.dpi * zoom;
+  const cellPx = settings.cellSizeInches * settings.dpi * (scalesWithVp ? tx.zoom : 1.0);
   if (cellPx < 4) return;
 
   const cw  = window.innerWidth;
@@ -335,7 +334,7 @@ function render(timestamp) {
   const ch = window.innerHeight;
 
   ctx.clearRect(0, 0, cw, ch);
-  ctx.fillStyle = '#0d0d1a';
+  ctx.fillStyle = scene.background ?? '#0d0d1a';
   ctx.fillRect(0, 0, cw, ch);
 
   const tx = computeMapTransform(scene.viewport);
@@ -469,9 +468,10 @@ function buildInitiativeHud(hud) {
 }
 
 // ── Ping ──────────────────────────────────────────────────────────────────────
-function showPing(nx, ny) {
-  const px = nx * window.innerWidth;
-  const py = ny * window.innerHeight;
+function showPing(canvasX, canvasY) {
+  const tx = computeMapTransform(scene.viewport);
+  const px = tx.originX + canvasX * tx.zoom;
+  const py = tx.originY + canvasY * tx.zoom;
 
   const ring = document.createElement('div');
   ring.className    = 'ping-ring';
