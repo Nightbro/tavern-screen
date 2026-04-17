@@ -926,6 +926,7 @@ function applySettingsToUI(s) {
     screenModeAdvanced = isAdv;
     if (elScreenModeAdvanced) elScreenModeAdvanced.checked = isAdv;
     document.body.classList.toggle('advanced-mode', isAdv);
+    renderLayerOverlay();
   }
   if (s.gridScaleWithViewport !== undefined) {
     if (elGridScaleViewport) elGridScaleViewport.checked = s.gridScaleWithViewport;
@@ -1039,6 +1040,7 @@ elScreenModeAdvanced.addEventListener('change', async () => {
   document.body.classList.toggle('advanced-mode', isAdv);
   sendSettings({ screenMode: isAdv ? 'advanced' : 'simple' });
   if (isAdv) await initScene();
+  else renderLayerOverlay(); // clear overlay when switching to simple
 });
 
 // Grid visibility shortcut (syncs with Settings-tab checkbox)
@@ -1093,7 +1095,7 @@ btnPingMode.addEventListener('click', () => {
 });
 
 previewImg.addEventListener('click', (e) => {
-  if (!pingMode || previewImg.style.display === 'none') return;
+  if (!pingMode || previewImg.style.display === 'none' || screenModeAdvanced) return;
   const rect     = previewImg.getBoundingClientRect();
   const imgAR    = previewImg.naturalWidth / (previewImg.naturalHeight || 1);
   const boxAR    = rect.width / (rect.height || 1);
@@ -1130,12 +1132,14 @@ function renderLayerList() {
     empty.className = 'layer-empty';
     empty.textContent = 'No layers yet';
     layerListEl.appendChild(empty);
+    renderLayerOverlay();
     return;
   }
   // Render in reverse (top of stack first visually)
   for (let i = layers.length - 1; i >= 0; i--) {
     layerListEl.appendChild(buildLayerRow(layers[i]));
   }
+  renderLayerOverlay();
 }
 
 function buildLayerRow(layer) {
@@ -1182,7 +1186,7 @@ function buildLayerRow(layer) {
 
 function selectLayer(id) {
   selectedLayerId = (id === selectedLayerId) ? null : id;
-  renderLayerList();
+  renderLayerList();   // also calls renderLayerOverlay
   const layer = layers.find(l => l.id === selectedLayerId);
   if (layer) renderLayerDetail(layer);
   else layerDetail.style.display = 'none';
@@ -1571,6 +1575,333 @@ btnResetScene.addEventListener('click', () => {
     layerDetail.style.display      = 'none';
     initiativeEditor.style.display = 'none';
   });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAYER OVERLAY  — interactive move / resize on the preview canvas
+// ════════════════════════════════════════════════════════════════════════════
+
+const layerOverlay  = document.getElementById('layer-overlay');
+const overlayCtx    = layerOverlay.getContext('2d');
+
+const POSITIONABLE_TYPES = new Set(['image', 'gif', 'video', 'light']);
+const HANDLE_SIZE        = 8;   // px, square handle side
+const MIN_LAYER_SIZE     = 0.02; // minimum 2% of screen in each dimension
+
+// Drag state: null when idle
+let overlayDrag = null; // { layerId, mode:'move'|'resize', handle, startMx, startMy, startLayer:{x,y,w,h}, ca }
+let overlayThrottleTimer = null;
+
+// ── Canvas sizing ─────────────────────────────────────────────────────────────
+
+function resizeOverlayCanvas() {
+  const wrap = document.getElementById('preview-wrap');
+  const rect = wrap.getBoundingClientRect();
+  layerOverlay.width  = rect.width;
+  layerOverlay.height = rect.height;
+  renderLayerOverlay();
+}
+
+new ResizeObserver(resizeOverlayCanvas).observe(document.getElementById('preview-wrap'));
+
+// ── Coordinate helpers ────────────────────────────────────────────────────────
+
+/**
+ * Returns the pixel rect within the overlay canvas that corresponds to the
+ * "screen" content (the area the player actually sees), accounting for the
+ * preview image's object-fit:contain letterboxing.
+ */
+function getContentArea() {
+  const cw = layerOverlay.width;
+  const ch = layerOverlay.height;
+  if (previewImg.style.display === 'none' || !previewImg.naturalWidth) {
+    return { cx: 0, cy: 0, cw, ch };
+  }
+  const iw = previewImg.naturalWidth;
+  const ih = previewImg.naturalHeight;
+  const imgAR = iw / ih;
+  const boxAR = cw / ch;
+  let cx, cy, contentW, contentH;
+  if (imgAR > boxAR) {
+    contentW = cw;  contentH = cw / imgAR;
+    cx = 0;         cy = (ch - contentH) / 2;
+  } else {
+    contentH = ch;  contentW = ch * imgAR;
+    cy = 0;         cx = (cw - contentW) / 2;
+  }
+  return { cx, cy, cw: contentW, ch: contentH };
+}
+
+/** Converts a layer's normalised (0-1) coords to canvas pixels. */
+function layerBoundsOnCanvas(layer, ca) {
+  if (layer.x == null || layer.y == null || layer.w == null || layer.h == null) {
+    // Contain-fit: fills the entire content area
+    return { px: ca.cx, py: ca.cy, pw: ca.cw, ph: ca.ch };
+  }
+  return {
+    px: ca.cx + layer.x * ca.cw,
+    py: ca.cy + layer.y * ca.ch,
+    pw: layer.w * ca.cw,
+    ph: layer.h * ca.ch,
+  };
+}
+
+/** Returns the 8 handle rects (top-left corner, HANDLE_SIZE square). */
+function getHandlePositions(px, py, pw, ph) {
+  const hs = HANDLE_SIZE;
+  return {
+    TL: { x: px - hs / 2,        y: py - hs / 2        },
+    TC: { x: px + pw / 2 - hs / 2, y: py - hs / 2      },
+    TR: { x: px + pw - hs / 2,   y: py - hs / 2        },
+    ML: { x: px - hs / 2,        y: py + ph / 2 - hs / 2 },
+    MR: { x: px + pw - hs / 2,   y: py + ph / 2 - hs / 2 },
+    BL: { x: px - hs / 2,        y: py + ph - hs / 2   },
+    BC: { x: px + pw / 2 - hs / 2, y: py + ph - hs / 2 },
+    BR: { x: px + pw - hs / 2,   y: py + ph - hs / 2   },
+  };
+}
+
+/** Hit-test a single set of handles, returning the handle key or null. */
+function hitTestHandle(mx, my, px, py, pw, ph) {
+  const handles = getHandlePositions(px, py, pw, ph);
+  for (const [key, pos] of Object.entries(handles)) {
+    if (mx >= pos.x && mx <= pos.x + HANDLE_SIZE &&
+        my >= pos.y && my <= pos.y + HANDLE_SIZE) {
+      return key;
+    }
+  }
+  return null;
+}
+
+/** Returns { layerId, mode, handle? } or null. */
+function hitTestOverlay(mx, my) {
+  const ca = getContentArea();
+
+  // Handles on the selected layer take priority
+  if (selectedLayerId) {
+    const layer = layers.find(l => l.id === selectedLayerId);
+    if (layer && POSITIONABLE_TYPES.has(layer.type)) {
+      const b = layerBoundsOnCanvas(layer, ca);
+      const handle = hitTestHandle(mx, my, b.px, b.py, b.pw, b.ph);
+      if (handle) return { layerId: layer.id, mode: 'resize', handle };
+      if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph) {
+        return { layerId: layer.id, mode: 'move' };
+      }
+    }
+  }
+
+  // Scan layers top-to-bottom (highest index = visually on top)
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
+    const b = layerBoundsOnCanvas(layer, ca);
+    if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph) {
+      return { layerId: layer.id, mode: 'move' };
+    }
+  }
+  return null;
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+
+function renderLayerOverlay() {
+  const ctx = overlayCtx;
+  ctx.clearRect(0, 0, layerOverlay.width, layerOverlay.height);
+  if (!screenModeAdvanced) return;
+
+  const ca = getContentArea();
+
+  for (const layer of layers) {
+    if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
+    const b = layerBoundsOnCanvas(layer, ca);
+    const isSelected = layer.id === selectedLayerId;
+
+    ctx.save();
+    ctx.strokeStyle = isSelected ? '#c9a84c' : 'rgba(74,144,217,0.45)';
+    ctx.lineWidth   = isSelected ? 1.5 : 1;
+    if (!isSelected) ctx.setLineDash([4, 4]);
+    ctx.strokeRect(b.px + 0.5, b.py + 0.5, b.pw, b.ph);
+    ctx.restore();
+
+    if (isSelected) {
+      const handles = getHandlePositions(b.px, b.py, b.pw, b.ph);
+      for (const pos of Object.values(handles)) {
+        ctx.fillStyle = '#c9a84c';
+        ctx.fillRect(pos.x, pos.y, HANDLE_SIZE, HANDLE_SIZE);
+        ctx.strokeStyle = '#1a1a2e';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(pos.x + 0.5, pos.y + 0.5, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+      }
+    }
+  }
+}
+
+// ── Throttled IPC update ──────────────────────────────────────────────────────
+
+function throttledUpdateLayer(id, patch) {
+  // Apply locally for instant visual feedback
+  layers = layers.map(l => l.id === id ? { ...l, ...patch } : l);
+  renderLayerOverlay();
+
+  // Send to main process at ~20 fps
+  if (!overlayThrottleTimer) {
+    overlayThrottleTimer = setTimeout(() => {
+      overlayThrottleTimer = null;
+      if (overlayDrag) {    // still dragging — fire but don't sync back yet
+        window.electronAPI.updateLayer(id, patch);
+      }
+    }, 50);
+  }
+}
+
+// ── Mouse events ──────────────────────────────────────────────────────────────
+
+const RESIZE_CURSORS = {
+  TL: 'nw-resize', TC: 'n-resize', TR: 'ne-resize',
+  ML: 'w-resize',                  MR: 'e-resize',
+  BL: 'sw-resize', BC: 's-resize', BR: 'se-resize',
+};
+
+layerOverlay.addEventListener('mousemove', (e) => {
+  if (overlayDrag) return; // cursor locked during drag
+  if (pingMode) { layerOverlay.style.cursor = 'crosshair'; return; }
+  if (!screenModeAdvanced) return;
+  const rect = layerOverlay.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const hit = hitTestOverlay(mx, my);
+  if (!hit)                   layerOverlay.style.cursor = 'default';
+  else if (hit.mode === 'move') layerOverlay.style.cursor = 'move';
+  else                         layerOverlay.style.cursor = RESIZE_CURSORS[hit.handle] ?? 'default';
+});
+
+layerOverlay.addEventListener('mousedown', (e) => {
+  const rect = layerOverlay.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  // ── Ping mode ────────────────────────────────────────────────────────────
+  if (pingMode) {
+    const ca = getContentArea();
+    const nx = (mx - ca.cx) / ca.cw;
+    const ny = (my - ca.cy) / ca.ch;
+    if (nx >= 0 && nx <= 1 && ny >= 0 && ny <= 1) {
+      window.electronAPI.sendPing(nx, ny);
+    }
+    pingMode = false;
+    btnPingMode.classList.remove('ping-active');
+    document.getElementById('preview-wrap').classList.remove('ping-mode');
+    return;
+  }
+
+  if (!screenModeAdvanced) return;
+
+  const hit = hitTestOverlay(mx, my);
+
+  if (!hit) {
+    // Click on empty area — deselect
+    if (selectedLayerId) selectLayer(null);
+    return;
+  }
+
+  // Select the hit layer if it isn't already
+  if (hit.layerId !== selectedLayerId) {
+    // Directly set without toggle: selectLayer toggles, so set first if different
+    selectedLayerId = hit.layerId;
+    renderLayerList();
+    const layer = layers.find(l => l.id === selectedLayerId);
+    if (layer) renderLayerDetail(layer);
+  }
+
+  e.preventDefault();
+
+  const layer = layers.find(l => l.id === hit.layerId);
+  if (!layer) return;
+
+  const ca = getContentArea();
+  const b  = layerBoundsOnCanvas(layer, ca);
+
+  overlayDrag = {
+    layerId: hit.layerId,
+    mode:    hit.mode,
+    handle:  hit.handle,
+    startMx: mx,
+    startMy: my,
+    startLayer: {
+      x: layer.x ?? (b.px - ca.cx) / ca.cw,
+      y: layer.y ?? (b.py - ca.cy) / ca.ch,
+      w: layer.w ?? b.pw / ca.cw,
+      h: layer.h ?? b.ph / ca.ch,
+    },
+    ca,
+  };
+
+  // Lock cursor while dragging
+  if (hit.mode === 'move') layerOverlay.style.cursor = 'move';
+  else layerOverlay.style.cursor = RESIZE_CURSORS[hit.handle] ?? 'default';
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!overlayDrag) return;
+
+  const rect = layerOverlay.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const { startMx, startMy, startLayer, ca } = overlayDrag;
+
+  const dxN = (mx - startMx) / ca.cw;
+  const dyN = (my - startMy) / ca.ch;
+  const MIN = MIN_LAYER_SIZE;
+
+  let patch;
+
+  if (overlayDrag.mode === 'move') {
+    patch = {
+      x: startLayer.x + dxN,
+      y: startLayer.y + dyN,
+      w: startLayer.w,
+      h: startLayer.h,
+    };
+  } else {
+    let { x, y, w, h } = startLayer;
+    switch (overlayDrag.handle) {
+      case 'TL': x = startLayer.x + dxN; y = startLayer.y + dyN; w = Math.max(MIN, startLayer.w - dxN); h = Math.max(MIN, startLayer.h - dyN); break;
+      case 'TC':                          y = startLayer.y + dyN;                                         h = Math.max(MIN, startLayer.h - dyN); break;
+      case 'TR':                          y = startLayer.y + dyN; w = Math.max(MIN, startLayer.w + dxN); h = Math.max(MIN, startLayer.h - dyN); break;
+      case 'ML': x = startLayer.x + dxN;                         w = Math.max(MIN, startLayer.w - dxN);                                        break;
+      case 'MR':                                                  w = Math.max(MIN, startLayer.w + dxN);                                        break;
+      case 'BL': x = startLayer.x + dxN;                         w = Math.max(MIN, startLayer.w - dxN); h = Math.max(MIN, startLayer.h + dyN); break;
+      case 'BC':                                                                                          h = Math.max(MIN, startLayer.h + dyN); break;
+      case 'BR':                                                  w = Math.max(MIN, startLayer.w + dxN); h = Math.max(MIN, startLayer.h + dyN); break;
+    }
+    patch = { x, y, w, h };
+  }
+
+  throttledUpdateLayer(overlayDrag.layerId, patch);
+});
+
+document.addEventListener('mouseup', async () => {
+  if (!overlayDrag) return;
+  const { layerId } = overlayDrag;
+  overlayDrag = null;
+  clearTimeout(overlayThrottleTimer);
+  overlayThrottleTimer = null;
+
+  // Flush the final position to main
+  const layer = layers.find(l => l.id === layerId);
+  if (layer) {
+    const { x, y, w, h } = layer;
+    const newLayers = await window.electronAPI.updateLayer(layerId, { x, y, w, h });
+    if (newLayers) { layers = newLayers; renderLayerOverlay(); }
+  }
+
+  layerOverlay.style.cursor = '';
+});
+
+// Repaint overlay when a new preview screenshot arrives
+window.electronAPI.onScreenPreview(() => {
+  // Small delay so the img element has updated naturalWidth/Height
+  setTimeout(renderLayerOverlay, 50);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
