@@ -179,6 +179,17 @@ function drawWeatherLayer(layer, timestamp) {
   const visible   = Math.min(ps.length, Math.max(0, Math.floor(ps.length * intensity)));
 
   ctx.save();
+  if (layer.x != null && layer.y != null && layer.w != null && layer.h != null) {
+    const tx = computeMapTransform(scene.viewport);
+    ctx.beginPath();
+    ctx.rect(
+      tx.originX + layer.x * tx.dispW,
+      tx.originY + layer.y * tx.dispH,
+      layer.w * tx.dispW,
+      layer.h * tx.dispH,
+    );
+    ctx.clip();
+  }
   for (let i = 0; i < visible; i++) {
     const p = ps[i];
     if (type === 'fireflies') {
@@ -254,9 +265,13 @@ function drawLayer(layer, tx) {
       break;
     }
     case 'fog': {
+      const fx = layer.x != null ? tx.originX + layer.x * tx.dispW : tx.originX;
+      const fy = layer.y != null ? tx.originY + layer.y * tx.dispH : tx.originY;
+      const fw = layer.w != null ? layer.w * tx.dispW : tx.dispW;
+      const fh = layer.h != null ? layer.h * tx.dispH : tx.dispH;
       ctx.globalAlpha = layer.opacity ?? 0.9;
       ctx.fillStyle   = '#050508';
-      ctx.fillRect(tx.originX, tx.originY, tx.dispW, tx.dispH);
+      ctx.fillRect(fx, fy, fw, fh);
       if (layer.revealed?.length) {
         ctx.globalCompositeOperation = 'destination-out';
         ctx.globalAlpha = 1;

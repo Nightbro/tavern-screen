@@ -272,24 +272,50 @@ function buildMapCard(map) {
   return card;
 }
 
+/**
+ * Loads an image from src and returns normalised {x, y, w, h} bounds so it
+ * appears at its natural pixel size, centred on the screen.  Falls back to
+ * full-screen contain-fit when no preview reference is available.
+ */
+function imageBoundsFromSrc(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const sw = previewImg?.naturalWidth  || 0;
+      const sh = previewImg?.naturalHeight || 0;
+      if (!sw || !sh || !img.naturalWidth || !img.naturalHeight) {
+        resolve({});
+        return;
+      }
+      const w = Math.min(img.naturalWidth  / sw, 1);
+      const h = Math.min(img.naturalHeight / sh, 1);
+      resolve({ x: (1 - w) / 2, y: (1 - h) / 2, w, h });
+    };
+    img.onerror = () => resolve({});
+    img.src = src;
+  });
+}
+
 function activateMap(map) {
   if (screenModeAdvanced) {
     // In advanced mode: add the map as an image layer instead of setting the background
     const src = 'file:///' + map.path.replace(/\\/g, '/');
-    window.electronAPI.addLayer({
-      type: 'image', src, name: map.name,
-      visible: true, opacity: 1,
-      // No x/y/w/h → contain-fit rendering on the player screen
-    }).then(newLayers => {
-      if (newLayers) {
-        layers = newLayers;
-        renderLayerList();
-        // Switch to Layers tab so the GM sees the new layer
-        const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
-        if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
-      }
+    imageBoundsFromSrc(src).then(bounds => {
+      window.electronAPI.addLayer({
+        type: 'image', src, name: map.name,
+        visible: true, opacity: 1,
+        ...bounds,
+      }).then(newLayers => {
+        if (newLayers) {
+          layers = newLayers;
+          renderLayerList();
+          // Switch to Layers tab so the GM sees the new layer
+          const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+          if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
+        }
+        setTimeout(() => window.electronAPI.requestPreview(), 400);
+      });
     });
-    setTimeout(() => window.electronAPI.requestPreview(), 400);
     return;
   }
   activeMapId = map.id;
@@ -1171,6 +1197,8 @@ function buildLayerRow(layer) {
   delBtn.title = 'Remove layer';
   delBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
+    const layerName = layer.name || LAYER_TYPE_LABELS[layer.type] || layer.type;
+    if (!confirm(`Delete layer "${layerName}"?\n\nThis cannot be undone.`)) return;
     if (selectedLayerId === layer.id) { selectedLayerId = null; layerDetail.style.display = 'none'; }
     const newLayers = await window.electronAPI.removeLayer(layer.id);
     if (newLayers) { layers = newLayers; renderLayerList(); }
@@ -1234,7 +1262,9 @@ function renderLayerDetail(layer) {
       const files = await window.electronAPI.openMapDialog();
       if (files.length) {
         const src = 'file:///' + files[0].replace(/\\/g, '/');
-        const newLayers = await window.electronAPI.updateLayer(layer.id, { src });
+        const hasBounds = layer.w != null && layer.h != null;
+        const bounds = hasBounds ? {} : await imageBoundsFromSrc(src);
+        const newLayers = await window.electronAPI.updateLayer(layer.id, { src, ...bounds });
         if (newLayers) {
           layers = newLayers;
           const updated = layers.find(l => l.id === layer.id);
@@ -1584,7 +1614,7 @@ btnResetScene.addEventListener('click', () => {
 const layerOverlay  = document.getElementById('layer-overlay');
 const overlayCtx    = layerOverlay.getContext('2d');
 
-const POSITIONABLE_TYPES = new Set(['image', 'gif', 'video', 'light']);
+const POSITIONABLE_TYPES = new Set(['image', 'gif', 'video', 'light', 'fog', 'weather']);
 const HANDLE_SIZE        = 8;   // px, square handle side
 const MIN_LAYER_SIZE     = 0.02; // minimum 2% of screen in each dimension
 
