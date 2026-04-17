@@ -250,7 +250,7 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
   border-top: 1px solid #2e2e4e; padding-top: 8px;
 }
 .scenes-toolbar {
-  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 0 8px;
 }
 .scenes-list {
   overflow-y: auto; max-height: 28%;
@@ -494,21 +494,20 @@ input[type="range"] { flex: 1; accent-color: #c9a84c; max-width: 110px; }
 }
 
 /* ── Scene name + autosave ── */
-.scene-name-row {
-  display: flex; align-items: center; gap: 6px;
-}
+.scene-name-row { display: flex; align-items: center; gap: 6px; padding: 0 8px; }
 .scene-name-input {
   flex: 1; background: #11111f; border: 1px solid #2e2e4e;
   border-radius: 4px; color: #ddd; font-size: 12px;
-  padding: 4px 7px; outline: none;
+  padding: 4px 7px; outline: none; min-width: 0;
 }
 .scene-name-input:focus { border-color: #4a90d9; }
 .scene-autosave-badge {
   font-size: 9px; white-space: nowrap; flex-shrink: 0;
-  color: #555; min-width: 50px; text-align: right;
+  color: #555; margin-left: auto;
 }
 .scene-autosave-badge[data-state="saved"]  { color: #4caf7d; }
 .scene-autosave-badge[data-state="saving"] { color: #c9a84c; }
+.scenes-actions { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 8px; }
 
 
 /* adv-only: hidden unless body has .advanced-mode */

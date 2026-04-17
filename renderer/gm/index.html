@@ -81,13 +81,22 @@
         <!-- Sessions list -->
         <div id="sessions-content"></div>
 
-        <!-- Scenes list -->
+        <!-- Scenes list + controls -->
         <div id="scenes-area">
           <div class="scenes-toolbar">
             <span class="panel-title">Scenes</span>
+            <span id="scene-autosave-badge" class="scene-autosave-badge"></span>
             <button id="btn-refresh-scenes" class="btn-icon-sm" title="Refresh scenes from disk">↺</button>
           </div>
+          <div class="scene-name-row">
+            <input type="text" id="scene-name-input" class="scene-name-input" placeholder="Scene name…" />
+          </div>
           <div id="scenes-content" class="scenes-list"></div>
+          <div class="scenes-actions">
+            <button class="btn-ghost-sm" id="btn-reset-scene">↺ New</button>
+            <button class="btn-ghost-sm" id="btn-save-scene">⬆ Export</button>
+            <button class="btn-ghost-sm" id="btn-load-scene">⬇ Import</button>
+          </div>
         </div>
 
         <!-- Notes editor -->
@@ -273,19 +282,6 @@
           <button class="btn-ghost-sm" id="btn-add-entry" style="margin-top:4px">+ Add Entry</button>
         </div>
 
-        <!-- Scene I/O -->
-        <div class="settings-group adv-only" id="group-scene-io">
-          <div class="settings-group-title">Scene</div>
-          <div class="scene-name-row">
-            <input type="text" id="scene-name-input" class="scene-name-input" placeholder="Scene name…" />
-            <span id="scene-autosave-badge" class="scene-autosave-badge"></span>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn-ghost-sm" id="btn-reset-scene">↺ New</button>
-            <button class="btn-ghost-sm" id="btn-save-scene">⬆ Export</button>
-            <button class="btn-ghost-sm" id="btn-load-scene">⬇ Import</button>
-          </div>
-        </div>
 
       </div><!-- /right-tab-pane-layers -->
 
