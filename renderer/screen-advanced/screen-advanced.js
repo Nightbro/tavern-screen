@@ -357,14 +357,22 @@ function render(timestamp) {
 // ── HUD rendering ─────────────────────────────────────────────────────────────
 function renderHuds() {
   hudRoot.innerHTML = '';
+  const pending = [];
   for (const hud of (scene.huds ?? [])) {
     if (hud.visible === false) continue;
     if (hud.type === 'initiative') {
-      for (const panel of buildInitiativeHudPanels(hud)) hudRoot.appendChild(panel);
+      for (const item of buildInitiativeHudPanels(hud)) {
+        hudRoot.appendChild(item.panel);
+        pending.push(item);
+      }
     } else if (hud.type === 'status') {
       hudRoot.appendChild(buildStatusHud(hud));
     }
   }
+  // Position after layout so offsetWidth/offsetHeight are real
+  requestAnimationFrame(() => {
+    for (const { panel, corner, facing } of pending) positionPanel(panel, corner, facing);
+  });
 }
 
 function applyHudSide(el, side) {
@@ -387,28 +395,45 @@ function facingToDeg(facing) {
   }
 }
 
-function applyHudCorner(el, corner, facing) {
-  el.style.left = el.style.right = el.style.top = el.style.bottom = '';
-  switch (corner) {
-    case 'top-left':     el.style.left = '20px'; el.style.top    = '20px'; break;
-    case 'top-right':    el.style.right = '20px'; el.style.top   = '20px'; break;
-    case 'bottom-left':  el.style.left = '20px'; el.style.bottom = '20px'; break;
-    case 'bottom-right': el.style.right = '20px'; el.style.bottom = '20px'; break;
-    default:             el.style.left = '20px'; el.style.top    = '20px';
-  }
+// Position a HUD panel at a corner with optional rotation.
+// Must be called after the element is in the DOM (needs real offsetWidth/Height).
+function positionPanel(el, corner, facing) {
   const deg = facingToDeg(facing);
-  if (deg !== 0) {
-    const origins = { 'top-left': 'top left', 'top-right': 'top right', 'bottom-left': 'bottom left', 'bottom-right': 'bottom right' };
-    el.style.transformOrigin = origins[corner] ?? 'top left';
-    el.style.transform = `rotate(${deg}deg)`;
+  const margin = 20;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const W  = el.offsetWidth;
+  const H  = el.offsetHeight;
+
+  el.style.transformOrigin = 'center center';
+  el.style.transform = deg ? `rotate(${deg}deg)` : '';
+  el.style.right = el.style.bottom = '';
+
+  // For 90°/270° the visual footprint swaps W and H
+  const visW = (deg === 90 || deg === 270) ? H : W;
+  const visH = (deg === 90 || deg === 270) ? W : H;
+
+  let cx, cy;
+  switch (corner) {
+    case 'top-right':    cx = vw - margin - visW / 2; cy = margin + visH / 2;      break;
+    case 'bottom-left':  cx = margin + visW / 2;      cy = vh - margin - visH / 2; break;
+    case 'bottom-right': cx = vw - margin - visW / 2; cy = vh - margin - visH / 2; break;
+    default:             cx = margin + visW / 2;      cy = margin + visH / 2;      break; // top-left
   }
+
+  el.style.left = (cx - W / 2) + 'px';
+  el.style.top  = (cy - H / 2) + 'px';
+  el.style.visibility = '';
 }
 
 function buildInitiativeHudPanels(hud) {
   const sides = hud.sides?.length
     ? hud.sides
     : [{ corner: hud.side ?? 'top-left', facing: 'up' }];
-  return sides.map(({ corner, facing }) => buildInitiativeHudPanel(hud, corner, facing));
+  return sides.map(({ corner, facing }) => ({
+    panel: buildInitiativeHudPanel(hud, corner, facing),
+    corner, facing,
+  }));
 }
 
 function buildInitiativeHudPanel(hud, corner, facing) {
@@ -416,7 +441,9 @@ function buildInitiativeHudPanel(hud, corner, facing) {
 
   const panel = document.createElement('div');
   panel.className = 'hud-panel';
-  applyHudCorner(panel, corner ?? 'top-left', facing ?? 'up');
+  panel.style.fontSize   = fontSize + 'px';
+  panel.style.visibility = 'hidden'; // shown by positionPanel after layout
+  panel.style.left = '-9999px'; panel.style.top = '0';
 
   // ── Header row (title + collapse toggle) ──────────────────────────────────
   const header = document.createElement('div');
@@ -438,7 +465,6 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   // ── Entry list (collapsible) ──────────────────────────────────────────────
   const body = document.createElement('div');
   body.className = 'hud-body';
-  body.style.fontSize = fontSize + 'px';
 
   const entries = hud.entries ?? [];
   entries.forEach((entry, i) => {
@@ -456,6 +482,17 @@ function buildInitiativeHudPanel(hud, corner, facing) {
     // hidden = true → show as ??? (the GM is hiding their identity but players know someone is there)
     name.textContent = entry.hidden ? '???' : (entry.name || '—');
 
+    row.appendChild(badge);
+    row.appendChild(name);
+
+    if (entry.hp > 0) {
+      const currentHp = Math.max(0, entry.hp - (entry.damage ?? 0));
+      const hpEl = document.createElement('span');
+      hpEl.className   = 'initiative-hp';
+      hpEl.textContent = `${currentHp}/${entry.hp}`;
+      row.appendChild(hpEl);
+    }
+
     const statuses = document.createElement('span');
     statuses.className = 'initiative-statuses';
     for (const s of (entry.statuses ?? [])) {
@@ -465,16 +502,14 @@ function buildInitiativeHudPanel(hud, corner, facing) {
       pip.title            = s.label ?? '';
       statuses.appendChild(pip);
     }
-
-    row.appendChild(badge);
-    row.appendChild(name);
     row.appendChild(statuses);
+
     body.appendChild(row);
   });
 
   if (entries.length === 0) {
     const empty = document.createElement('div');
-    empty.style.cssText = 'font-size:11px;color:#3a3a5e;font-style:italic;padding:4px 0;';
+    empty.style.cssText = 'font-size:0.8em;color:#3a3a5e;font-style:italic;padding:4px 0;';
     empty.textContent = 'No entries';
     body.appendChild(empty);
   }
@@ -485,11 +520,11 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   let collapsed = false;
   collapseBtn.addEventListener('click', () => {
     collapsed = !collapsed;
-    body.style.display     = collapsed ? 'none' : '';
+    body.style.display      = collapsed ? 'none' : '';
     collapseBtn.textContent = collapsed ? '+' : '−';
   });
 
-  // ── Drag by header ────────────────────────────────────────────────────────
+  // ── Drag by header (always uses left/top since positionPanel sets those) ──
   let dragX = 0, dragY = 0, startLeft = 0, startTop = 0;
 
   const onMove = (e) => {
@@ -503,13 +538,6 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   };
   header.addEventListener('mousedown', (e) => {
     if (e.target === collapseBtn) return;
-    // Convert right/bottom anchoring to left/top so drag math works
-    if (panel.style.right || panel.style.bottom) {
-      const rect = panel.getBoundingClientRect();
-      panel.style.right = panel.style.bottom = '';
-      panel.style.left = rect.left + 'px';
-      panel.style.top  = rect.top  + 'px';
-    }
     dragX     = e.clientX;
     dragY     = e.clientY;
     startLeft = parseInt(panel.style.left) || 0;

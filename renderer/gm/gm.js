@@ -1716,6 +1716,10 @@ function renderInitiativeEntries(hud) {
     return;
   }
   hud.entries.forEach((entry, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'initiative-entry-wrap';
+
+    // ── Main row ─────────────────────────────────────────────────────────────
     const row = document.createElement('div');
     row.className = 'initiative-entry-row';
 
@@ -1756,8 +1760,184 @@ function renderInitiativeEntries(hud) {
     row.appendChild(rollInput);
     row.appendChild(hiddenChk);
     row.appendChild(delBtn);
-    initiativeEntriesEl.appendChild(row);
+
+    // ── Status row ────────────────────────────────────────────────────────────
+    const statusRow = document.createElement('div');
+    statusRow.className = 'init-extras-row';
+    buildEntryStatusRow(statusRow, hud, idx, entry);
+
+    // ── HP row ────────────────────────────────────────────────────────────────
+    const hpRow = document.createElement('div');
+    hpRow.className = 'init-extras-row';
+    buildEntryHpRow(hpRow, hud, idx, entry);
+
+    wrap.appendChild(row);
+    wrap.appendChild(statusRow);
+    wrap.appendChild(hpRow);
+    initiativeEntriesEl.appendChild(wrap);
   });
+}
+
+function buildEntryStatusRow(container, hud, idx, entry) {
+  container.innerHTML = '';
+
+  const statuses = entry.statuses ?? [];
+
+  // Existing status chips
+  statuses.forEach((s, si) => {
+    const chip = document.createElement('span');
+    chip.className = 'init-status-chip';
+    chip.title = s.label ?? '';
+
+    const dot = document.createElement('span');
+    dot.className = 'init-status-dot';
+    dot.style.background = s.color ?? '#888';
+
+    const lbl = document.createElement('span');
+    lbl.className = 'init-status-lbl';
+    lbl.textContent = s.label ?? '';
+
+    const del = document.createElement('button');
+    del.className = 'init-status-del';
+    del.textContent = '×';
+    del.addEventListener('click', async () => {
+      const newStatuses = statuses.filter((_, i) => i !== si);
+      await updateEntryField(hud, idx, { statuses: newStatuses });
+      const updated = huds.find(h => h.id === hud.id);
+      if (updated) renderInitiativeEntries(updated);
+    });
+
+    chip.appendChild(dot);
+    chip.appendChild(lbl);
+    chip.appendChild(del);
+    container.appendChild(chip);
+  });
+
+  // Add-status button + inline form
+  let formOpen = false;
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn-icon-xs';
+  addBtn.textContent = '+ status';
+  addBtn.style.fontSize = '9px';
+
+  const form = document.createElement('div');
+  form.className = 'init-status-form';
+  form.style.display = 'none';
+
+  const colorIn = document.createElement('input');
+  colorIn.type = 'color'; colorIn.value = '#c9a84c';
+  colorIn.className = 'init-status-color-pick';
+
+  const labelIn = document.createElement('input');
+  labelIn.className = 'init-entry-name';
+  labelIn.placeholder = 'Label…';
+  labelIn.style.cssText = 'width:70px;font-size:10px;';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'btn-icon-xs';
+  confirmBtn.textContent = '✓';
+  confirmBtn.addEventListener('click', async () => {
+    const newStatuses = [...statuses, { color: colorIn.value, label: labelIn.value.trim() }];
+    await updateEntryField(hud, idx, { statuses: newStatuses });
+    const updated = huds.find(h => h.id === hud.id);
+    if (updated) renderInitiativeEntries(updated);
+  });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-icon-xs';
+  cancelBtn.textContent = '✕';
+  cancelBtn.addEventListener('click', () => { form.style.display = 'none'; addBtn.style.display = ''; formOpen = false; });
+
+  form.appendChild(colorIn);
+  form.appendChild(labelIn);
+  form.appendChild(confirmBtn);
+  form.appendChild(cancelBtn);
+
+  addBtn.addEventListener('click', () => {
+    formOpen = !formOpen;
+    form.style.display = formOpen ? 'flex' : 'none';
+    addBtn.style.display = formOpen ? 'none' : '';
+    if (formOpen) labelIn.focus();
+  });
+
+  container.appendChild(addBtn);
+  container.appendChild(form);
+}
+
+function buildEntryHpRow(container, hud, idx, entry) {
+  container.innerHTML = '';
+
+  const lbl = document.createElement('span');
+  lbl.className = 'init-hp-label';
+  lbl.textContent = 'HP';
+
+  const maxIn = document.createElement('input');
+  maxIn.type = 'number'; maxIn.min = 0;
+  maxIn.className = 'init-hp-input';
+  maxIn.value = entry.hp ?? '';
+  maxIn.placeholder = 'max';
+  maxIn.title = 'Max HP';
+  maxIn.addEventListener('change', async () => {
+    const v = parseInt(maxIn.value) || 0;
+    await updateEntryField(hud, idx, { hp: v });
+    const updated = huds.find(h => h.id === hud.id);
+    if (updated) renderInitiativeEntries(updated);
+  });
+
+  const sep1 = document.createElement('span');
+  sep1.className = 'init-hp-sep';
+  sep1.textContent = 'dmg';
+
+  const dmgIn = document.createElement('input');
+  dmgIn.type = 'number'; dmgIn.min = 0;
+  dmgIn.className = 'init-hp-input';
+  dmgIn.value = entry.damage ?? 0;
+  dmgIn.title = 'Total damage dealt (editable)';
+  dmgIn.addEventListener('change', async () => {
+    const v = Math.max(0, parseInt(dmgIn.value) || 0);
+    await updateEntryField(hud, idx, { damage: v });
+  });
+
+  const sep2 = document.createElement('span');
+  sep2.className = 'init-hp-sep';
+  sep2.textContent = '|';
+
+  const dealIn = document.createElement('input');
+  dealIn.type = 'number'; dealIn.min = 0;
+  dealIn.className = 'init-hp-input';
+  dealIn.placeholder = '+dmg';
+  dealIn.title = 'New damage to deal';
+
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'btn-apply-dmg';
+  applyBtn.textContent = '↯';
+  applyBtn.title = 'Apply damage';
+  applyBtn.addEventListener('click', async () => {
+    const newDmg = parseInt(dealIn.value) || 0;
+    if (!newDmg) return;
+    const total = (entry.damage ?? 0) + newDmg;
+    dealIn.value = '';
+    await updateEntryField(hud, idx, { damage: total });
+    const updated = huds.find(h => h.id === hud.id);
+    if (updated) renderInitiativeEntries(updated);
+  });
+
+  // Current HP display
+  const curHpEl = document.createElement('span');
+  curHpEl.className = 'init-hp-current';
+  if (entry.hp > 0) {
+    const cur = Math.max(0, entry.hp - (entry.damage ?? 0));
+    curHpEl.textContent = `= ${cur}/${entry.hp}`;
+  }
+
+  container.appendChild(lbl);
+  container.appendChild(maxIn);
+  container.appendChild(sep1);
+  container.appendChild(dmgIn);
+  container.appendChild(sep2);
+  container.appendChild(dealIn);
+  container.appendChild(applyBtn);
+  container.appendChild(curHpEl);
 }
 
 async function updateEntryField(hud, idx, patch) {

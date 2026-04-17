@@ -41,7 +41,7 @@ html, body {
 .hud-header:active { cursor: grabbing; }
 
 .hud-title {
-  font-size: 9px; font-weight: 700;
+  font-size: 0.7em; font-weight: 700;
   text-transform: uppercase; letter-spacing: 2px;
   color: #3a3a5e; font-family: 'Segoe UI', sans-serif;
 }
@@ -86,6 +86,13 @@ html, body {
 .initiative-entry.active-turn .initiative-badge { color: #c9a84c; }
 
 .initiative-name { flex: 1; }
+
+.initiative-hp {
+  font-size: 0.8em; font-weight: 700;
+  color: #e05555; flex-shrink: 0;
+  margin-right: 4px;
+}
+.initiative-entry.active-turn .initiative-hp { color: #e08040; }
 
 .initiative-statuses { display: flex; gap: 4px; flex-wrap: wrap; }
 
