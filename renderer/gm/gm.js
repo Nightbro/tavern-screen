@@ -1595,8 +1595,6 @@ function selectHud(id) {
   const hud = huds.find(h => h.id === selectedHudId);
   if (hud && hud.type === 'initiative') {
     renderInitiativeEditor(hud);
-    const elInitiativeSide = document.getElementById('initiative-side');
-    if (elInitiativeSide) elInitiativeSide.value = hud.side ?? 'top-left';
   } else {
     initiativeEditor.style.display = 'none';
   }
@@ -1605,6 +1603,7 @@ function selectHud(id) {
 btnAddInitiative.addEventListener('click', async () => {
   const newHuds = await window.electronAPI.addHud({
     type: 'initiative', visible: true, combat: false, currentIndex: 0, entries: [],
+    sides: [{ corner: 'top-left', facing: 'up' }], fontSize: 14,
   });
   if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
@@ -1614,16 +1613,86 @@ btnAddStatusHud?.addEventListener('click', async () => {
   if (newHuds) { huds = newHuds; renderHudList(); }
 });
 
-const elInitiativeSide = document.getElementById('initiative-side');
-elInitiativeSide?.addEventListener('change', async () => {
+document.getElementById('initiative-font-size')?.addEventListener('change', async () => {
   if (!selectedHudId) return;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { side: elInitiativeSide.value });
-  if (newHuds) { huds = newHuds; renderHudList(); }
+  const v = parseInt(document.getElementById('initiative-font-size').value);
+  if (isNaN(v) || v < 8 || v > 48) return;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
+  if (newHuds) { huds = newHuds; }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
 // INITIATIVE TRACKER EDITOR
 // ════════════════════════════════════════════════════════════════════════════
+
+const CORNERS = [
+  { id: 'top-left',     label: 'Top Left' },
+  { id: 'top-right',    label: 'Top Right' },
+  { id: 'bottom-left',  label: 'Bottom Left' },
+  { id: 'bottom-right', label: 'Bottom Right' },
+];
+
+function normalizeSides(hud) {
+  if (hud.sides?.length) return hud.sides;
+  return [{ corner: hud.side ?? 'top-left', facing: 'up' }];
+}
+
+function renderInitiativePositions(hud) {
+  const posEl = document.getElementById('initiative-positions');
+  if (!posEl) return;
+  posEl.innerHTML = '';
+  const sides = normalizeSides(hud);
+
+  const getSides = () => CORNERS
+    .map(({ id: corner }) => {
+      const row = posEl.querySelector(`[data-corner="${corner}"]`);
+      if (!row) return null;
+      const chk = row.querySelector('input[type="checkbox"]');
+      const sel = row.querySelector('select');
+      return chk?.checked ? { corner, facing: sel?.value ?? 'up' } : null;
+    })
+    .filter(Boolean);
+
+  for (const { id: corner, label } of CORNERS) {
+    const existing = sides.find(s => s.corner === corner);
+
+    const row = document.createElement('div');
+    row.dataset.corner = corner;
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0;';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!existing;
+    chk.style.cssText = 'accent-color:#c9a84c;cursor:pointer;flex-shrink:0;';
+
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'flex:1;font-size:11px;color:#aaa;';
+
+    const facingSelect = document.createElement('select');
+    facingSelect.className = 'field-select';
+    facingSelect.disabled = !existing;
+    for (const [val, text] of [['up', 'Up'], ['down', 'Down'], ['left', 'Left'], ['right', 'Right']]) {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = text;
+      facingSelect.appendChild(opt);
+    }
+    facingSelect.value = existing?.facing ?? 'up';
+
+    const save = async () => {
+      const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
+      if (newHuds) { huds = newHuds; }
+    };
+
+    chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
+    facingSelect.addEventListener('change', save);
+
+    row.appendChild(chk);
+    row.appendChild(lbl);
+    row.appendChild(facingSelect);
+    posEl.appendChild(row);
+  }
+}
 
 function renderInitiativeEditor(hud) {
   initiativeEditor.style.display = '';
@@ -1631,6 +1700,9 @@ function renderInitiativeEditor(hud) {
   btnCombatToggle.textContent = inCombat ? '■ Stop' : '▶ Start';
   btnCombatPrev.disabled = !inCombat;
   btnCombatNext.disabled = !inCombat;
+  renderInitiativePositions(hud);
+  const fontSizeEl = document.getElementById('initiative-font-size');
+  if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? 14;
   renderInitiativeEntries(hud);
 }
 

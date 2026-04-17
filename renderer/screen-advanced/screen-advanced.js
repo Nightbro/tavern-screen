@@ -359,8 +359,11 @@ function renderHuds() {
   hudRoot.innerHTML = '';
   for (const hud of (scene.huds ?? [])) {
     if (hud.visible === false) continue;
-    if (hud.type === 'initiative') hudRoot.appendChild(buildInitiativeHud(hud));
-    else if (hud.type === 'status') hudRoot.appendChild(buildStatusHud(hud));
+    if (hud.type === 'initiative') {
+      for (const panel of buildInitiativeHudPanels(hud)) hudRoot.appendChild(panel);
+    } else if (hud.type === 'status') {
+      hudRoot.appendChild(buildStatusHud(hud));
+    }
   }
 }
 
@@ -375,10 +378,45 @@ function applyHudSide(el, side) {
   }
 }
 
-function buildInitiativeHud(hud) {
+function facingToDeg(facing) {
+  switch (facing) {
+    case 'down':  return 180;
+    case 'right': return 90;
+    case 'left':  return 270;
+    default:      return 0;
+  }
+}
+
+function applyHudCorner(el, corner, facing) {
+  el.style.left = el.style.right = el.style.top = el.style.bottom = '';
+  switch (corner) {
+    case 'top-left':     el.style.left = '20px'; el.style.top    = '20px'; break;
+    case 'top-right':    el.style.right = '20px'; el.style.top   = '20px'; break;
+    case 'bottom-left':  el.style.left = '20px'; el.style.bottom = '20px'; break;
+    case 'bottom-right': el.style.right = '20px'; el.style.bottom = '20px'; break;
+    default:             el.style.left = '20px'; el.style.top    = '20px';
+  }
+  const deg = facingToDeg(facing);
+  if (deg !== 0) {
+    const origins = { 'top-left': 'top left', 'top-right': 'top right', 'bottom-left': 'bottom left', 'bottom-right': 'bottom right' };
+    el.style.transformOrigin = origins[corner] ?? 'top left';
+    el.style.transform = `rotate(${deg}deg)`;
+  }
+}
+
+function buildInitiativeHudPanels(hud) {
+  const sides = hud.sides?.length
+    ? hud.sides
+    : [{ corner: hud.side ?? 'top-left', facing: 'up' }];
+  return sides.map(({ corner, facing }) => buildInitiativeHudPanel(hud, corner, facing));
+}
+
+function buildInitiativeHudPanel(hud, corner, facing) {
+  const fontSize = hud.fontSize ?? 14;
+
   const panel = document.createElement('div');
   panel.className = 'hud-panel';
-  applyHudSide(panel, hud.side ?? 'top-left');
+  applyHudCorner(panel, corner ?? 'top-left', facing ?? 'up');
 
   // ── Header row (title + collapse toggle) ──────────────────────────────────
   const header = document.createElement('div');
@@ -400,6 +438,7 @@ function buildInitiativeHud(hud) {
   // ── Entry list (collapsible) ──────────────────────────────────────────────
   const body = document.createElement('div');
   body.className = 'hud-body';
+  body.style.fontSize = fontSize + 'px';
 
   const entries = hud.entries ?? [];
   entries.forEach((entry, i) => {
@@ -464,6 +503,13 @@ function buildInitiativeHud(hud) {
   };
   header.addEventListener('mousedown', (e) => {
     if (e.target === collapseBtn) return;
+    // Convert right/bottom anchoring to left/top so drag math works
+    if (panel.style.right || panel.style.bottom) {
+      const rect = panel.getBoundingClientRect();
+      panel.style.right = panel.style.bottom = '';
+      panel.style.left = rect.left + 'px';
+      panel.style.top  = rect.top  + 'px';
+    }
     dragX     = e.clientX;
     dragY     = e.clientY;
     startLeft = parseInt(panel.style.left) || 0;

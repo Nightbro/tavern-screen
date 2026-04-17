@@ -66,7 +66,7 @@ html, body {
   padding: 5px 0;
   border-bottom: 1px solid #1a1a2e;
   font-family: 'Segoe UI', sans-serif;
-  font-size: 14px; color: #aaa;
+  color: #aaa;
   transition: color 0.2s;
 }
 .initiative-entry:last-child { border-bottom: none; }
@@ -79,7 +79,7 @@ html, body {
 }
 
 .initiative-badge {
-  font-size: 12px; font-weight: 700;
+  font-size: 0.85em; font-weight: 700;
   color: #4a4a6e; min-width: 28px;
   text-align: right; flex-shrink: 0;
 }
