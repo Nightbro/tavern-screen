@@ -379,7 +379,7 @@ function renderHuds() {
   }
   // Position after layout so offsetWidth/offsetHeight are real
   requestAnimationFrame(() => {
-    for (const { panel, corner, facing } of pending) positionPanel(panel, corner, facing);
+    for (const { panel, corner, facing, x, y } of pending) positionPanel(panel, corner, facing, x, y);
   });
 }
 
@@ -403,21 +403,27 @@ function facingToDeg(facing) {
   }
 }
 
-// Position a HUD panel at a corner with optional rotation.
-// Must be called after the element is in the DOM (needs real offsetWidth/Height).
-function positionPanel(el, corner, facing) {
+// Position a HUD panel. If x/y are provided they are used directly (pixel-
+// accurate placement from the GM simulation). Otherwise falls back to
+// corner-based positioning. Called after layout (needs real offsetWidth/H).
+function positionPanel(el, corner, facing, x, y) {
   const deg = facingToDeg(facing);
+  el.style.transformOrigin = 'center center';
+  el.style.transform = deg ? `rotate(${deg}deg)` : '';
+  el.style.right = el.style.bottom = '';
+
+  if (x != null && y != null) {
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.style.visibility = '';
+    return;
+  }
+
   const margin = 20;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const W  = el.offsetWidth;
   const H  = el.offsetHeight;
-
-  el.style.transformOrigin = 'center center';
-  el.style.transform = deg ? `rotate(${deg}deg)` : '';
-  el.style.right = el.style.bottom = '';
-
-  // For 90°/270° the visual footprint swaps W and H
   const visW = (deg === 90 || deg === 270) ? H : W;
   const visH = (deg === 90 || deg === 270) ? W : H;
 
@@ -426,7 +432,7 @@ function positionPanel(el, corner, facing) {
     case 'top-right':    cx = vw - margin - visW / 2; cy = margin + visH / 2;      break;
     case 'bottom-left':  cx = margin + visW / 2;      cy = vh - margin - visH / 2; break;
     case 'bottom-right': cx = vw - margin - visW / 2; cy = vh - margin - visH / 2; break;
-    default:             cx = margin + visW / 2;      cy = margin + visH / 2;      break; // top-left
+    default:             cx = margin + visW / 2;      cy = margin + visH / 2;      break;
   }
 
   el.style.left = (cx - W / 2) + 'px';
@@ -438,9 +444,9 @@ function buildInitiativeHudPanels(hud) {
   const sides = hud.sides?.length
     ? hud.sides
     : [{ corner: hud.side ?? 'top-left', facing: 'up' }];
-  return sides.map(({ corner, facing }) => ({
+  return sides.map(({ corner, facing, x, y }) => ({
     panel: buildInitiativeHudPanel(hud, corner, facing),
-    corner, facing,
+    corner, facing, x, y,
   }));
 }
 
@@ -571,9 +577,9 @@ function buildStatusHudPanels(hud) {
   const sides = hud.sides?.length
     ? hud.sides
     : [{ corner: hud.side ?? 'top-right', facing: 'up' }];
-  return sides.map(({ corner, facing }) => ({
+  return sides.map(({ corner, facing, x, y }) => ({
     panel: buildStatusHudPanel(hud, corner, facing),
-    corner, facing,
+    corner, facing, x, y,
   }));
 }
 
@@ -662,9 +668,9 @@ function buildHandoutHudPanels(hud) {
   const sides = hud.sides?.length
     ? hud.sides
     : [{ corner: hud.side ?? 'top-left', facing: 'up' }];
-  return sides.map(({ corner, facing }) => ({
+  return sides.map(({ corner, facing, x, y }) => ({
     panel: buildHandoutHudPanel(hud, corner, facing),
-    corner, facing,
+    corner, facing, x, y,
   }));
 }
 

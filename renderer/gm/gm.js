@@ -1060,7 +1060,9 @@ const btnAddHandout        = document.getElementById('btn-add-handout');
 const statusesEditor       = document.getElementById('statuses-editor');
 const statusesEntriesEl    = document.getElementById('statuses-entries');
 const handoutEditor        = document.getElementById('handout-editor');
-const hudPreviewScreen     = document.getElementById('hud-preview-screen');
+const hudSimWrap           = document.getElementById('hud-sim-wrap');
+const hudSimViewport       = document.getElementById('hud-sim-viewport');
+const hudSimScreen         = document.getElementById('hud-sim-screen');
 const btnAddImageLayer     = document.getElementById('btn-add-image-layer');
 const btnAddLightLayer     = document.getElementById('btn-add-light-layer');
 const btnAddFogLayer       = document.getElementById('btn-add-fog-layer');
@@ -2463,105 +2465,234 @@ document.getElementById('btn-handout-pick-image')?.addEventListener('click', asy
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// HUD PREVIEW
+// HUD SIMULATION
 // ════════════════════════════════════════════════════════════════════════════
 
 const HUD_TYPE_COLOR = { initiative: '#c9a84c', status: '#4a90d9', handout: '#4caf7d' };
 
-function renderHudPreview() {
-  if (!hudPreviewScreen) return;
-  // Clear existing chips (keep corner zone divs)
-  hudPreviewScreen.querySelectorAll('.hud-preview-chip').forEach(c => c.remove());
+let simScale = 1;
+
+// renderHudPreview is the public alias so every existing call site works
+function renderHudPreview() { updateHudSimulation(); }
+
+function updateHudSimulation() {
+  if (!hudSimScreen || !hudSimWrap || !hudSimViewport) return;
+
+  const sw = playerScreenW || 1920;
+  const sh = playerScreenH || 1080;
+
+  // Fit simulation into the available wrapper space
+  const ww = hudSimWrap.clientWidth  - 16;
+  const wh = hudSimWrap.clientHeight - 16;
+  simScale = Math.min(ww / sw, wh / sh, 1);
+  if (simScale <= 0) simScale = 0.1;
+
+  hudSimViewport.style.width  = Math.round(sw * simScale) + 'px';
+  hudSimViewport.style.height = Math.round(sh * simScale) + 'px';
+
+  hudSimScreen.style.width          = sw + 'px';
+  hudSimScreen.style.height         = sh + 'px';
+  hudSimScreen.style.transform      = `scale(${simScale})`;
+  hudSimScreen.style.transformOrigin = 'top left';
+
+  // Clear and rebuild panels
+  hudSimScreen.innerHTML = '';
 
   for (const hud of huds) {
     if (hud.visible === false) continue;
     const sides = normalizeSides(hud);
-    for (const { corner } of sides) {
-      const zone = hudPreviewScreen.querySelector(`.hud-preview-corner[data-corner="${corner}"]`);
-      if (!zone) continue;
-      const chip = document.createElement('div');
-      chip.className = 'hud-preview-chip';
-      chip.dataset.hudId = hud.id;
-      chip.dataset.corner = corner;
-      chip.textContent = hud.type === 'status' ? (hud.label || 'Statuses') : hud.type === 'handout' ? (hud.name || 'Handout') : 'Initiative';
-      chip.style.borderColor = HUD_TYPE_COLOR[hud.type] ?? '#888';
-      if (hud.id === selectedHudId) chip.classList.add('selected');
-      chip.addEventListener('click', (e) => { e.stopPropagation(); selectHud(hud.id); });
-      initHudChipDrag(chip);
-      zone.appendChild(chip);
-    }
+    sides.forEach((side, sideIdx) => {
+      const panel = buildSimHudPanel(hud, side, sideIdx, sw, sh);
+      hudSimScreen.appendChild(panel);
+    });
   }
 }
 
-let hudDrag = null;
-let hudDragGhost = null;
+function cornerToXY(corner, panelW, panelH, screenW, screenH) {
+  const m = 20;
+  switch (corner) {
+    case 'top-right':    return { x: screenW - panelW - m, y: m };
+    case 'bottom-left':  return { x: m, y: screenH - panelH - m };
+    case 'bottom-right': return { x: screenW - panelW - m, y: screenH - panelH - m };
+    default:             return { x: m, y: m }; // top-left
+  }
+}
 
-function initHudChipDrag(chip) {
-  chip.addEventListener('mousedown', (e) => {
+function estimateSimPanelSize(hud) {
+  const fontSize = hud.fontSize ?? 24;
+  const entryH   = fontSize * 1.6 + 10;
+  const entries  = (hud.entries ?? []).filter(e => !e.invisible).length;
+  const bodyH    = Math.max(entries, 1) * entryH + 12;
+  const headerH  = 38;
+  if (hud.type === 'handout') {
+    const w = hud.width ?? 300;
+    const imgH = hud.src ? Math.round(w * 0.56) : 32;
+    return { w, h: headerH + imgH };
+  }
+  return { w: 280, h: headerH + bodyH };
+}
+
+function buildSimHudPanel(hud, side, sideIdx, screenW, screenH) {
+  const { w: panelW, h: panelH } = estimateSimPanelSize(hud);
+
+  // Resolve position: stored x,y override corner-based default
+  let px = side.x, py = side.y;
+  if (px == null || py == null) {
+    const pos = cornerToXY(side.corner, panelW, panelH, screenW, screenH);
+    px = pos.x; py = pos.y;
+  }
+
+  const panel = document.createElement('div');
+  panel.className = 'hud-sim-panel' + (hud.id === selectedHudId ? ' selected' : '');
+  panel.dataset.hudId   = hud.id;
+  panel.dataset.sideIdx = sideIdx;
+  panel.style.left  = Math.round(px) + 'px';
+  panel.style.top   = Math.round(py) + 'px';
+  panel.style.width = panelW + 'px';
+  panel.style.fontSize = (hud.fontSize ?? 24) + 'px';
+
+  const color = HUD_TYPE_COLOR[hud.type] ?? '#888';
+
+  // Header — drag handle
+  const header = document.createElement('div');
+  header.className = 'hud-sim-header';
+
+  const badge = document.createElement('span');
+  badge.className = 'hud-sim-badge';
+  badge.textContent = hud.type === 'status' ? 'ST' : hud.type === 'handout' ? 'HO' : 'IN';
+  badge.style.cssText = `color:${color};border-color:${color}55;`;
+
+  const titleEl = document.createElement('span');
+  titleEl.className = 'hud-sim-title-text';
+  titleEl.textContent = hud.type === 'status' ? (hud.label || 'Statuses')
+    : hud.type === 'handout' ? (hud.name || 'Handout') : 'Initiative';
+
+  header.appendChild(badge);
+  header.appendChild(titleEl);
+  panel.appendChild(header);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'hud-sim-body';
+  buildSimBody(body, hud);
+  panel.appendChild(body);
+
+  // Interaction
+  panel.addEventListener('click', (e) => { e.stopPropagation(); selectHud(hud.id); });
+  makeSimPanelDraggable(panel, header, hud, sideIdx, screenW, screenH);
+
+  return panel;
+}
+
+function buildSimBody(container, hud) {
+  if (hud.type === 'handout') {
+    if (hud.src) {
+      const img = document.createElement('img');
+      img.src   = hud.src;
+      img.style.cssText = 'width:100%;display:block;border-radius:0 0 7px 7px;';
+      container.appendChild(img);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'hud-sim-empty';
+      empty.textContent = 'No image';
+      container.appendChild(empty);
+    }
+    return;
+  }
+
+  const entries = (hud.entries ?? []).filter(e => !e.invisible);
+  if (!entries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'hud-sim-empty';
+    empty.textContent = 'Empty';
+    container.appendChild(empty);
+    return;
+  }
+
+  for (const entry of entries) {
+    const row = document.createElement('div');
+    row.className = 'hud-sim-entry';
+
+    if (hud.type === 'initiative') {
+      const roll = document.createElement('span');
+      roll.className = 'hud-sim-roll';
+      roll.textContent = entry.initiative ?? '—';
+      row.appendChild(roll);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'hud-sim-name';
+    name.textContent = entry.hidden ? '???' : (entry.name || '—');
+    row.appendChild(name);
+
+    const pips = document.createElement('span');
+    pips.className = 'hud-sim-pips';
+    for (const s of (entry.statuses ?? []).slice(0, 6)) {
+      const pip = document.createElement('span');
+      pip.className = 'hud-sim-pip';
+      pip.style.background = s.color ?? '#888';
+      pips.appendChild(pip);
+    }
+    row.appendChild(pips);
+    container.appendChild(row);
+  }
+}
+
+function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
+  handle.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
 
-    hudDrag = { hudId: chip.dataset.hudId, oldCorner: chip.dataset.corner };
+    selectHud(hud.id);
 
-    hudDragGhost = document.createElement('div');
-    hudDragGhost.className = 'hud-preview-chip hud-drag-ghost';
-    hudDragGhost.textContent = chip.textContent;
-    const hud = huds.find(h => h.id === hudDrag.hudId);
-    hudDragGhost.style.borderColor = HUD_TYPE_COLOR[hud?.type] ?? '#888';
-    hudDragGhost.style.left = e.clientX + 'px';
-    hudDragGhost.style.top  = e.clientY + 'px';
-    document.body.appendChild(hudDragGhost);
+    const startPx   = parseInt(panel.style.left) || 0;
+    const startPy   = parseInt(panel.style.top)  || 0;
+    const startMx   = e.clientX;
+    const startMy   = e.clientY;
+    const coordsEl  = document.getElementById('hud-sim-coords');
+    const panelW    = panel.offsetWidth  || 280;
+    const panelH    = panel.offsetHeight || 60;
 
-    document.addEventListener('mousemove', onHudDragMove);
-    document.addEventListener('mouseup', onHudDragEnd);
+    handle.style.cursor = 'grabbing';
+
+    const onMove = (ev) => {
+      const dx = (ev.clientX - startMx) / simScale;
+      const dy = (ev.clientY - startMy) / simScale;
+      const nx = Math.max(0, Math.min(screenW - panelW, Math.round(startPx + dx)));
+      const ny = Math.max(0, Math.min(screenH - panelH, Math.round(startPy + dy)));
+      panel.style.left = nx + 'px';
+      panel.style.top  = ny + 'px';
+      if (coordsEl) coordsEl.textContent = `x: ${nx}  y: ${ny}`;
+    };
+
+    const onUp = async () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      handle.style.cursor = 'grab';
+      const coordsEl = document.getElementById('hud-sim-coords');
+      const nx = parseInt(panel.style.left) || 0;
+      const ny = parseInt(panel.style.top)  || 0;
+      if (coordsEl) coordsEl.textContent = `x: ${nx}  y: ${ny}`;
+
+      // Persist x,y into the side entry
+      const currentHud = huds.find(h => h.id === hud.id);
+      if (!currentHud) return;
+      const newSides = normalizeSides(currentHud).map((s, i) =>
+        i === sideIdx ? { ...s, x: nx, y: ny } : s
+      );
+      const newHuds = await window.electronAPI.updateHud(hud.id, { sides: newSides });
+      if (newHuds) huds = newHuds;
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
   });
 }
 
-function onHudDragMove(e) {
-  if (!hudDragGhost) return;
-  hudDragGhost.style.left = (e.clientX + 10) + 'px';
-  hudDragGhost.style.top  = (e.clientY + 10) + 'px';
-
-  // Highlight corner zone under cursor
-  hudPreviewScreen?.querySelectorAll('.hud-preview-corner').forEach(z => z.classList.remove('drag-over'));
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  const zone = el?.closest('.hud-preview-corner');
-  if (zone) zone.classList.add('drag-over');
-}
-
-async function onHudDragEnd(e) {
-  document.removeEventListener('mousemove', onHudDragMove);
-  document.removeEventListener('mouseup', onHudDragEnd);
-  hudDragGhost?.remove(); hudDragGhost = null;
-  hudPreviewScreen?.querySelectorAll('.hud-preview-corner').forEach(z => z.classList.remove('drag-over'));
-
-  if (!hudDrag) return;
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  const zone = el?.closest('.hud-preview-corner');
-  const newCorner = zone?.dataset.corner;
-  const { hudId, oldCorner } = hudDrag;
-  hudDrag = null;
-
-  if (!newCorner || newCorner === oldCorner) return;
-
-  const hud = huds.find(h => h.id === hudId);
-  if (!hud) return;
-  const sides = normalizeSides(hud).map(s =>
-    s.corner === oldCorner ? { ...s, corner: newCorner } : s
-  );
-  const newHuds = await window.electronAPI.updateHud(hudId, { sides });
-  if (newHuds) {
-    huds = newHuds;
-    renderHudPreview();
-    // Re-render the active editor if it uses positions
-    const updHud = huds.find(h => h.id === selectedHudId);
-    if (updHud) {
-      if (updHud.type === 'initiative') renderInitiativePositions(updHud);
-      else if (updHud.type === 'status')  renderStatusesPositions(updHud);
-      else if (updHud.type === 'handout') renderHandoutPositions(updHud);
-    }
-  }
+// Re-render simulation when the wrapper resizes
+if (hudSimWrap) {
+  new ResizeObserver(() => updateHudSimulation()).observe(hudSimWrap);
 }
 
 // ════════════════════════════════════════════════════════════════════════════

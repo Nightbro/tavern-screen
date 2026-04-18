@@ -358,14 +358,13 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
 .badge-active  { font-size: 9px; background: #4caf7d22; color: #4caf7d; border: 1px solid #4caf7d55; border-radius: 4px; padding: 1px 5px; }
 .monitor-res   { font-size: 11px; color: #555; }
 
-/* ── Preview row (player preview + HUD layout side by side) ── */
+/* ── Preview row (player preview + HUD simulation side by side) ── */
 .preview-row {
   display: flex; gap: 10px; flex: 1; min-height: 0;
 }
 .preview-col {
   display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0;
 }
-.preview-col.adv-only { flex: 0 0 220px; }
 
 /* ── Player screen preview ── */
 #preview-wrap {
@@ -376,50 +375,83 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
   position: relative;
 }
 
-/* ── HUD layout preview ── */
-#hud-preview-wrap {
-  flex: 1; min-height: 0;
-  background: #07071a; border: 1px solid #2e2e4e;
-  border-radius: 8px; overflow: hidden;
+/* ── HUD Simulation ── */
+#hud-sim-wrap {
+  flex: 1; min-height: 120px;
+  background: #050510; border: 1px solid #2e2e4e;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  padding: 8px;
+  overflow: hidden;
 }
-#hud-preview-screen {
-  position: relative; width: 100%; aspect-ratio: 16 / 9;
-  background: #0d0d25; border: 1px solid #2a2a4a; border-radius: 4px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+#hud-sim-viewport {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #0c0c22;
+  border: 1px solid #242440;
+  box-shadow: 0 0 0 1px #1a1a3a;
 }
-.hud-preview-corner {
-  padding: 5px; display: flex; flex-direction: column; gap: 3px;
-  border: 1px dashed transparent;
-  border-radius: 4px; transition: background 0.15s, border-color 0.15s;
-  min-height: 0;
+#hud-sim-screen {
+  position: absolute; top: 0; left: 0;
+  background: transparent;
 }
-.hud-preview-corner[data-corner="top-left"]     { align-items: flex-start;  justify-content: flex-start; }
-.hud-preview-corner[data-corner="top-right"]    { align-items: flex-end;    justify-content: flex-start; }
-.hud-preview-corner[data-corner="bottom-left"]  { align-items: flex-start;  justify-content: flex-end; }
-.hud-preview-corner[data-corner="bottom-right"] { align-items: flex-end;    justify-content: flex-end; }
-.hud-preview-corner.drag-over {
-  background: rgba(201,168,76,0.08); border-color: #c9a84c55;
+
+.hud-sim-panel {
+  position: absolute;
+  background: rgba(10, 10, 22, 0.96);
+  border: 1px solid #2a2a50;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
 }
-.hud-corner-label {
-  font-size: 10px; color: #2a2a4a; user-select: none; pointer-events: none; line-height: 1;
+.hud-sim-panel:hover  { border-color: #3a3a6a; }
+.hud-sim-panel.selected {
+  border-color: #4caf7d88;
+  box-shadow: 0 0 0 1px #4caf7d33;
 }
-.hud-preview-chip {
-  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-  background: rgba(10, 10, 30, 0.9); border: 1px solid #888;
-  border-radius: 4px; padding: 2px 6px; color: #bbb;
-  cursor: pointer; user-select: none; white-space: nowrap;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-  transition: background 0.12s, opacity 0.12s;
+
+.hud-sim-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0.35em 0.6em;
+  border-bottom: 1px solid #1a1a38;
+  cursor: grab; background: rgba(12, 12, 28, 0.9);
 }
-.hud-preview-chip:hover    { background: rgba(30,30,60,0.95); color: #eee; }
-.hud-preview-chip.selected { background: rgba(30,50,30,0.95); color: #81e0ab; }
-.hud-drag-ghost {
-  position: fixed; z-index: 9999; pointer-events: none;
-  opacity: 0.8; transform: scale(1.05);
+.hud-sim-header:active { cursor: grabbing; }
+
+.hud-sim-badge {
+  font-size: 0.55em; border: 1px solid; border-radius: 3px;
+  padding: 1px 4px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.hud-sim-title-text {
+  font-size: 0.65em; font-weight: 700; color: #555;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.hud-sim-body { padding: 0.3em 0.6em 0.45em; }
+
+.hud-sim-entry {
+  display: flex; align-items: center; gap: 0.4em;
+  padding: 0.25em 0;
+  border-bottom: 1px solid #14142a;
+  color: #999;
+}
+.hud-sim-entry:last-child { border-bottom: none; }
+
+.hud-sim-roll {
+  font-size: 0.75em; font-weight: 700; color: #4a4a6e;
+  min-width: 1.8em; text-align: right; flex-shrink: 0;
+}
+.hud-sim-name { flex: 1; font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-sim-pips { display: flex; gap: 3px; flex-shrink: 0; }
+.hud-sim-pip  { width: 0.45em; height: 0.45em; border-radius: 50%; flex-shrink: 0; }
+.hud-sim-empty { font-size: 0.75em; color: #2a2a4a; font-style: italic; padding: 0.3em 0; }
+
+.hud-sim-coords {
+  font-size: 10px; color: #c9a84c; font-family: monospace;
+  margin-left: auto; letter-spacing: 0.5px;
 }
 
 /* ── Handout image preview in editor ── */
