@@ -77,7 +77,7 @@ Output is in the `dist/` folder:
 |-------|----------|
 | **Left — Assets tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
 | **Left — Campaign tab** | Campaign selector, sessions list, notes editor |
-| **Center** | Collapsible monitor selector; **Player Screen Preview** (map + layer overlay) and **HUD Simulation** side by side — both update live |
+| **Center** | Collapsible monitor selector; **Preview** tab (map + layer overlay) and **HUD Sim** tab (pixel-accurate HUD simulation, advanced mode only) |
 | **Right — Screen tab** | DPI calibration, zoom |
 | **Right — Layers tab** | Grid (collapsible), screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
 
@@ -196,7 +196,7 @@ Multiple positions can be active simultaneously — useful for four-sided tables
 
 ## HUD Simulation
 
-The **HUD Simulation** panel sits beside the Player Screen Preview in the center panel (advanced mode only). It shows a scaled-down but proportionally accurate replica of the player screen with all HUD panels rendered at their actual visual sizes.
+The **HUD Sim** tab in the center panel (advanced mode only) shows a scaled-down but proportionally accurate replica of the player screen with all HUD panels rendered at their actual visual sizes. Switch to it via the **HUD Sim** tab next to the **Preview** tab. A **↺** refresh button in the tab header forces a redraw at any time.
 
 ### What it shows
 
@@ -209,7 +209,8 @@ The **HUD Simulation** panel sits beside the Player Screen Preview in the center
 Drag any HUD panel by its header inside the simulation:
 - The panel moves freely to any pixel position within the screen bounds
 - Live coordinates (`x: NNN  y: NNN`) are shown in the section title while dragging
-- On release the position is saved; the **player screen updates immediately** to match
+- On release the position is saved; the simulation rebuilds at the new position and the **player screen updates immediately** to match
+- The moved panel remains selected (highlighted) after the drag
 
 Saved positions are stored as `{x, y}` pixel offsets from the top-left of the player screen. HUDs without a saved position fall back to corner-based placement.
 

@@ -2726,13 +2726,19 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
         i === sideIdx ? { ...s, x: nx, y: ny } : s
       );
       const newHuds = await window.electronAPI.updateHud(hud.id, { sides: newSides });
-      if (newHuds) huds = newHuds;
+      if (newHuds) {
+        huds = newHuds;
+        selectedHudId = hud.id;
+        updateHudSimulation();
+      }
     };
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup',   onUp);
   });
 }
+
+document.getElementById('btn-refresh-hud-sim')?.addEventListener('click', () => updateHudSimulation());
 
 // Re-render simulation when the wrapper resizes (skip during active drags)
 if (hudSimWrap) {
