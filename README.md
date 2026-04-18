@@ -77,7 +77,7 @@ Output is in the `dist/` folder:
 |-------|----------|
 | **Left — Assets tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
 | **Left — Campaign tab** | Campaign selector, sessions list, notes editor |
-| **Center** | Collapsible monitor selector (auto-collapses after selection); live player screen preview with viewport zoom-region overlay |
+| **Center** | Collapsible monitor selector; **Player Screen Preview** (map + layer overlay) and **HUD Simulation** side by side — both update live |
 | **Right — Screen tab** | DPI calibration, zoom |
 | **Right — Layers tab** | Grid (collapsible), screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
 
@@ -87,63 +87,101 @@ All three panels are resizable: drag the thin divider between any two panels. Si
 
 Advanced (Layer) Mode is the default. Toggle **Simple Mode** in the Layers tab to switch to the basic renderer (no layers, just a map image + grid). Switching reloads the player screen.
 
-The **Grid** section at the top of the Layers tab is collapsible — click the title or the ▾ button to collapse/expand it. Grid settings (show/hide, cell size, color, opacity) were moved here from the Screen tab.
+The **Grid** section at the top of the Layers tab is collapsible — click the title or the ▾ button to collapse/expand it.
 
 | Section | Controls |
 |---------|----------|
 | **Viewport** | Zoom in/out/reset slider; drag the gold viewport rectangle on the preview to pan; 🎯 Ping button — click then click the preview to send a pulsing marker to the player screen |
 | **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
-| **HUDs** | Add Initiative Tracker (In) or Status Panel (St); eye icon to show/hide; click row to expand editor |
-| **Initiative** | Full initiative tracker — see HUD section below for details |
+| **HUDs** | Add **Initiative** (In), **Statuses** (St), or **Handout** (Ho); eye icon to show/hide; click row to expand editor |
 | **Scene** | Named scenes auto-saved to the active campaign/session; scene list with load/delete; ⬆ Export to JSON file; ⬇ Import from JSON file; ↺ New (reset to empty) |
 
-## HUD System — Initiative Tracker
+---
 
-### GM Controls (per tracker)
+## HUD System
+
+All HUD types share the same positioning model: each HUD can be assigned to one or more screen corners via a **Positions** checklist, each with its own **Facing** direction for rotated display. Positions can also be set to exact pixel coordinates by dragging in the **HUD Simulation** (see below).
+
+---
+
+### Initiative Tracker
+
+#### GM Controls
 
 | Control | Description |
 |---------|-------------|
-| **Positions** | Check any combination of the four screen corners; each corner has its own **Facing** (Up / Down / Left / Right) so players seated on any side of the table can read the tracker |
-| **Font size** | Scales all text in the HUD — title, entry names, badges, and HP — proportionally |
-| **Status labels** | Toggle to show full condition names next to the coloured dots on the player screen (GM-controlled, not clickable by players) |
+| **Positions** | Any combination of the four screen corners; each with its own **Facing** (Up / Down / Left / Right) |
+| **Font size** | Scales all text in the HUD proportionally |
+| **Status labels** | Toggle to show full condition names next to coloured dots on the player screen |
 | **Custom Presets** | Add named colour presets that appear as quick-add buttons alongside the built-in Pathfinder 1e conditions |
 | **Combat** | ▶ Start / ■ Stop combat mode; ◀ ▶ step through turns |
 
-### Initiative Entries
+#### Initiative Entries
 
 Each entry has a main row and two sub-rows:
 
-**Main row:**
-- Name input, initiative roll, **? checkbox** (lurking — shows `???` to players), **👁 checkbox** (invisible — entry hidden from player list entirely), delete button
-- New entries default to **lurking** so players are never spoiled accidentally; uncheck `?` to reveal
+**Main row:** Name, initiative roll, **?** (lurking — shows `???` to players), **👁** (invisible — hidden from player list entirely), delete button. New entries default to lurking.
 
-**Status sub-row:**
-- Active conditions shown as coloured chips with `×` to remove
-- Click `+ status` to open the status picker:
-  - **Pathfinder 1e** — all 30 standard conditions (Blinded, Confused, Dying, Paralyzed, Stunned, etc.) with preset colours; one click to apply
-  - **Custom** — any presets added in the Custom Presets section above
-  - **Manual** — colour picker + free-text label for anything else
+**Status sub-row:** Active conditions as coloured chips with `×` to remove. Click `+ status` to open the picker:
+- **Pathfinder 1e** — all 30 standard conditions with preset colours
+- **Custom** — presets added via the Custom Presets section
+- **Manual** — colour picker + free-text label
 
-**HP sub-row:**
-- `HP` — max HP input; red checkbox next to it hides the max from players (`current/???`)
-- `dmg` — accumulated damage dealt (editable to correct mistakes)
-- `| +dmg ↯` — type new damage and press ↯ to add it to the running total
+**HP sub-row:** Max HP field; red checkbox hides max from players (`current/???`); damage accumulator; `+dmg ↯` to apply new damage.
 
-### Player Screen Display
+#### Player Screen Display
 
-- Entry rows show: **initiative badge · name · HP · condition pips**
-- **HP display logic:**
-  - Lurking entry (`???` name) → `damage_dealt/???`
-  - Revealed + max HP hidden → `current_hp/???`
-  - Revealed + max HP shown → `current_hp/max_hp`
-  - No max HP set, but damage tracked → `damage_dealt/???`
-- Clicking `+ status` shows labels → toggled by **Status labels** checkbox in GM panel, not by players
-- HUD panels are **draggable** by their title bar so any player can reposition them on their side of the screen; all other panel interactions are disabled
+- Rows show: **initiative badge · name · HP · condition pips**
+- HP display logic: lurking → `dmg/???`; revealed + max hidden → `cur/???`; revealed + max shown → `cur/max`
+- HUD panels are **draggable** by their title bar on the player screen
 
-### Rotation
+---
 
-When a corner is set to a facing other than Up, the panel is rotated so the text points toward that side of the table:
+### Statuses Panel
+
+A simpler HUD showing a list of characters/creatures with their active conditions — no initiative rolls or HP.
+
+#### GM Controls
+
+| Control | Description |
+|---------|-------------|
+| **Title** | Custom panel label shown as the HUD header |
+| **Positions** | Same corner + facing system as Initiative |
+| **Font size** | Scales all text proportionally |
+| **Status labels** | Toggle full condition names next to pips |
+| **Entries** | Name, **?** lurking, **👁** invisible; status sub-row with the same condition picker as Initiative |
+
+#### Player Screen Display
+
+- Rows show: **name · condition pips**
+- Useful for party status tracking (buffs, poisons, ongoing effects) without cluttering the initiative order
+
+---
+
+### Handout
+
+Displays an image on the player screen — portraits, letters, item art, map fragments, clues.
+
+#### GM Controls
+
+| Control | Description |
+|---------|-------------|
+| **Name** | Label shown in the HUD title bar |
+| **Pick Image…** | File dialog to select any image from disk |
+| **Width (px)** | Display width of the image panel on the player screen |
+| **Positions** | Same corner + facing system as other HUDs |
+
+#### Player Screen Display
+
+- Renders as a titled image panel; draggable by title bar
+- Multiple handouts can be active simultaneously, each independently positioned
+
+---
+
+### Rotation (all HUD types)
+
+When a position is set to a facing other than Up, the panel is rotated so text reads toward that side of the table:
 
 | Facing | Readable from |
 |--------|---------------|
@@ -152,11 +190,34 @@ When a corner is set to a facing other than Up, the panel is rotated so the text
 | Right | Right side of screen |
 | Left | Left side of screen |
 
-Multiple corners can be active simultaneously — useful for four-sided tables.
+Multiple positions can be active simultaneously — useful for four-sided tables. Each position is independent (different facing, different pixel placement).
 
-### Settings File
+---
 
-Built-in condition data lives in `renderer/gm/settings.js`. To change a condition colour or add house-rule conditions, edit that file — no other code needs to change. Custom per-session presets are saved to `localStorage` in the GM window.
+## HUD Simulation
+
+The **HUD Simulation** panel sits beside the Player Screen Preview in the center panel (advanced mode only). It shows a scaled-down but proportionally accurate replica of the player screen with all HUD panels rendered at their actual visual sizes.
+
+### What it shows
+
+- A 16:9 rectangle representing the player screen, scaled to fit the available space
+- Each HUD panel rendered with its real content — entry names, initiative badges, condition pips, or image
+- The panel sizes are accurate relative to the screen: a 24 px font initiative tracker with 5 entries looks proportionally the same in the simulation as it does on the player display
+
+### Dragging panels
+
+Drag any HUD panel by its header inside the simulation:
+- The panel moves freely to any pixel position within the screen bounds
+- Live coordinates (`x: NNN  y: NNN`) are shown in the section title while dragging
+- On release the position is saved; the **player screen updates immediately** to match
+
+Saved positions are stored as `{x, y}` pixel offsets from the top-left of the player screen. HUDs without a saved position fall back to corner-based placement.
+
+### Simulation scale
+
+The simulation rescales automatically when the GM panel is resized. The scale factor is `preview_width / player_screen_width` — no manual adjustment needed.
+
+---
 
 ## Persistence
 
@@ -167,7 +228,9 @@ All settings are saved automatically to Electron's `userData` directory (`config
 | `rootFolder` | Path to the maps root folder |
 | `settings` | Grid visibility, cell size, color, opacity, DPI, zoom |
 
-Settings are restored when the app next starts — the GM screen controls reflect the saved values immediately.
+Settings are restored when the app next starts.
+
+---
 
 ## Map Library
 
@@ -202,6 +265,8 @@ Campaigns and sessions are stored alongside the map library under the same root 
   - When a session is selected: editing that session's notes; click again to deselect
 - Notes are plain `.md` files readable outside the app
 
+---
+
 ## Player Screen — Simple Mode
 
 - Fullscreen Canvas on the selected monitor
@@ -215,9 +280,7 @@ Switched to via the Layers tab in the GM panel. Fully separate renderer (`screen
 
 ### Virtual Canvas
 
-Advanced Mode uses a fixed **8192 × 8192 pixel virtual canvas**. All layer positions and sizes are stored as canvas pixels (integers). The viewport maps a window into this canvas onto the physical player screen.
-
-**Coordinate system:**
+Advanced Mode uses a fixed **8192 × 8192 pixel virtual canvas**. All layer positions and sizes are stored as canvas pixels. The viewport maps a window into this canvas onto the physical player screen.
 
 | Concept | Unit |
 |---------|------|
@@ -225,44 +288,37 @@ Advanced Mode uses a fixed **8192 × 8192 pixel virtual canvas**. All layer posi
 | Viewport `cx`, `cy` | Canvas pixel coordinates of the screen centre |
 | Viewport `zoom` | Screen pixels per canvas pixel (`1.0` = 1:1) |
 
-The rendering transform is: `screenX = (canvasX − cx) × zoom + screenW/2`
+Rendering transform: `screenX = (canvasX − cx) × zoom + screenW/2`
 
 ### Features
 
 - **Layer stack** — image, GIF, video, light/shadow, fog of war, weather particle layers; drag ⠿ grip to reorder
-- **Layer move/resize** — drag any layer on the GM preview to move it; resize via 8-point handles; snap-to-grid toggle available; images added from the library are placed at their natural pixel size, centred on the canvas
-- **GM camera** — the preview shows the full virtual canvas; scroll-wheel to zoom, middle-click or right-click drag to pan; ⊞ Fit View to auto-fit all layers
+- **Layer move/resize** — drag any layer on the GM preview to move it; resize via 8-point handles; snap-to-grid toggle; images placed at their natural pixel size, centred on the canvas
+- **GM camera** — scroll-wheel to zoom, middle/right-click drag to pan; ⊞ Fit View to auto-fit all layers
 - **Canvas coordinates** — live pixel readout (bottom-left of preview) as the cursor moves
-- **Viewport zoom & pan** — drag the gold rectangle to pan what the player sees; zoom slider adjusts screen pixels per canvas pixel
+- **Viewport zoom & pan** — drag the gold rectangle to pan what the player sees
 - **Background color** — configurable solid fill behind all layers
-- **HUD overlays** — screen-space panels unaffected by pan/zoom; draggable by title bar; multi-corner with per-corner facing direction
-- **Ping** — GM clicks preview → pulsing ring + dot appears at the corresponding canvas position on the player screen
-- **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON; scene survives screen reconnects
-
-## Roadmap
-
-### Future Implementation — GM HUD Preview
-
-The GM screen will gain a dedicated **HUD Preview panel** — a scaled replica of the player screen where all HUD elements (initiative trackers, status panels, etc.) are visible and fully repositionable. The GM will be able to drag each HUD to any position, preview how multiple overlapping panels look, and confirm placement before it appears on the player screen. This removes the need for players to drag HUDs themselves and gives the GM full spatial control over the overlay layout.
+- **HUD overlays** — Initiative, Statuses, and Handout panels; pixel-accurate positioning via HUD Simulation; draggable by title bar on the player screen; multi-corner with per-corner facing direction
+- **Ping** — GM clicks preview → pulsing ring + dot appears on the player screen
+- **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON
 
 ---
 
-### Future Implementation — Initiative Persistence & Sorting
+## Roadmap
 
-- **Auto-save** — every change to the initiative tracker (adding entries, rolling initiative, dealing damage, toggling visibility) is saved immediately so no data is lost on accidental close or reconnect
-- **Load on open** — when a session is resumed, the last saved initiative state is restored automatically (entries, HP, statuses, current turn, combat state)
-- **Sort by initiative** — a one-click sort button that reorders entries from highest to lowest initiative roll; ties broken by entry order
+### Initiative Persistence & Sorting
+
+- **Auto-save** — every change to the initiative tracker saved immediately
+- **Load on open** — last saved initiative state restored when a session is resumed
+- **Sort by initiative** — one-click sort from highest to lowest roll
 
 ---
 
 ### Advanced Screen — Remaining enhancements
 
-The core Advanced screen is implemented. Remaining polish items:
-
-- **Per-layer delayed reveal** — countdown shown on the player screen before the object appears
+- **Per-layer delayed reveal** — countdown shown on the player screen before an object appears
 - **Fog of War reveal tool** — GM draws on the preview to erase fog; currently fog is a static full-screen layer
 - **Default assets** — bundled quick-insert objects (fire GIF, fireflies, etc.)
-- **Status panel HUD** — names + status badges, no turn management
 
 ---
 
@@ -270,29 +326,27 @@ The core Advanced screen is implemented. Remaining polish items:
 
 A dedicated **Tokens** section (separate from but linked to the layer system).
 
-- **Character / NPC cards** — each entry has: name, portrait image, type (PC / NPC / monster), notes
-- **Token layer** — drag a character card onto the map to place a circular token; token shows the portrait; GM can move and resize it on the canvas
-- **Initiative integration** — drag a character card directly into the initiative tracker to add them with their portrait already attached; portrait shown as a small avatar next to the name in the tracker
-- **Persistence** — character roster saved as part of the scene JSON (or as a separate roster file reusable across scenes)
-- Token card can be arranged and moved to each of the corners so the player can be seen who is playing who, something like cards representing hand
+- **Character / NPC cards** — name, portrait image, type (PC / NPC / monster), notes
+- **Token layer** — drag a character card onto the map to place a circular token; token shows the portrait; GM can move and resize it
+- **Initiative integration** — drag a character card into the initiative tracker to add them with portrait attached
+- **Persistence** — character roster saved as part of the scene JSON or as a reusable roster file
+- Token cards can be arranged in corners so players can see who is playing who
 
 ---
 
 ### Fade / Transition
 
-- Fade to black (or custom color) on command from the GM side
-- Configurable duration
+- Fade to black (or custom color) on GM command
+- Configurable duration; optional hold until GM releases
 - Player screen shows the fade while GM reorganises the scene behind it
-- Optional hold on black until GM manually releases
 
 ---
 
 ### Spotlight
 
-- GM places one or more circular light cones on the canvas via the preview
+- GM places circular light cones on the canvas via the preview
 - Everything outside the lit area dims to a configurable darkness level
-- Spotlight can be moved in real time (follow a creature, sweep a torch)
-- Lives as a special layer type; supports show/hide and delayed reveal like other layers
+- Moveable in real time; lives as a special layer type
 
 ---
 
@@ -300,19 +354,14 @@ A dedicated **Tokens** section (separate from but linked to the layer system).
 
 - Freehand paint tool on the GM preview; strokes appear live on the player screen
 - Tools: freehand brush, straight line, arrow, circle, rectangle
-- Color and opacity picker; adjustable brush size
-- Pen/stylus pressure sensitivity on touch devices
-- Modes:
-  - **Temporary** — auto-clears after a configurable timer, or on GM command
-  - **Persistent** — saved as a drawing layer in the scene JSON
-- Eraser tool to remove individual strokes
-- Clear-all button
+- Modes: **Temporary** (auto-clears) or **Persistent** (saved as a drawing layer)
+- Eraser tool and clear-all button
 
 ---
 
 ### Weather & Atmosphere Effects
 
-Canvas particle / overlay effects added as built-in layer types:
+Canvas particle / overlay effects (already partially implemented as layer types):
 
 | Effect | Notes |
 |--------|-------|
@@ -324,97 +373,22 @@ Canvas particle / overlay effects added as built-in layer types:
 | Fire | looping GIF or canvas particle version |
 | Smoke | slow-rising particle layer |
 
-- Intensity slider per effect
-- Show/hide and delayed reveal like any other layer
-- Multiple effects can be stacked (e.g. fog + rain)
-
----
-
-### Handouts & Notable Items
-
-- GM opens a handout panel and selects any image from the library (or a dedicated handouts folder)
-- Selected image pops onto the player screen as a floating overlay — centered or pinned to a corner
-- Multiple handouts can be shown simultaneously, each independently dismissible
-- Optional title label below the image
-- Useful for: letters, portraits, item art, map fragments, clues
-- Handouts do not interact with the layer system; they are always on top
-- Handouts can be shown in all 4 directions in order for all players to be able to see them
-
 ---
 
 ### Touch & Pen Support
 
-Support for touch and stylus input on both GM and player screens (targeted at laptops with touchscreens and active pens).
-
-**GM screen (touch)**
-- Pan the preview with one finger
-- Pinch-to-zoom the preview
-- Tap to select / activate map or layer objects
-- Drag objects (tokens, spotlight, annotations) with finger or pen
-- Drawing tools fully pen-aware: pressure → brush opacity/size
-
-**Player screen (touch)**
-- Pinch-to-zoom and pan (if zoom-to-region feature is enabled and GM allows player zoom)
-- Tap to acknowledge a handout / dismiss overlay
-
-**Pen-specific**
-- Barrel button mapped to eraser in drawing mode
-- Hover preview of brush stroke before contact
+- Pan/pinch-to-zoom the GM preview on touch
+- Pen-aware drawing tools (pressure → opacity/size)
+- Player screen touch: pinch-to-zoom and handout dismiss
 
 ---
 
-### Campaign & Notes
+### Campaign & Notes Enhancements
 
-A campaign is a top-level container that groups everything belonging to a single story — similar to how projects organise maps, but richer. Multiple campaigns can exist side by side.
-
-#### Structure
-```
-Campaign/
-├── Sessions/          # one entry per session played
-│   ├── Session 1/
-│   │   ├── notes.md   # freeform session notes
-│   │   ├── scenes/    # named scene saves for this session (JSON)
-│   │   └── handouts/  # handouts shown in this session
-│   └── Session 2/ …
-├── NPCs/              # reusable NPC cards (linked to character roster)
-├── Locations/         # location notes with optional map thumbnail
-├── Items/             # notable items / handout images
-└── Party/             # player characters (linked to token roster)
-```
-
-#### Sessions
-- Create, rename, delete sessions
-- Each session has a **notes editor** — freeform markdown text with basic formatting (bold, italic, headings, bullet lists)
-- Notes are searchable across all sessions in a campaign
-- Attach maps to a session (links to the map library project)
-- Attach scene presets and handouts; re-open them directly from the session view
-
-#### NPC / Location / Item cards
-- Name, image/portrait, tags, and a freeform notes field per card
-- NPC cards feed directly into the **character roster** and **initiative tracker**
-- Location cards can hold a map thumbnail and a link to the map library entry
-- Item cards double as handout sources — send an item's image to the player screen as a handout with one click
-
-#### Party
-- Persistent player character cards (name, portrait, player name, class/race, notes)
-- Shared across all sessions in the campaign
-- Automatically available in the initiative tracker and token roster
-
-#### Persistence
-- Each campaign stored as a folder on disk (inside or alongside the maps root)
-- Notes saved as plain `.md` files; everything else as JSON
-- Campaigns listed in the library panel alongside map projects; switchable from the GM screen
-
----
-
-### Other planned features
-
-- **Status panel** promotion — if the status panel grows complex enough, consider making it a full dockable window like the initiative tracker
-- **Detachable panels** — allow left/right panels to be dragged off and repositioned as floating windows
-- **Rich-text campaign notes** — markdown formatting in notes editor (bold, italic, headings, lists)
-- **Both notes visible** — split view or tabs to show campaign notes and session notes simultaneously
-- **Status HUD enhancements** — health tracking, handout display, NPC cards in status panel
-
+- **Rich-text notes** — markdown formatting (bold, italic, headings, lists)
+- **NPC / Location / Item cards** — reusable across sessions; NPC cards feed the initiative tracker
+- **Party roster** — persistent player characters shared across sessions
+- **Detachable panels** — float left/right panels as separate windows
 
 ---
 
