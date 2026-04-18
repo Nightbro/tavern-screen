@@ -1056,6 +1056,11 @@ const btnCombatNext        = document.getElementById('btn-combat-next');
 const btnAddEntry          = document.getElementById('btn-add-entry');
 const btnAddInitiative     = document.getElementById('btn-add-initiative');
 const btnAddStatusHud      = document.getElementById('btn-add-status-hud');
+const btnAddHandout        = document.getElementById('btn-add-handout');
+const statusesEditor       = document.getElementById('statuses-editor');
+const statusesEntriesEl    = document.getElementById('statuses-entries');
+const handoutEditor        = document.getElementById('handout-editor');
+const hudPreviewScreen     = document.getElementById('hud-preview-screen');
 const btnAddImageLayer     = document.getElementById('btn-add-image-layer');
 const btnAddLightLayer     = document.getElementById('btn-add-light-layer');
 const btnAddFogLayer       = document.getElementById('btn-add-fog-layer');
@@ -1167,6 +1172,7 @@ async function initScene() {
   sceneNameInput.value = scene.name ?? '';
   renderLayerList();
   renderHudList();
+  renderHudPreview();
   updateVpZoomUI();
   fitGMCamera();
   sceneReady = true;
@@ -1539,12 +1545,14 @@ function renderHudList() {
     empty.textContent = 'No HUDs';
     hudListEl.appendChild(empty);
     scheduleAutosave();
+    renderHudPreview();
     return;
   }
   for (const hud of huds) {
     hudListEl.appendChild(buildHudRow(hud));
   }
   scheduleAutosave();
+  renderHudPreview();
 }
 
 function buildHudRow(hud) {
@@ -1564,11 +1572,11 @@ function buildHudRow(hud) {
 
   const badge = document.createElement('span');
   badge.className = 'layer-type-badge';
-  badge.textContent = 'INIT';
+  badge.textContent = hud.type === 'status' ? 'ST' : hud.type === 'handout' ? 'HO' : 'IN';
 
   const name = document.createElement('span');
   name.className = 'layer-name';
-  name.textContent = 'Initiative';
+  name.textContent = hud.type === 'status' ? (hud.label || 'Statuses') : hud.type === 'handout' ? (hud.name || 'Handout') : 'Initiative';
 
   const delBtn = document.createElement('button');
   delBtn.className = 'btn-icon-xs danger';
@@ -1593,8 +1601,15 @@ function selectHud(id) {
   selectedHudId = (id === selectedHudId) ? null : id;
   renderHudList();
   const hud = huds.find(h => h.id === selectedHudId);
+  initiativeEditor.style.display = 'none';
+  if (statusesEditor) statusesEditor.style.display = 'none';
+  if (handoutEditor)  handoutEditor.style.display  = 'none';
   if (hud && hud.type === 'initiative') {
     renderInitiativeEditor(hud);
+  } else if (hud && hud.type === 'status') {
+    renderStatusesEditor(hud);
+  } else if (hud && hud.type === 'handout') {
+    renderHandoutEditor(hud);
   } else {
     initiativeEditor.style.display = 'none';
   }
@@ -1609,8 +1624,20 @@ btnAddInitiative.addEventListener('click', async () => {
 });
 
 btnAddStatusHud?.addEventListener('click', async () => {
-  const newHuds = await window.electronAPI.addHud({ type: 'status', visible: true, side: 'top-right', entries: [] });
-  if (newHuds) { huds = newHuds; renderHudList(); }
+  const newHuds = await window.electronAPI.addHud({
+    type: 'status', visible: true, label: 'Status',
+    entries: [], sides: [{ corner: 'top-right', facing: 'up' }],
+    fontSize: DEFAULT_HUD_FONT_SIZE, showLabels: false,
+  });
+  if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
+});
+
+btnAddHandout?.addEventListener('click', async () => {
+  const newHuds = await window.electronAPI.addHud({
+    type: 'handout', visible: true, name: 'Handout',
+    src: null, width: 300, sides: [{ corner: 'top-left', facing: 'up' }],
+  });
+  if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 document.getElementById('initiative-font-size')?.addEventListener('change', async () => {
@@ -1739,7 +1766,7 @@ function renderInitiativePositions(hud) {
 
     const save = async () => {
       const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
-      if (newHuds) { huds = newHuds; }
+      if (newHuds) { huds = newHuds; renderHudPreview(); }
     };
 
     chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
@@ -1872,7 +1899,9 @@ function renderInitiativeEntries(hud) {
   });
 }
 
-function buildEntryStatusRow(container, hud, idx, entry) {
+function buildEntryStatusRow(container, hud, idx, entry, updateFn, refreshFn) {
+  updateFn  = updateFn  ?? updateEntryField;
+  refreshFn = refreshFn ?? ((upd) => renderInitiativeEntries(upd));
   container.innerHTML = '';
   const statuses = entry.statuses ?? [];
 
@@ -1896,9 +1925,9 @@ function buildEntryStatusRow(container, hud, idx, entry) {
     del.className = 'init-status-del';
     del.textContent = '×';
     del.addEventListener('click', async () => {
-      await updateEntryField(hud, idx, { statuses: statuses.filter((_, i) => i !== si) });
+      await updateFn(hud, idx, { statuses: statuses.filter((_, i) => i !== si) });
       const updated = huds.find(h => h.id === hud.id);
-      if (updated) renderInitiativeEntries(updated);
+      if (updated) refreshFn(updated);
     });
 
     chip.appendChild(dot); chip.appendChild(lbl); chip.appendChild(del);
@@ -1920,9 +1949,9 @@ function buildEntryStatusRow(container, hud, idx, entry) {
 
   // Quick-add helper
   const quickAdd = async (name, color) => {
-    await updateEntryField(hud, idx, { statuses: [...statuses, { color, label: name }] });
+    await updateFn(hud, idx, { statuses: [...statuses, { color, label: name }] });
     const updated = huds.find(h => h.id === hud.id);
-    if (updated) renderInitiativeEntries(updated);
+    if (updated) refreshFn(updated);
   };
 
   // PF1e section
@@ -2151,6 +2180,389 @@ btnAddEntry.addEventListener('click', async () => {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
   if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// STATUSES HUD EDITOR
+// ════════════════════════════════════════════════════════════════════════════
+
+function renderStatusesEditor(hud) {
+  if (!statusesEditor) return;
+  statusesEditor.style.display = '';
+  const labelEl = document.getElementById('statuses-label');
+  if (labelEl) labelEl.value = hud.label ?? 'Status';
+  const fontSizeEl = document.getElementById('statuses-font-size');
+  if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? DEFAULT_HUD_FONT_SIZE;
+  const showLabelsEl = document.getElementById('statuses-show-labels');
+  if (showLabelsEl) showLabelsEl.checked = hud.showLabels ?? false;
+  renderStatusesPositions(hud);
+  renderStatusesEntries(hud);
+}
+
+function renderStatusesPositions(hud) {
+  const posEl = document.getElementById('statuses-positions');
+  if (!posEl) return;
+  posEl.innerHTML = '';
+  const sides = normalizeSides(hud);
+
+  const getSides = () => CORNERS
+    .map(({ id: corner }) => {
+      const row = posEl.querySelector(`[data-corner="${corner}"]`);
+      if (!row) return null;
+      const chk = row.querySelector('input[type="checkbox"]');
+      const sel = row.querySelector('select');
+      return chk?.checked ? { corner, facing: sel?.value ?? 'up' } : null;
+    })
+    .filter(Boolean);
+
+  for (const { id: corner, label } of CORNERS) {
+    const existing = sides.find(s => s.corner === corner);
+    const row = document.createElement('div');
+    row.dataset.corner = corner;
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0;';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox'; chk.checked = !!existing;
+    chk.style.cssText = 'accent-color:#4a90d9;cursor:pointer;flex-shrink:0;';
+
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'flex:1;font-size:11px;color:#aaa;';
+
+    const facingSelect = document.createElement('select');
+    facingSelect.className = 'field-select';
+    facingSelect.disabled = !existing;
+    for (const [val, text] of [['up','Up'],['down','Down'],['left','Left'],['right','Right']]) {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = text;
+      facingSelect.appendChild(opt);
+    }
+    facingSelect.value = existing?.facing ?? 'up';
+
+    const save = async () => {
+      const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
+      if (newHuds) { huds = newHuds; renderHudPreview(); }
+    };
+    chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
+    facingSelect.addEventListener('change', save);
+
+    row.appendChild(chk); row.appendChild(lbl); row.appendChild(facingSelect);
+    posEl.appendChild(row);
+  }
+}
+
+function renderStatusesEntries(hud) {
+  if (!statusesEntriesEl) return;
+  statusesEntriesEl.innerHTML = '';
+  if (!hud.entries || hud.entries.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'layer-empty';
+    empty.textContent = 'No entries';
+    statusesEntriesEl.appendChild(empty);
+    return;
+  }
+  hud.entries.forEach((entry, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'initiative-entry-wrap';
+
+    const row = document.createElement('div');
+    row.className = 'initiative-entry-row';
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'init-entry-name';
+    nameInput.value = entry.name;
+    nameInput.placeholder = 'Name…';
+    nameInput.addEventListener('change', () => updateStatusesEntryField(hud, idx, { name: nameInput.value }));
+
+    const hiddenChk = document.createElement('input');
+    hiddenChk.type = 'checkbox'; hiddenChk.title = 'Show as ???';
+    hiddenChk.checked = entry.hidden ?? false;
+    hiddenChk.style.cssText = 'accent-color:#c9a84c;cursor:pointer;flex-shrink:0;';
+    hiddenChk.addEventListener('change', () => updateStatusesEntryField(hud, idx, { hidden: hiddenChk.checked }));
+
+    const invisibleChk = document.createElement('input');
+    invisibleChk.type = 'checkbox'; invisibleChk.title = 'Hide from players';
+    invisibleChk.checked = entry.invisible ?? false;
+    invisibleChk.style.cssText = 'accent-color:#e05555;cursor:pointer;flex-shrink:0;';
+    invisibleChk.addEventListener('change', () => updateStatusesEntryField(hud, idx, { invisible: invisibleChk.checked }));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-icon-xs danger'; delBtn.textContent = '×'; delBtn.title = 'Remove entry';
+    delBtn.addEventListener('click', () => removeStatusesEntry(hud, idx));
+
+    const visGroup = document.createElement('div');
+    visGroup.className = 'init-vis-group';
+    const lbl1 = document.createElement('span'); lbl1.className = 'init-vis-label'; lbl1.title = 'Lurking'; lbl1.textContent = '?';
+    const lbl2 = document.createElement('span'); lbl2.className = 'init-vis-label'; lbl2.title = 'Invisible'; lbl2.textContent = '👁'; lbl2.style.fontSize = '10px';
+    visGroup.appendChild(lbl1); visGroup.appendChild(hiddenChk);
+    visGroup.appendChild(lbl2); visGroup.appendChild(invisibleChk);
+
+    row.appendChild(nameInput); row.appendChild(visGroup); row.appendChild(delBtn);
+
+    const statusRow = document.createElement('div');
+    statusRow.className = 'init-extras-row';
+    buildEntryStatusRow(statusRow, hud, idx, entry, updateStatusesEntryField, renderStatusesEntries);
+
+    wrap.appendChild(row); wrap.appendChild(statusRow);
+    statusesEntriesEl.appendChild(wrap);
+  });
+}
+
+async function updateStatusesEntryField(hud, idx, patch) {
+  const newEntries = hud.entries.map((e, i) => i === idx ? { ...e, ...patch } : e);
+  const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
+  if (newHuds) {
+    huds = newHuds;
+    const updated = huds.find(h => h.id === hud.id);
+    if (updated) Object.assign(hud, updated);
+  }
+}
+
+async function removeStatusesEntry(hud, idx) {
+  const newEntries = hud.entries.filter((_, i) => i !== idx);
+  const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
+  if (newHuds) {
+    huds = newHuds;
+    const updated = huds.find(h => h.id === selectedHudId);
+    if (updated) renderStatusesEditor(updated);
+  }
+}
+
+document.getElementById('statuses-label')?.addEventListener('change', async () => {
+  if (!selectedHudId) return;
+  const v = document.getElementById('statuses-label').value;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { label: v });
+  if (newHuds) { huds = newHuds; renderHudList(); }
+});
+
+document.getElementById('statuses-font-size')?.addEventListener('change', async () => {
+  if (!selectedHudId) return;
+  const v = parseInt(document.getElementById('statuses-font-size').value);
+  if (isNaN(v) || v < 8 || v > 48) return;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
+  if (newHuds) { huds = newHuds; }
+});
+
+document.getElementById('statuses-show-labels')?.addEventListener('change', async () => {
+  if (!selectedHudId) return;
+  const checked = document.getElementById('statuses-show-labels').checked;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
+  if (newHuds) { huds = newHuds; }
+});
+
+document.getElementById('btn-add-status-entry')?.addEventListener('click', async () => {
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (!hud) return;
+  const newEntry = { id: genId(), name: '', hidden: false, invisible: true, statuses: [] };
+  const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
+  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderStatusesEditor(upd); }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// HANDOUT HUD EDITOR
+// ════════════════════════════════════════════════════════════════════════════
+
+function renderHandoutEditor(hud) {
+  if (!handoutEditor) return;
+  handoutEditor.style.display = '';
+  const nameEl = document.getElementById('handout-name');
+  if (nameEl) nameEl.value = hud.name ?? '';
+  const widthEl = document.getElementById('handout-width');
+  if (widthEl) widthEl.value = hud.width ?? 300;
+  renderHandoutImagePreview(hud);
+  renderHandoutPositions(hud);
+}
+
+function renderHandoutImagePreview(hud) {
+  const el = document.getElementById('handout-image-preview');
+  if (!el) return;
+  el.innerHTML = '';
+  if (hud.src) {
+    const img = document.createElement('img');
+    img.src = hud.src;
+    img.style.cssText = 'max-width:100%;max-height:80px;border-radius:4px;margin-top:4px;display:block;';
+    el.appendChild(img);
+  }
+}
+
+function renderHandoutPositions(hud) {
+  const posEl = document.getElementById('handout-positions');
+  if (!posEl) return;
+  posEl.innerHTML = '';
+  const sides = normalizeSides(hud);
+
+  const getSides = () => CORNERS
+    .map(({ id: corner }) => {
+      const row = posEl.querySelector(`[data-corner="${corner}"]`);
+      if (!row) return null;
+      const chk = row.querySelector('input[type="checkbox"]');
+      const sel = row.querySelector('select');
+      return chk?.checked ? { corner, facing: sel?.value ?? 'up' } : null;
+    })
+    .filter(Boolean);
+
+  for (const { id: corner, label } of CORNERS) {
+    const existing = sides.find(s => s.corner === corner);
+    const row = document.createElement('div');
+    row.dataset.corner = corner;
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0;';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox'; chk.checked = !!existing;
+    chk.style.cssText = 'accent-color:#4caf7d;cursor:pointer;flex-shrink:0;';
+
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    lbl.style.cssText = 'flex:1;font-size:11px;color:#aaa;';
+
+    const facingSelect = document.createElement('select');
+    facingSelect.className = 'field-select';
+    facingSelect.disabled = !existing;
+    for (const [val, text] of [['up','Up'],['down','Down'],['left','Left'],['right','Right']]) {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = text;
+      facingSelect.appendChild(opt);
+    }
+    facingSelect.value = existing?.facing ?? 'up';
+
+    const save = async () => {
+      const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
+      if (newHuds) { huds = newHuds; renderHudPreview(); }
+    };
+    chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
+    facingSelect.addEventListener('change', save);
+
+    row.appendChild(chk); row.appendChild(lbl); row.appendChild(facingSelect);
+    posEl.appendChild(row);
+  }
+}
+
+document.getElementById('handout-name')?.addEventListener('change', async () => {
+  if (!selectedHudId) return;
+  const v = document.getElementById('handout-name').value;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { name: v });
+  if (newHuds) { huds = newHuds; renderHudList(); }
+});
+
+document.getElementById('handout-width')?.addEventListener('change', async () => {
+  if (!selectedHudId) return;
+  const v = parseInt(document.getElementById('handout-width').value) || 300;
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { width: v });
+  if (newHuds) { huds = newHuds; }
+});
+
+document.getElementById('btn-handout-pick-image')?.addEventListener('click', async () => {
+  const paths = await window.electronAPI.openMapDialog();
+  if (!paths || !paths.length) return;
+  const src = paths[0];
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { src });
+  if (newHuds) {
+    huds = newHuds;
+    const upd = huds.find(h => h.id === selectedHudId);
+    if (upd) renderHandoutEditor(upd);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// HUD PREVIEW
+// ════════════════════════════════════════════════════════════════════════════
+
+const HUD_TYPE_COLOR = { initiative: '#c9a84c', status: '#4a90d9', handout: '#4caf7d' };
+
+function renderHudPreview() {
+  if (!hudPreviewScreen) return;
+  // Clear existing chips (keep corner zone divs)
+  hudPreviewScreen.querySelectorAll('.hud-preview-chip').forEach(c => c.remove());
+
+  for (const hud of huds) {
+    if (hud.visible === false) continue;
+    const sides = normalizeSides(hud);
+    for (const { corner } of sides) {
+      const zone = hudPreviewScreen.querySelector(`.hud-preview-corner[data-corner="${corner}"]`);
+      if (!zone) continue;
+      const chip = document.createElement('div');
+      chip.className = 'hud-preview-chip';
+      chip.dataset.hudId = hud.id;
+      chip.dataset.corner = corner;
+      chip.textContent = hud.type === 'status' ? (hud.label || 'Statuses') : hud.type === 'handout' ? (hud.name || 'Handout') : 'Initiative';
+      chip.style.borderColor = HUD_TYPE_COLOR[hud.type] ?? '#888';
+      if (hud.id === selectedHudId) chip.classList.add('selected');
+      chip.addEventListener('click', (e) => { e.stopPropagation(); selectHud(hud.id); });
+      initHudChipDrag(chip);
+      zone.appendChild(chip);
+    }
+  }
+}
+
+let hudDrag = null;
+let hudDragGhost = null;
+
+function initHudChipDrag(chip) {
+  chip.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    hudDrag = { hudId: chip.dataset.hudId, oldCorner: chip.dataset.corner };
+
+    hudDragGhost = document.createElement('div');
+    hudDragGhost.className = 'hud-preview-chip hud-drag-ghost';
+    hudDragGhost.textContent = chip.textContent;
+    const hud = huds.find(h => h.id === hudDrag.hudId);
+    hudDragGhost.style.borderColor = HUD_TYPE_COLOR[hud?.type] ?? '#888';
+    hudDragGhost.style.left = e.clientX + 'px';
+    hudDragGhost.style.top  = e.clientY + 'px';
+    document.body.appendChild(hudDragGhost);
+
+    document.addEventListener('mousemove', onHudDragMove);
+    document.addEventListener('mouseup', onHudDragEnd);
+  });
+}
+
+function onHudDragMove(e) {
+  if (!hudDragGhost) return;
+  hudDragGhost.style.left = (e.clientX + 10) + 'px';
+  hudDragGhost.style.top  = (e.clientY + 10) + 'px';
+
+  // Highlight corner zone under cursor
+  hudPreviewScreen?.querySelectorAll('.hud-preview-corner').forEach(z => z.classList.remove('drag-over'));
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const zone = el?.closest('.hud-preview-corner');
+  if (zone) zone.classList.add('drag-over');
+}
+
+async function onHudDragEnd(e) {
+  document.removeEventListener('mousemove', onHudDragMove);
+  document.removeEventListener('mouseup', onHudDragEnd);
+  hudDragGhost?.remove(); hudDragGhost = null;
+  hudPreviewScreen?.querySelectorAll('.hud-preview-corner').forEach(z => z.classList.remove('drag-over'));
+
+  if (!hudDrag) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const zone = el?.closest('.hud-preview-corner');
+  const newCorner = zone?.dataset.corner;
+  const { hudId, oldCorner } = hudDrag;
+  hudDrag = null;
+
+  if (!newCorner || newCorner === oldCorner) return;
+
+  const hud = huds.find(h => h.id === hudId);
+  if (!hud) return;
+  const sides = normalizeSides(hud).map(s =>
+    s.corner === oldCorner ? { ...s, corner: newCorner } : s
+  );
+  const newHuds = await window.electronAPI.updateHud(hudId, { sides });
+  if (newHuds) {
+    huds = newHuds;
+    renderHudPreview();
+    // Re-render the active editor if it uses positions
+    const updHud = huds.find(h => h.id === selectedHudId);
+    if (updHud) {
+      if (updHud.type === 'initiative') renderInitiativePositions(updHud);
+      else if (updHud.type === 'status')  renderStatusesPositions(updHud);
+      else if (updHud.type === 'handout') renderHandoutPositions(updHud);
+    }
+  }
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // SCENE I/O

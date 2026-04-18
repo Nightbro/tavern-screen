@@ -128,15 +128,30 @@
         <div id="monitor-list"></div>
       </div>
 
-      <div class="section-title preview-title">
-        Player Screen Preview
-        <button id="btn-refresh-preview" class="btn-ghost-sm" title="Refresh preview">↺</button>
-      </div>
-      <div id="preview-wrap">
-        <div id="preview-placeholder">No player screen open</div>
-        <img id="preview-img" alt="Player screen preview" style="display:none" />
-        <canvas id="layer-overlay"></canvas>
-        <div id="canvas-coords" class="canvas-coords"></div>
+      <div class="preview-row">
+        <div class="preview-col">
+          <div class="section-title preview-title">
+            Player Screen Preview
+            <button id="btn-refresh-preview" class="btn-ghost-sm" title="Refresh preview">↺</button>
+          </div>
+          <div id="preview-wrap">
+            <div id="preview-placeholder">No player screen open</div>
+            <img id="preview-img" alt="Player screen preview" style="display:none" />
+            <canvas id="layer-overlay"></canvas>
+            <div id="canvas-coords" class="canvas-coords"></div>
+          </div>
+        </div>
+        <div class="preview-col adv-only">
+          <div class="section-title">HUD Layout</div>
+          <div id="hud-preview-wrap">
+            <div id="hud-preview-screen">
+              <div class="hud-preview-corner" data-corner="top-left"><span class="hud-corner-label">↖</span></div>
+              <div class="hud-preview-corner" data-corner="top-right"><span class="hud-corner-label">↗</span></div>
+              <div class="hud-preview-corner" data-corner="bottom-left"><span class="hud-corner-label">↙</span></div>
+              <div class="hud-preview-corner" data-corner="bottom-right"><span class="hud-corner-label">↘</span></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="center-footer"></div>
@@ -281,7 +296,8 @@
           <div class="layer-group-header">
             <div class="settings-group-title">HUDs</div>
             <button class="btn-icon-xs" id="btn-add-initiative" title="Add Initiative Tracker">In</button>
-            <button class="btn-icon-xs" id="btn-add-status-hud" title="Add Status Panel">St</button>
+            <button class="btn-icon-xs" id="btn-add-status-hud" title="Add Statuses Panel">St</button>
+            <button class="btn-icon-xs" id="btn-add-handout" title="Add Handout Image">Ho</button>
           </div>
           <div id="hud-list"></div>
         </div>
@@ -317,6 +333,51 @@
           </div>
           <div id="initiative-entries"></div>
           <button class="btn-ghost-sm" id="btn-add-entry" style="margin-top:4px">+ Add Entry</button>
+        </div>
+
+        <!-- Statuses HUD editor -->
+        <div class="settings-group adv-only" id="statuses-editor" style="display:none">
+          <div class="settings-group-title">Statuses Panel</div>
+          <label class="field-row" style="padding:0 0 4px 0">
+            <span>Title</span>
+            <input type="text" id="statuses-label" class="field-select" placeholder="Status" style="flex:1;min-width:0;">
+          </label>
+          <div style="margin-bottom:6px">
+            <div style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Positions</div>
+            <div id="statuses-positions"></div>
+          </div>
+          <label class="field-row" style="padding:0 0 4px 0">
+            <span>Font size</span>
+            <input type="number" id="statuses-font-size" class="field-select" min="8" max="48" value="24" style="width:56px;text-align:center">
+          </label>
+          <label class="field-row" style="padding:0 0 6px 0">
+            <span>Status labels</span>
+            <input type="checkbox" id="statuses-show-labels" style="accent-color:#c9a84c;cursor:pointer;">
+          </label>
+          <div id="statuses-entries"></div>
+          <button class="btn-ghost-sm" id="btn-add-status-entry" style="margin-top:4px">+ Add Entry</button>
+        </div>
+
+        <!-- Handout HUD editor -->
+        <div class="settings-group adv-only" id="handout-editor" style="display:none">
+          <div class="settings-group-title">Handout</div>
+          <label class="field-row" style="padding:0 0 4px 0">
+            <span>Name</span>
+            <input type="text" id="handout-name" class="field-select" placeholder="Handout…" style="flex:1;min-width:0;">
+          </label>
+          <div style="margin-bottom:6px">
+            <div style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Image</div>
+            <button class="btn-ghost-sm" id="btn-handout-pick-image" style="width:100%">📂 Pick Image…</button>
+            <div id="handout-image-preview" class="handout-image-preview"></div>
+          </div>
+          <label class="field-row" style="padding:0 0 4px 0">
+            <span>Width (px)</span>
+            <input type="number" id="handout-width" class="field-select" min="80" max="900" value="300" style="width:72px;text-align:center">
+          </label>
+          <div style="margin-bottom:6px">
+            <div style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Positions</div>
+            <div id="handout-positions"></div>
+          </div>
         </div>
 
 

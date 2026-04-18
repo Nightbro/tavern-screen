@@ -366,7 +366,15 @@ function renderHuds() {
         pending.push(item);
       }
     } else if (hud.type === 'status') {
-      hudRoot.appendChild(buildStatusHud(hud));
+      for (const item of buildStatusHudPanels(hud)) {
+        hudRoot.appendChild(item.panel);
+        pending.push(item);
+      }
+    } else if (hud.type === 'handout') {
+      for (const item of buildHandoutHudPanels(hud)) {
+        hudRoot.appendChild(item.panel);
+        pending.push(item);
+      }
     }
   }
   // Position after layout so offsetWidth/offsetHeight are real
@@ -559,10 +567,25 @@ function buildInitiativeHudPanel(hud, corner, facing) {
   return panel;
 }
 
-function buildStatusHud(hud) {
+function buildStatusHudPanels(hud) {
+  const sides = hud.sides?.length
+    ? hud.sides
+    : [{ corner: hud.side ?? 'top-right', facing: 'up' }];
+  return sides.map(({ corner, facing }) => ({
+    panel: buildStatusHudPanel(hud, corner, facing),
+    corner, facing,
+  }));
+}
+
+function buildStatusHudPanel(hud, corner, facing) {
+  const fontSize = hud.fontSize ?? 14;
+
   const panel = document.createElement('div');
   panel.className = 'hud-panel';
-  applyHudSide(panel, hud.side ?? 'top-right');
+  panel.style.fontSize = fontSize + 'px';
+  panel.style.visibility = 'hidden';
+  panel.style.left = '-9999px'; panel.style.top = '0';
+  if (hud.showLabels) panel.classList.add('statuses-expanded');
 
   const header = document.createElement('div');
   header.className = 'hud-header';
@@ -570,45 +593,133 @@ function buildStatusHud(hud) {
   title.className = 'hud-title';
   title.textContent = hud.label ?? 'Status';
   header.appendChild(title);
-
-  const collapseBtn = document.createElement('button');
-  collapseBtn.className = 'hud-collapse-btn';
-  collapseBtn.textContent = '−';
-  header.appendChild(collapseBtn);
   panel.appendChild(header);
 
   const body = document.createElement('div');
   body.className = 'hud-body';
-  const entries = hud.entries ?? [];
-  entries.forEach(entry => {
-    const row = document.createElement('div');
-    row.className = 'status-entry';
-    const name = document.createElement('span');
-    name.className = 'status-name';
-    name.textContent = entry.name || '—';
-    row.appendChild(name);
-    if (entry.hp != null) {
-      const hp = document.createElement('span');
-      hp.className = 'status-hp';
-      hp.textContent = entry.hp;
-      row.appendChild(hp);
-    }
-    body.appendChild(row);
-  });
-  if (!entries.length) {
+  const entries = (hud.entries ?? []).filter(e => !e.invisible);
+
+  if (entries.length === 0) {
     const empty = document.createElement('div');
-    empty.style.cssText = 'font-size:11px;color:#3a3a5e;font-style:italic;padding:4px 0;';
+    empty.style.cssText = 'font-size:0.8em;color:#3a3a5e;font-style:italic;padding:4px 0;';
     empty.textContent = 'No entries';
+    body.appendChild(empty);
+  } else {
+    for (const entry of entries) {
+      const row = document.createElement('div');
+      row.className = 'initiative-entry';
+
+      const name = document.createElement('span');
+      name.className = 'initiative-name';
+      name.textContent = entry.hidden ? '???' : (entry.name || '—');
+      row.appendChild(name);
+
+      const statusesEl = document.createElement('span');
+      statusesEl.className = 'initiative-statuses';
+      for (const s of (entry.statuses ?? [])) {
+        const wrap = document.createElement('span');
+        wrap.className = 'status-pip-wrap';
+        const pip = document.createElement('span');
+        pip.className = 'status-pip';
+        pip.style.background = s.color ?? '#888';
+        const lbl = document.createElement('span');
+        lbl.className = 'status-pip-lbl';
+        lbl.textContent = s.label ?? '';
+        wrap.appendChild(pip); wrap.appendChild(lbl);
+        statusesEl.appendChild(wrap);
+      }
+      row.appendChild(statusesEl);
+      body.appendChild(row);
+    }
+  }
+  panel.appendChild(body);
+
+  // Drag by header
+  let dragX = 0, dragY = 0, startLeft = 0, startTop = 0;
+  const onMove = (e) => {
+    panel.style.left = Math.max(0, startLeft + e.clientX - dragX) + 'px';
+    panel.style.top  = Math.max(0, startTop  + e.clientY - dragY) + 'px';
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    header.style.cursor = 'grab';
+  };
+  header.addEventListener('mousedown', (e) => {
+    dragX = e.clientX; dragY = e.clientY;
+    startLeft = parseInt(panel.style.left) || 0;
+    startTop  = parseInt(panel.style.top)  || 0;
+    header.style.cursor = 'grabbing';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  });
+
+  return panel;
+}
+
+function buildHandoutHudPanels(hud) {
+  const sides = hud.sides?.length
+    ? hud.sides
+    : [{ corner: hud.side ?? 'top-left', facing: 'up' }];
+  return sides.map(({ corner, facing }) => ({
+    panel: buildHandoutHudPanel(hud, corner, facing),
+    corner, facing,
+  }));
+}
+
+function buildHandoutHudPanel(hud, corner, facing) {
+  const panel = document.createElement('div');
+  panel.className = 'hud-panel hud-handout-panel';
+  panel.style.visibility = 'hidden';
+  panel.style.left = '-9999px'; panel.style.top = '0';
+  if (hud.width) panel.style.width = hud.width + 'px';
+
+  const header = document.createElement('div');
+  header.className = 'hud-header';
+  const title = document.createElement('div');
+  title.className = 'hud-title';
+  title.textContent = hud.name ?? 'Handout';
+  header.appendChild(title);
+  panel.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'hud-body hud-handout-body';
+
+  if (hud.src) {
+    const img = document.createElement('img');
+    img.src = hud.src;
+    img.className = 'hud-handout-img';
+    body.appendChild(img);
+  } else {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:11px;color:#3a3a5e;font-style:italic;padding:8px 0;text-align:center;';
+    empty.textContent = 'No image selected';
     body.appendChild(empty);
   }
   panel.appendChild(body);
 
-  let collapsed = false;
-  collapseBtn.addEventListener('click', () => {
-    collapsed = !collapsed;
-    body.style.display = collapsed ? 'none' : '';
-    collapseBtn.textContent = collapsed ? '+' : '−';
+  // Drag by header
+  let dragX = 0, dragY = 0, startLeft = 0, startTop = 0;
+  const onMove = (e) => {
+    panel.style.left = Math.max(0, startLeft + e.clientX - dragX) + 'px';
+    panel.style.top  = Math.max(0, startTop  + e.clientY - dragY) + 'px';
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    header.style.cursor = 'grab';
+  };
+  header.addEventListener('mousedown', (e) => {
+    dragX = e.clientX; dragY = e.clientY;
+    startLeft = parseInt(panel.style.left) || 0;
+    startTop  = parseInt(panel.style.top)  || 0;
+    header.style.cursor = 'grabbing';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
   });
+
   return panel;
 }
 
