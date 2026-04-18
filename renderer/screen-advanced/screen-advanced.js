@@ -692,9 +692,12 @@ function buildHandoutHudPanel(hud, corner, facing) {
   const body = document.createElement('div');
   body.className = 'hud-body hud-handout-body';
 
-  if (hud.src) {
+  const activeSrc = hud.images?.length
+    ? (hud.images[hud.activeImageIdx ?? 0]?.src ?? null)
+    : (hud.src ?? null);
+  if (activeSrc) {
     const img = document.createElement('img');
-    img.src = hud.src;
+    img.src = activeSrc;
     img.className = 'hud-handout-img';
     body.appendChild(img);
   } else {

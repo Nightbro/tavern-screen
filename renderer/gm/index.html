@@ -338,6 +338,7 @@
             <button class="btn-ghost-sm" id="btn-combat-toggle">▶ Start</button>
             <button class="btn-icon-sm"  id="btn-combat-prev">◀</button>
             <button class="btn-icon-sm"  id="btn-combat-next">▶</button>
+            <button class="btn-ghost-sm" id="btn-sort-initiative" title="Sort entries by initiative roll (highest first)" style="margin-left:auto">↓ Sort</button>
           </div>
           <div id="initiative-entries"></div>
           <button class="btn-ghost-sm" id="btn-add-entry" style="margin-top:4px">+ Add Entry</button>
@@ -374,9 +375,11 @@
             <input type="text" id="handout-name" class="field-select" placeholder="Handout…" style="flex:1;min-width:0;">
           </label>
           <div style="margin-bottom:6px">
-            <div style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Image</div>
-            <button class="btn-ghost-sm" id="btn-handout-pick-image" style="width:100%">📂 Pick Image…</button>
-            <div id="handout-image-preview" class="handout-image-preview"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px">Images</span>
+              <button class="btn-ghost-sm" id="btn-handout-add-images">+ Add</button>
+            </div>
+            <div id="handout-image-cards" class="handout-image-cards"></div>
           </div>
           <label class="field-row" style="padding:0 0 4px 0">
             <span>Width (px)</span>

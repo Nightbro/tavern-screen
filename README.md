@@ -116,6 +116,7 @@ All HUD types share the same positioning model: each HUD can be assigned to one 
 | **Status labels** | Toggle to show full condition names next to coloured dots on the player screen |
 | **Custom Presets** | Add named colour presets that appear as quick-add buttons alongside the built-in Pathfinder 1e conditions |
 | **Combat** | ▶ Start / ■ Stop combat mode; ◀ ▶ step through turns |
+| **↓ Sort** | Sort entries by initiative roll, highest first; active turn index follows the moved entry |
 
 #### Initiative Entries
 
@@ -168,13 +169,15 @@ Displays an image on the player screen — portraits, letters, item art, map fra
 | Control | Description |
 |---------|-------------|
 | **Name** | Label shown in the HUD title bar |
-| **Pick Image…** | File dialog to select any image from disk |
+| **Images** | Card library of images; click **+ Add** to add one or more from disk at once |
 | **Width (px)** | Display width of the image panel on the player screen |
 | **Positions** | Same corner + facing system as other HUDs |
 
+Each image appears as a card showing a thumbnail and an editable name label. Clicking a card makes it the **active image** shown to players (highlighted in gold). The `×` button removes an image from the library. Multiple images can be stored and switched on the fly without closing the handout.
+
 #### Player Screen Display
 
-- Renders as a titled image panel; draggable by title bar
+- Renders as a titled image panel showing the currently active image; draggable by title bar
 - Multiple handouts can be active simultaneously, each independently positioned
 
 ---
@@ -201,6 +204,7 @@ The **HUD Sim** tab in the center panel (advanced mode only) shows a scaled-down
 ### What it shows
 
 - A 16:9 rectangle representing the player screen, scaled to fit the available space
+- **Live background** — the current player screen composition (map, layers, weather) is captured and shown behind the HUD panels so you can see exactly what the players see; the background refreshes automatically when switching to the HUD Sim tab or after every scene change
 - Each HUD panel rendered with its real content — entry names, initiative badges, condition pips, or image
 - The panel sizes are accurate relative to the screen: a 24 px font initiative tracker with 5 entries looks proportionally the same in the simulation as it does on the player display
 
@@ -299,7 +303,7 @@ Rendering transform: `screenX = (canvasX − cx) × zoom + screenW/2`
 - **Canvas coordinates** — live pixel readout (bottom-left of preview) as the cursor moves
 - **Viewport zoom & pan** — drag the gold rectangle to pan what the player sees
 - **Background color** — configurable solid fill behind all layers
-- **HUD overlays** — Initiative, Statuses, and Handout panels; pixel-accurate positioning via HUD Simulation; draggable by title bar on the player screen; multi-corner with per-corner facing direction
+- **HUD overlays** — Initiative (with sort-by-initiative), Statuses, and Handout (multi-image card library) panels; pixel-accurate positioning via HUD Simulation with live player-screen background; draggable by title bar on the player screen; multi-corner with per-corner facing direction; all changes auto-saved immediately
 - **Ping** — GM clicks preview → pulsing ring + dot appears on the player screen
 - **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON
 
@@ -307,20 +311,6 @@ Rendering transform: `screenX = (canvasX − cx) × zoom + screenW/2`
 
 ## Roadmap
 
-### HUD Simulation — Known issues & improvements
-
-- **Selection not preserved after drag** — After dragging a HUD panel in the simulation, the panel becomes deselected in the GM right panel; a second click is required to re-select it. The `selectedHudId` is set correctly in code but something in the subsequent `renderHudList()` call resets the visual selection state.
-- **Background image in simulation** — The HUD Simulation currently shows HUD panels on a plain dark background. Displaying the current player screen layer composition (the scene the players are seeing) behind the panels would allow the GM to reposition HUDs so they don't obscure important parts of the map.
-
----
-
-### Initiative Persistence & Sorting
-
-- **Auto-save** — every change to the initiative tracker saved immediately
-- **Load on open** — last saved initiative state restored when a session is resumed
-- **Sort by initiative** — one-click sort from highest to lowest roll
-
----
 
 ### Advanced Screen — Remaining enhancements
 

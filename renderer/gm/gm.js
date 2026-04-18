@@ -925,11 +925,14 @@ function showPreviewPlaceholder() {
 }
 
 window.electronAPI.onScreenPreview((dataUrl) => {
+  lastScreenPreviewUrl = dataUrl;
   if (!screenModeAdvanced) {
     previewImg.src = dataUrl;
     previewImg.style.display = 'block';
     previewPlaceholder.style.display = 'none';
     setTimeout(renderLayerOverlay, 50);
+  } else {
+    if (!simDragging) updateHudSimulation();
   }
 });
 
@@ -1041,7 +1044,7 @@ centerPreviewTabs.forEach(btn => {
     const tab = btn.dataset.centerTab;
     centerTabPreview.style.display  = tab === 'preview'  ? '' : 'none';
     centerTabHudSim.style.display   = tab === 'hud-sim'  ? '' : 'none';
-    if (tab === 'hud-sim') updateHudSimulation();
+    if (tab === 'hud-sim') { updateHudSimulation(); window.electronAPI.requestPreview(); }
   });
 });
 
@@ -1117,8 +1120,9 @@ let canvasBg         = '#1a1a2e';
 let sceneReady       = false;
 let autosaveTimer    = null;
 let loadedSceneId    = null;
-let selectedHudId    = null;
-let pingMode         = false;
+let selectedHudId        = null;
+let lastScreenPreviewUrl = null;
+let pingMode             = false;
 let screenModeAdvanced = false;
 
 const gmImageCache   = new Map();
@@ -1615,22 +1619,20 @@ function buildHudRow(hud) {
   return row;
 }
 
-function selectHud(id) {
-  selectedHudId = (id === selectedHudId) ? null : id;
+function applyHudSelection(id) {
+  selectedHudId = id ?? null;
   renderHudList();
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = selectedHudId ? huds.find(h => h.id === selectedHudId) : null;
   initiativeEditor.style.display = 'none';
   if (statusesEditor) statusesEditor.style.display = 'none';
   if (handoutEditor)  handoutEditor.style.display  = 'none';
-  if (hud && hud.type === 'initiative') {
-    renderInitiativeEditor(hud);
-  } else if (hud && hud.type === 'status') {
-    renderStatusesEditor(hud);
-  } else if (hud && hud.type === 'handout') {
-    renderHandoutEditor(hud);
-  } else {
-    initiativeEditor.style.display = 'none';
-  }
+  if (hud?.type === 'initiative') renderInitiativeEditor(hud);
+  else if (hud?.type === 'status')  renderStatusesEditor(hud);
+  else if (hud?.type === 'handout') renderHandoutEditor(hud);
+}
+
+function selectHud(id) {
+  applyHudSelection(id === selectedHudId ? null : id);
 }
 
 btnAddInitiative.addEventListener('click', async () => {
@@ -1663,7 +1665,7 @@ document.getElementById('initiative-font-size')?.addEventListener('change', asyn
   const v = parseInt(document.getElementById('initiative-font-size').value);
   if (isNaN(v) || v < 8 || v > 48) return;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
-  if (newHuds) { huds = newHuds; }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1821,7 +1823,7 @@ document.getElementById('initiative-show-labels')?.addEventListener('change', as
   if (!selectedHudId) return;
   const checked = document.getElementById('initiative-show-labels').checked;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
-  if (newHuds) { huds = newHuds; }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); }
 });
 
 function renderInitiativeEntries(hud) {
@@ -2157,6 +2159,7 @@ async function updateEntryField(hud, idx, patch) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
+    scheduleAutosave();
     const updated = huds.find(h => h.id === hud.id);
     if (updated) Object.assign(hud, updated);
   }
@@ -2167,6 +2170,7 @@ async function removeEntry(hud, idx) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
+    scheduleAutosave();
     const updated = huds.find(h => h.id === selectedHudId);
     if (updated) renderInitiativeEditor(updated);
   }
@@ -2177,7 +2181,7 @@ btnCombatToggle.addEventListener('click', async () => {
   if (!hud) return;
   const inCombat = !(hud.combat ?? false);
   const newHuds = await window.electronAPI.updateHud(hud.id, { combat: inCombat, currentIndex: 0 });
-  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnCombatNext.addEventListener('click', async () => {
@@ -2185,7 +2189,7 @@ btnCombatNext.addEventListener('click', async () => {
   if (!hud || !hud.entries.length) return;
   const next = ((hud.currentIndex ?? 0) + 1) % hud.entries.length;
   const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: next });
-  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnCombatPrev.addEventListener('click', async () => {
@@ -2193,7 +2197,7 @@ btnCombatPrev.addEventListener('click', async () => {
   if (!hud || !hud.entries.length) return;
   const prev = ((hud.currentIndex ?? 0) - 1 + hud.entries.length) % hud.entries.length;
   const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: prev });
-  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnAddEntry.addEventListener('click', async () => {
@@ -2201,7 +2205,25 @@ btnAddEntry.addEventListener('click', async () => {
   if (!hud) return;
   const newEntry = { id: genId(), name: '', initiative: 0, hidden: false, invisible: true, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
-  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+});
+
+document.getElementById('btn-sort-initiative')?.addEventListener('click', async () => {
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (!hud || !hud.entries?.length) return;
+  const activeEntry = hud.entries[hud.currentIndex ?? 0];
+  const sorted = [...hud.entries].sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
+  const newIdx = activeEntry ? sorted.findIndex(e => e.id === activeEntry.id) : 0;
+  const newHuds = await window.electronAPI.updateHud(hud.id, {
+    entries: sorted,
+    currentIndex: newIdx >= 0 ? newIdx : 0,
+  });
+  if (newHuds) {
+    huds = newHuds;
+    scheduleAutosave();
+    const upd = huds.find(h => h.id === selectedHudId);
+    if (upd) renderInitiativeEditor(upd);
+  }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2340,6 +2362,7 @@ async function updateStatusesEntryField(hud, idx, patch) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
+    scheduleAutosave();
     const updated = huds.find(h => h.id === hud.id);
     if (updated) Object.assign(hud, updated);
   }
@@ -2350,6 +2373,7 @@ async function removeStatusesEntry(hud, idx) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
+    scheduleAutosave();
     const updated = huds.find(h => h.id === selectedHudId);
     if (updated) renderStatusesEditor(updated);
   }
@@ -2367,14 +2391,14 @@ document.getElementById('statuses-font-size')?.addEventListener('change', async 
   const v = parseInt(document.getElementById('statuses-font-size').value);
   if (isNaN(v) || v < 8 || v > 48) return;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
-  if (newHuds) { huds = newHuds; }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); }
 });
 
 document.getElementById('statuses-show-labels')?.addEventListener('change', async () => {
   if (!selectedHudId) return;
   const checked = document.getElementById('statuses-show-labels').checked;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
-  if (newHuds) { huds = newHuds; }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); }
 });
 
 document.getElementById('btn-add-status-entry')?.addEventListener('click', async () => {
@@ -2382,12 +2406,23 @@ document.getElementById('btn-add-status-entry')?.addEventListener('click', async
   if (!hud) return;
   const newEntry = { id: genId(), name: '', hidden: false, invisible: true, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
-  if (newHuds) { huds = newHuds; const upd = huds.find(h => h.id === selectedHudId); if (upd) renderStatusesEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderStatusesEditor(upd); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
 // HANDOUT HUD EDITOR
 // ════════════════════════════════════════════════════════════════════════════
+
+function getHandoutImages(hud) {
+  if (hud.images?.length) return hud.images;
+  if (hud.src) return [{ id: genId(), name: 'Image', src: hud.src }];
+  return [];
+}
+
+function getHandoutActiveSrc(hud) {
+  const imgs = getHandoutImages(hud);
+  return imgs[hud.activeImageIdx ?? 0]?.src ?? null;
+}
 
 function renderHandoutEditor(hud) {
   if (!handoutEditor) return;
@@ -2396,20 +2431,83 @@ function renderHandoutEditor(hud) {
   if (nameEl) nameEl.value = hud.name ?? '';
   const widthEl = document.getElementById('handout-width');
   if (widthEl) widthEl.value = hud.width ?? 300;
-  renderHandoutImagePreview(hud);
+  renderHandoutImageCards(hud);
   renderHandoutPositions(hud);
 }
 
-function renderHandoutImagePreview(hud) {
-  const el = document.getElementById('handout-image-preview');
+function renderHandoutImageCards(hud) {
+  const el = document.getElementById('handout-image-cards');
   if (!el) return;
   el.innerHTML = '';
-  if (hud.src) {
-    const img = document.createElement('img');
-    img.src = hud.src;
-    img.style.cssText = 'max-width:100%;max-height:80px;border-radius:4px;margin-top:4px;display:block;';
-    el.appendChild(img);
+  const images = getHandoutImages(hud);
+  const activeIdx = hud.activeImageIdx ?? 0;
+
+  if (images.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:11px;color:#3a3a5e;font-style:italic;padding:4px 0;';
+    empty.textContent = 'No images — click + Add';
+    el.appendChild(empty);
+    return;
   }
+
+  images.forEach((img, idx) => {
+    const card = document.createElement('div');
+    card.className = 'handout-card' + (idx === activeIdx ? ' active' : '');
+    card.title = 'Click to show this image to players';
+
+    const thumb = document.createElement('img');
+    thumb.src = img.src;
+    thumb.className = 'handout-card-thumb';
+    thumb.draggable = false;
+
+    const label = document.createElement('div');
+    label.className = 'handout-card-label';
+    label.textContent = img.name || `Image ${idx + 1}`;
+    label.contentEditable = 'true';
+    label.spellcheck = false;
+    label.addEventListener('click', e => e.stopPropagation());
+    label.addEventListener('blur', async () => {
+      const newName = label.textContent.trim() || `Image ${idx + 1}`;
+      const fresh = huds.find(h => h.id === selectedHudId);
+      if (!fresh) return;
+      const newImages = getHandoutImages(fresh).map((im, i) => i === idx ? { ...im, name: newName } : im);
+      const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages });
+      if (newHuds) { huds = newHuds; scheduleAutosave(); }
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'handout-card-del';
+    delBtn.textContent = '×';
+    delBtn.title = 'Remove image';
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const fresh = huds.find(h => h.id === selectedHudId);
+      if (!fresh) return;
+      const newImages = getHandoutImages(fresh).filter((_, i) => i !== idx);
+      const newActive = Math.min(activeIdx, Math.max(0, newImages.length - 1));
+      const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages, activeImageIdx: newActive });
+      if (newHuds) {
+        huds = newHuds; scheduleAutosave();
+        const upd = huds.find(h => h.id === selectedHudId);
+        if (upd) renderHandoutEditor(upd);
+      }
+    });
+
+    card.appendChild(thumb);
+    card.appendChild(label);
+    card.appendChild(delBtn);
+    card.addEventListener('click', async () => {
+      if (idx === activeIdx) return;
+      const newHuds = await window.electronAPI.updateHud(selectedHudId, { activeImageIdx: idx });
+      if (newHuds) {
+        huds = newHuds; scheduleAutosave();
+        const upd = huds.find(h => h.id === selectedHudId);
+        if (upd) renderHandoutEditor(upd);
+      }
+    });
+
+    el.appendChild(card);
+  });
 }
 
 function renderHandoutPositions(hud) {
@@ -2483,13 +2581,20 @@ document.getElementById('handout-width')?.addEventListener('change', async () =>
   if (newHuds) { huds = newHuds; }
 });
 
-document.getElementById('btn-handout-pick-image')?.addEventListener('click', async () => {
+document.getElementById('btn-handout-add-images')?.addEventListener('click', async () => {
+  if (!selectedHudId) return;
   const paths = await window.electronAPI.openMapDialog();
-  if (!paths || !paths.length) return;
-  const src = paths[0];
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { src });
+  if (!paths?.length) return;
+  const hud = huds.find(h => h.id === selectedHudId);
+  if (!hud) return;
+  const existing = getHandoutImages(hud);
+  const newImages = [
+    ...existing,
+    ...paths.map((src, i) => ({ id: genId(), name: `Image ${existing.length + i + 1}`, src })),
+  ];
+  const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages });
   if (newHuds) {
-    huds = newHuds;
+    huds = newHuds; scheduleAutosave();
     const upd = huds.find(h => h.id === selectedHudId);
     if (upd) renderHandoutEditor(upd);
   }
@@ -2526,6 +2631,12 @@ function updateHudSimulation() {
   hudSimScreen.style.transform      = `scale(${simScale})`;
   hudSimScreen.style.transformOrigin = 'top left';
 
+  // Background: show the player screen composition if a preview is available
+  hudSimScreen.style.backgroundImage    = lastScreenPreviewUrl ? `url('${lastScreenPreviewUrl}')` : 'none';
+  hudSimScreen.style.backgroundSize     = '100% 100%';
+  hudSimScreen.style.backgroundPosition = 'top left';
+  hudSimScreen.style.backgroundRepeat   = 'no-repeat';
+
   // Clear and rebuild panels
   hudSimScreen.innerHTML = '';
 
@@ -2557,7 +2668,7 @@ function estimateSimPanelSize(hud) {
   const headerH  = 38;
   if (hud.type === 'handout') {
     const w = hud.width ?? 300;
-    const imgH = hud.src ? Math.round(w * 0.56) : 32;
+    const imgH = getHandoutActiveSrc(hud) ? Math.round(w * 0.56) : 32;
     return { w, h: headerH + imgH };
   }
   return { w: 280, h: headerH + bodyH };
@@ -2617,9 +2728,10 @@ function buildSimHudPanel(hud, side, sideIdx, screenW, screenH) {
 
 function buildSimBody(container, hud) {
   if (hud.type === 'handout') {
-    if (hud.src) {
+    const src = getHandoutActiveSrc(hud);
+    if (src) {
       const img = document.createElement('img');
-      img.src   = hud.src;
+      img.src   = src;
       img.style.cssText = 'width:100%;display:block;border-radius:0 0 7px 7px;';
       container.appendChild(img);
     } else {
@@ -2728,7 +2840,7 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
       const newHuds = await window.electronAPI.updateHud(hud.id, { sides: newSides });
       if (newHuds) {
         huds = newHuds;
-        selectedHudId = hud.id;
+        applyHudSelection(hud.id);
         updateHudSimulation();
       }
     };

@@ -457,12 +457,35 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
   margin-left: auto; letter-spacing: 0.5px;
 }
 
-/* ── Handout image preview in editor ── */
-.handout-image-preview img {
-  max-width: 100%; max-height: 80px; display: block;
-  border-radius: 4px; margin-top: 4px; object-fit: contain;
+/* ── Handout image cards ── */
+.handout-image-cards {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.handout-card {
+  position: relative; display: flex; align-items: center; gap: 7px;
+  background: #1a1a2e; border: 1px solid #2e2e4e; border-radius: 5px;
+  padding: 4px 6px; cursor: pointer; transition: border-color 0.15s;
+}
+.handout-card:hover { border-color: #5a5a9e; }
+.handout-card.active {
+  border-color: #c9a84c; background: #1e1c10;
+}
+.handout-card-thumb {
+  width: 44px; height: 30px; object-fit: cover;
+  border-radius: 3px; flex-shrink: 0;
   border: 1px solid #2e2e4e;
 }
+.handout-card-label {
+  flex: 1; font-size: 11px; color: #aaa; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  outline: none;
+}
+.handout-card.active .handout-card-label { color: #e8c96a; }
+.handout-card-del {
+  background: none; border: none; color: #5a5a8e; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0 2px; flex-shrink: 0;
+}
+.handout-card-del:hover { color: #e05555; }
 #preview-placeholder { font-size: 12px; color: #333; }
 #preview-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
