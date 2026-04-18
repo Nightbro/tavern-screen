@@ -358,12 +358,15 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
 .badge-active  { font-size: 9px; background: #4caf7d22; color: #4caf7d; border: 1px solid #4caf7d55; border-radius: 4px; padding: 1px 5px; }
 .monitor-res   { font-size: 11px; color: #555; }
 
-/* ── Preview row (player preview + HUD simulation side by side) ── */
-.preview-row {
-  display: flex; gap: 10px; flex: 1; min-height: 0;
+/* ── Center preview tabs ── */
+.center-preview-tabs {
+  flex-shrink: 0;
+  border-bottom: 1px solid #2e2e4e;
+  padding-bottom: 6px;
 }
-.preview-col {
-  display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0;
+.center-preview-pane {
+  display: flex; flex-direction: column; gap: 6px;
+  flex: 1; min-height: 0;
 }
 
 /* ── Player screen preview ── */
@@ -377,7 +380,7 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
 
 /* ── HUD Simulation ── */
 #hud-sim-wrap {
-  flex: 1; min-height: 120px;
+  flex: 1; min-height: 0;
   background: #050510; border: 1px solid #2e2e4e;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;

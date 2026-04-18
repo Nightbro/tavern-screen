@@ -1029,6 +1029,22 @@ rightTabBtns.forEach(btn => {
   });
 });
 
+// ── Center preview tabs (Preview / HUD Sim) ───────────────────────────────────
+const centerPreviewTabs  = document.querySelectorAll('#center-preview-tabs .panel-tab');
+const centerTabPreview   = document.getElementById('center-tab-preview');
+const centerTabHudSim    = document.getElementById('center-tab-hud-sim');
+
+centerPreviewTabs.forEach(btn => {
+  btn.addEventListener('click', () => {
+    centerPreviewTabs.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.centerTab;
+    centerTabPreview.style.display  = tab === 'preview'  ? '' : 'none';
+    centerTabHudSim.style.display   = tab === 'hud-sim'  ? '' : 'none';
+    if (tab === 'hud-sim') updateHudSimulation();
+  });
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 // ADVANCED / LAYER MODE
 // ════════════════════════════════════════════════════════════════════════════
@@ -1730,15 +1746,20 @@ function renderInitiativePositions(hud) {
   posEl.innerHTML = '';
   const sides = normalizeSides(hud);
 
-  const getSides = () => CORNERS
-    .map(({ id: corner }) => {
-      const row = posEl.querySelector(`[data-corner="${corner}"]`);
-      if (!row) return null;
-      const chk = row.querySelector('input[type="checkbox"]');
-      const sel = row.querySelector('select');
-      return chk?.checked ? { corner, facing: sel?.value ?? 'up' } : null;
-    })
-    .filter(Boolean);
+  const getSides = () => {
+    const current = normalizeSides(huds.find(h => h.id === selectedHudId) ?? hud);
+    return CORNERS
+      .map(({ id: corner }) => {
+        const row = posEl.querySelector(`[data-corner="${corner}"]`);
+        if (!row) return null;
+        const chk = row.querySelector('input[type="checkbox"]');
+        const sel = row.querySelector('select');
+        if (!chk?.checked) return null;
+        const existing = current.find(s => s.corner === corner);
+        return { corner, facing: sel?.value ?? 'up', x: existing?.x, y: existing?.y };
+      })
+      .filter(Boolean);
+  };
 
   for (const { id: corner, label } of CORNERS) {
     const existing = sides.find(s => s.corner === corner);
@@ -2206,15 +2227,20 @@ function renderStatusesPositions(hud) {
   posEl.innerHTML = '';
   const sides = normalizeSides(hud);
 
-  const getSides = () => CORNERS
-    .map(({ id: corner }) => {
-      const row = posEl.querySelector(`[data-corner="${corner}"]`);
-      if (!row) return null;
-      const chk = row.querySelector('input[type="checkbox"]');
-      const sel = row.querySelector('select');
-      return chk?.checked ? { corner, facing: sel?.value ?? 'up' } : null;
-    })
-    .filter(Boolean);
+  const getSides = () => {
+    const current = normalizeSides(huds.find(h => h.id === selectedHudId) ?? hud);
+    return CORNERS
+      .map(({ id: corner }) => {
+        const row = posEl.querySelector(`[data-corner="${corner}"]`);
+        if (!row) return null;
+        const chk = row.querySelector('input[type="checkbox"]');
+        const sel = row.querySelector('select');
+        if (!chk?.checked) return null;
+        const existing = current.find(s => s.corner === corner);
+        return { corner, facing: sel?.value ?? 'up', x: existing?.x, y: existing?.y };
+      })
+      .filter(Boolean);
+  };
 
   for (const { id: corner, label } of CORNERS) {
     const existing = sides.find(s => s.corner === corner);
@@ -2392,15 +2418,20 @@ function renderHandoutPositions(hud) {
   posEl.innerHTML = '';
   const sides = normalizeSides(hud);
 
-  const getSides = () => CORNERS
-    .map(({ id: corner }) => {
-      const row = posEl.querySelector(`[data-corner="${corner}"]`);
-      if (!row) return null;
-      const chk = row.querySelector('input[type="checkbox"]');
-      const sel = row.querySelector('select');
-      return chk?.checked ? { corner, facing: sel?.value ?? 'up' } : null;
-    })
-    .filter(Boolean);
+  const getSides = () => {
+    const current = normalizeSides(huds.find(h => h.id === selectedHudId) ?? hud);
+    return CORNERS
+      .map(({ id: corner }) => {
+        const row = posEl.querySelector(`[data-corner="${corner}"]`);
+        if (!row) return null;
+        const chk = row.querySelector('input[type="checkbox"]');
+        const sel = row.querySelector('select');
+        if (!chk?.checked) return null;
+        const existing = current.find(s => s.corner === corner);
+        return { corner, facing: sel?.value ?? 'up', x: existing?.x, y: existing?.y };
+      })
+      .filter(Boolean);
+  };
 
   for (const { id: corner, label } of CORNERS) {
     const existing = sides.find(s => s.corner === corner);
@@ -2473,7 +2504,7 @@ const HUD_TYPE_COLOR = { initiative: '#c9a84c', status: '#4a90d9', handout: '#4c
 let simScale = 1;
 
 // renderHudPreview is the public alias so every existing call site works
-function renderHudPreview() { updateHudSimulation(); }
+function renderHudPreview() { if (!simDragging) updateHudSimulation(); }
 
 function updateHudSimulation() {
   if (!hudSimScreen || !hudSimWrap || !hudSimViewport) return;
@@ -2638,25 +2669,31 @@ function buildSimBody(container, hud) {
   }
 }
 
+// Guard flag: blocks updateHudSimulation while a drag is in progress
+let simDragging = false;
+
 function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
   handle.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
 
-    selectHud(hud.id);
+    // Read position BEFORE any re-render can touch the DOM
+    const startPx  = parseInt(panel.style.left) || 0;
+    const startPy  = parseInt(panel.style.top)  || 0;
+    const startMx  = e.clientX;
+    const startMy  = e.clientY;
+    const panelW   = panel.offsetWidth  || 280;
+    const panelH   = panel.offsetHeight || 60;
+    let   moved    = false;
 
-    const startPx   = parseInt(panel.style.left) || 0;
-    const startPy   = parseInt(panel.style.top)  || 0;
-    const startMx   = e.clientX;
-    const startMy   = e.clientY;
-    const coordsEl  = document.getElementById('hud-sim-coords');
-    const panelW    = panel.offsetWidth  || 280;
-    const panelH    = panel.offsetHeight || 60;
-
+    simDragging = true;
     handle.style.cursor = 'grabbing';
 
+    const coordsEl = document.getElementById('hud-sim-coords');
+
     const onMove = (ev) => {
+      moved = true;
       const dx = (ev.clientX - startMx) / simScale;
       const dy = (ev.clientY - startMy) / simScale;
       const nx = Math.max(0, Math.min(screenW - panelW, Math.round(startPx + dx)));
@@ -2670,7 +2707,14 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup',   onUp);
       handle.style.cursor = 'grab';
-      const coordsEl = document.getElementById('hud-sim-coords');
+      simDragging = false;
+
+      if (!moved) {
+        // Treat as a click — select the HUD
+        selectHud(hud.id);
+        return;
+      }
+
       const nx = parseInt(panel.style.left) || 0;
       const ny = parseInt(panel.style.top)  || 0;
       if (coordsEl) coordsEl.textContent = `x: ${nx}  y: ${ny}`;
@@ -2690,9 +2734,9 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
   });
 }
 
-// Re-render simulation when the wrapper resizes
+// Re-render simulation when the wrapper resizes (skip during active drags)
 if (hudSimWrap) {
-  new ResizeObserver(() => updateHudSimulation()).observe(hudSimWrap);
+  new ResizeObserver(() => { if (!simDragging) updateHudSimulation(); }).observe(hudSimWrap);
 }
 
 // ════════════════════════════════════════════════════════════════════════════

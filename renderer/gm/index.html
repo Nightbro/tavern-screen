@@ -128,28 +128,35 @@
         <div id="monitor-list"></div>
       </div>
 
-      <div class="preview-row">
-        <div class="preview-col">
-          <div class="section-title preview-title">
-            Player Screen Preview
-            <button id="btn-refresh-preview" class="btn-ghost-sm" title="Refresh preview">↺</button>
-          </div>
-          <div id="preview-wrap">
-            <div id="preview-placeholder">No player screen open</div>
-            <img id="preview-img" alt="Player screen preview" style="display:none" />
-            <canvas id="layer-overlay"></canvas>
-            <div id="canvas-coords" class="canvas-coords"></div>
-          </div>
+      <!-- Preview tabs -->
+      <nav class="panel-tabs center-preview-tabs" id="center-preview-tabs">
+        <button class="panel-tab active" data-center-tab="preview">Preview</button>
+        <button class="panel-tab adv-only" data-center-tab="hud-sim">HUD Sim</button>
+      </nav>
+
+      <!-- Tab: Player Screen Preview -->
+      <div class="center-preview-pane" id="center-tab-preview">
+        <div class="section-title preview-title">
+          Player Screen Preview
+          <button id="btn-refresh-preview" class="btn-ghost-sm" title="Refresh preview">↺</button>
         </div>
-        <div class="preview-col adv-only">
-          <div class="section-title">
-            HUD Simulation
-            <span id="hud-sim-coords" class="hud-sim-coords"></span>
-          </div>
-          <div id="hud-sim-wrap">
-            <div id="hud-sim-viewport">
-              <div id="hud-sim-screen"></div>
-            </div>
+        <div id="preview-wrap">
+          <div id="preview-placeholder">No player screen open</div>
+          <img id="preview-img" alt="Player screen preview" style="display:none" />
+          <canvas id="layer-overlay"></canvas>
+          <div id="canvas-coords" class="canvas-coords"></div>
+        </div>
+      </div>
+
+      <!-- Tab: HUD Simulation (advanced mode only) -->
+      <div class="center-preview-pane" id="center-tab-hud-sim" style="display:none">
+        <div class="section-title">
+          HUD Simulation
+          <span id="hud-sim-coords" class="hud-sim-coords"></span>
+        </div>
+        <div id="hud-sim-wrap">
+          <div id="hud-sim-viewport">
+            <div id="hud-sim-screen"></div>
           </div>
         </div>
       </div>
