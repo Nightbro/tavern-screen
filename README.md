@@ -259,8 +259,9 @@ Campaigns and sessions are stored alongside the map library under the same root 
         └── sessions/
             └── Session 1/
                 ├── notes.md     # session notes
+                ├── huds.json    # HUD panels for this session (separate from scenes)
                 └── scenes/
-                    └── <uuid>.json  # auto-saved scenes
+                    └── <uuid>.json  # auto-saved scenes (layers, viewport — no HUDs)
 ```
 
 - **Campaigns** — create, rename, delete (with confirmation); switch via dropdown
@@ -269,6 +270,16 @@ Campaigns and sessions are stored alongside the map library under the same root 
   - When no session is selected: editing campaign-level notes
   - When a session is selected: editing that session's notes; click again to deselect
 - Notes are plain `.md` files readable outside the app
+
+### Persistence model
+
+| What | File | Saved when |
+|------|------|-----------|
+| Scene (layers, viewport, background) | `sessions/{s}/scenes/{id}.json` | Any layer or scene change |
+| HUDs | `sessions/{s}/huds.json` | Any HUD change (add, remove, edit, position) |
+| Settings | `userData/config.json` | Any settings change |
+
+HUDs are **session-scoped**, not scene-scoped. Switching between scenes within a session keeps the same HUD panels active. HUDs are loaded from `huds.json` when a session is opened and saved independently whenever HUD data changes — scene saves never touch HUDs, and HUD saves never touch scene files.
 
 ---
 

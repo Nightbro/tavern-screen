@@ -195,8 +195,21 @@ function createWindowManager({
   }
 
   function setScene(scene) {
-    currentScene = { ...scene };
-    notifyScreen('scene-update', currentScene);
+    // Preserve in-memory HUDs — they are managed separately from scene files
+    const existingHuds = currentScene?.huds ?? [];
+    const { huds: _ignored, ...sceneData } = scene;
+    currentScene = { ...sceneData, huds: existingHuds };
+    notifyScreen('scene-update', { ...currentScene, map: currentScene.map ?? null });
+  }
+
+  function setHuds(huds) {
+    if (!currentScene) return;
+    currentScene = { ...currentScene, huds };
+    notifyScreen('huds-update', huds);
+  }
+
+  function getHuds() {
+    return currentScene?.huds ?? [];
   }
 
   function resetScene() {
@@ -305,6 +318,7 @@ function createWindowManager({
     getDisplays, getSettings,
     capturePreview,
     getScene, setScene, resetScene, updateSceneMeta,
+    getHuds, setHuds,
     updateViewport,
     addLayer, updateLayer, removeLayer, reorderLayers,
     addHud, updateHud, removeHud,

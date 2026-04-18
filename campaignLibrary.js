@@ -6,6 +6,7 @@ const SESSIONS_DIR  = 'sessions';
 const NOTES_FILE    = 'notes.md';
 const SCENES_DIR    = 'scenes';
 const SCENE_EXT     = '.json';
+const HUDS_FILE     = 'huds.json';
 
 function createCampaignLibrary(config) {
   let rootFolder = (() => {
@@ -46,6 +47,10 @@ function createCampaignLibrary(config) {
     return sessionId
       ? path.join(sessionPath(campaignId, sessionId), SCENES_DIR)
       : path.join(campaignPath(campaignId), SCENES_DIR);
+  }
+
+  function hudsFilePath(campaignId, sessionId) {
+    return path.join(sessionPath(campaignId, sessionId), HUDS_FILE);
   }
 
   // ── Root folder ────────────────────────────────────────────────────────────
@@ -150,12 +155,31 @@ function createCampaignLibrary(config) {
     fs.writeFileSync(notesPath(campaignId, sessionId), content, 'utf8');
   }
 
+  // ── HUDs (session-scoped, separate from scene files) ──────────────────────
+
+  function saveHuds(campaignId, sessionId, huds) {
+    if (!sessionId) return;
+    const dir = sessionPath(campaignId, sessionId);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(hudsFilePath(campaignId, sessionId), JSON.stringify(huds ?? [], null, 2), 'utf8');
+  }
+
+  function loadHuds(campaignId, sessionId) {
+    if (!sessionId) return [];
+    const file = hudsFilePath(campaignId, sessionId);
+    if (!fs.existsSync(file)) return [];
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+    catch { return []; }
+  }
+
   // ── Scenes ─────────────────────────────────────────────────────────────────
 
   function saveScene(campaignId, sessionId, scene) {
     const dir = scenesDir(campaignId, sessionId);
     fs.mkdirSync(dir, { recursive: true });
-    const data = { ...scene, savedAt: new Date().toISOString() };
+    // Strip huds — they are stored separately in huds.json
+    const { huds: _ignored, ...sceneData } = scene;
+    const data = { ...sceneData, savedAt: new Date().toISOString() };
     fs.writeFileSync(path.join(dir, scene.id + SCENE_EXT), JSON.stringify(data, null, 2), 'utf8');
     return { id: scene.id, name: scene.name || '', savedAt: data.savedAt };
   }
@@ -202,6 +226,7 @@ function createCampaignLibrary(config) {
     createSession, renameSession, deleteSession,
     readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
+    saveHuds, loadHuds,
     saveScene, listScenes, loadScene, deleteScene, renameScene,
   };
 }

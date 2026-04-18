@@ -77,6 +77,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onPing:          (cb)           => ipcRenderer.on('ping',        (_e, x, y) => cb(x, y)),
 
   updateSceneMeta:      (patch)                       => ipcRenderer.send('update-scene-meta', patch),
+  saveHudsCampaign:     (campaignId, sessionId)        => ipcRenderer.invoke('save-huds-campaign',  campaignId, sessionId),
+  loadHudsCampaign:     (campaignId, sessionId)        => ipcRenderer.invoke('load-huds-campaign',  campaignId, sessionId),
   saveSceneCampaign:    (campaignId, sessionId)        => ipcRenderer.invoke('save-scene-campaign', campaignId, sessionId),
   listScenesCampaign:   (campaignId, sessionId)        => ipcRenderer.invoke('list-scenes-campaign', campaignId, sessionId),
   loadSceneCampaign:    (campaignId, sessionId, id)    => ipcRenderer.invoke('load-scene-campaign', campaignId, sessionId, id),

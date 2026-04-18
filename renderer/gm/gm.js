@@ -1119,6 +1119,7 @@ let snapToGrid       = false;
 let canvasBg         = '#1a1a2e';
 let sceneReady       = false;
 let autosaveTimer    = null;
+let hudAutosaveTimer = null;
 let loadedSceneId    = null;
 let selectedHudId        = null;
 let lastScreenPreviewUrl = null;
@@ -1566,14 +1567,12 @@ function renderHudList() {
     empty.className = 'layer-empty';
     empty.textContent = 'No HUDs';
     hudListEl.appendChild(empty);
-    scheduleAutosave();
     renderHudPreview();
     return;
   }
   for (const hud of huds) {
     hudListEl.appendChild(buildHudRow(hud));
   }
-  scheduleAutosave();
   renderHudPreview();
 }
 
@@ -1589,7 +1588,7 @@ function buildHudRow(hud) {
   eye.addEventListener('click', async (e) => {
     e.stopPropagation();
     const newHuds = await window.electronAPI.updateHud(hud.id, { visible: !(hud.visible !== false) });
-    if (newHuds) { huds = newHuds; renderHudList(); }
+    if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); }
   });
 
   const badge = document.createElement('span');
@@ -1608,7 +1607,7 @@ function buildHudRow(hud) {
     e.stopPropagation();
     if (selectedHudId === hud.id) { selectedHudId = null; initiativeEditor.style.display = 'none'; }
     const newHuds = await window.electronAPI.removeHud(hud.id);
-    if (newHuds) { huds = newHuds; renderHudList(); }
+    if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); }
   });
 
   row.appendChild(eye);
@@ -1640,7 +1639,7 @@ btnAddInitiative.addEventListener('click', async () => {
     type: 'initiative', visible: true, combat: false, currentIndex: 0, entries: [],
     sides: [{ corner: 'top-left', facing: 'up' }], fontSize: DEFAULT_HUD_FONT_SIZE,
   });
-  if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddStatusHud?.addEventListener('click', async () => {
@@ -1649,7 +1648,7 @@ btnAddStatusHud?.addEventListener('click', async () => {
     entries: [], sides: [{ corner: 'top-right', facing: 'up' }],
     fontSize: DEFAULT_HUD_FONT_SIZE, showLabels: false,
   });
-  if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddHandout?.addEventListener('click', async () => {
@@ -1657,7 +1656,7 @@ btnAddHandout?.addEventListener('click', async () => {
     type: 'handout', visible: true, name: 'Handout',
     src: null, width: 300, sides: [{ corner: 'top-left', facing: 'up' }],
   });
-  if (newHuds) { huds = newHuds; renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 document.getElementById('initiative-font-size')?.addEventListener('change', async () => {
@@ -1665,7 +1664,7 @@ document.getElementById('initiative-font-size')?.addEventListener('change', asyn
   const v = parseInt(document.getElementById('initiative-font-size').value);
   if (isNaN(v) || v < 8 || v > 48) return;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1791,7 +1790,7 @@ function renderInitiativePositions(hud) {
 
     const save = async () => {
       const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
-      if (newHuds) { huds = newHuds; renderHudPreview(); }
+      if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudPreview(); }
     };
 
     chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
@@ -1823,7 +1822,7 @@ document.getElementById('initiative-show-labels')?.addEventListener('change', as
   if (!selectedHudId) return;
   const checked = document.getElementById('initiative-show-labels').checked;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
 });
 
 function renderInitiativeEntries(hud) {
@@ -2159,7 +2158,7 @@ async function updateEntryField(hud, idx, patch) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
-    scheduleAutosave();
+    scheduleHudAutosave();
     const updated = huds.find(h => h.id === hud.id);
     if (updated) Object.assign(hud, updated);
   }
@@ -2170,7 +2169,7 @@ async function removeEntry(hud, idx) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
-    scheduleAutosave();
+    scheduleHudAutosave();
     const updated = huds.find(h => h.id === selectedHudId);
     if (updated) renderInitiativeEditor(updated);
   }
@@ -2181,7 +2180,7 @@ btnCombatToggle.addEventListener('click', async () => {
   if (!hud) return;
   const inCombat = !(hud.combat ?? false);
   const newHuds = await window.electronAPI.updateHud(hud.id, { combat: inCombat, currentIndex: 0 });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnCombatNext.addEventListener('click', async () => {
@@ -2189,7 +2188,7 @@ btnCombatNext.addEventListener('click', async () => {
   if (!hud || !hud.entries.length) return;
   const next = ((hud.currentIndex ?? 0) + 1) % hud.entries.length;
   const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: next });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnCombatPrev.addEventListener('click', async () => {
@@ -2197,7 +2196,7 @@ btnCombatPrev.addEventListener('click', async () => {
   if (!hud || !hud.entries.length) return;
   const prev = ((hud.currentIndex ?? 0) - 1 + hud.entries.length) % hud.entries.length;
   const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: prev });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnAddEntry.addEventListener('click', async () => {
@@ -2205,7 +2204,7 @@ btnAddEntry.addEventListener('click', async () => {
   if (!hud) return;
   const newEntry = { id: genId(), name: '', initiative: 0, hidden: false, invisible: true, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 document.getElementById('btn-sort-initiative')?.addEventListener('click', async () => {
@@ -2220,7 +2219,7 @@ document.getElementById('btn-sort-initiative')?.addEventListener('click', async 
   });
   if (newHuds) {
     huds = newHuds;
-    scheduleAutosave();
+    scheduleHudAutosave();
     const upd = huds.find(h => h.id === selectedHudId);
     if (upd) renderInitiativeEditor(upd);
   }
@@ -2290,7 +2289,7 @@ function renderStatusesPositions(hud) {
 
     const save = async () => {
       const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
-      if (newHuds) { huds = newHuds; renderHudPreview(); }
+      if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudPreview(); }
     };
     chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
     facingSelect.addEventListener('change', save);
@@ -2362,7 +2361,7 @@ async function updateStatusesEntryField(hud, idx, patch) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
-    scheduleAutosave();
+    scheduleHudAutosave();
     const updated = huds.find(h => h.id === hud.id);
     if (updated) Object.assign(hud, updated);
   }
@@ -2373,7 +2372,7 @@ async function removeStatusesEntry(hud, idx) {
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
     huds = newHuds;
-    scheduleAutosave();
+    scheduleHudAutosave();
     const updated = huds.find(h => h.id === selectedHudId);
     if (updated) renderStatusesEditor(updated);
   }
@@ -2391,14 +2390,14 @@ document.getElementById('statuses-font-size')?.addEventListener('change', async 
   const v = parseInt(document.getElementById('statuses-font-size').value);
   if (isNaN(v) || v < 8 || v > 48) return;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
 });
 
 document.getElementById('statuses-show-labels')?.addEventListener('change', async () => {
   if (!selectedHudId) return;
   const checked = document.getElementById('statuses-show-labels').checked;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
 });
 
 document.getElementById('btn-add-status-entry')?.addEventListener('click', async () => {
@@ -2406,7 +2405,7 @@ document.getElementById('btn-add-status-entry')?.addEventListener('click', async
   if (!hud) return;
   const newEntry = { id: genId(), name: '', hidden: false, invisible: true, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
-  if (newHuds) { huds = newHuds; scheduleAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderStatusesEditor(upd); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderStatusesEditor(upd); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2472,7 +2471,7 @@ function renderHandoutImageCards(hud) {
       if (!fresh) return;
       const newImages = getHandoutImages(fresh).map((im, i) => i === idx ? { ...im, name: newName } : im);
       const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages });
-      if (newHuds) { huds = newHuds; scheduleAutosave(); }
+      if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
     });
 
     const delBtn = document.createElement('button');
@@ -2487,7 +2486,7 @@ function renderHandoutImageCards(hud) {
       const newActive = Math.min(activeIdx, Math.max(0, newImages.length - 1));
       const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages, activeImageIdx: newActive });
       if (newHuds) {
-        huds = newHuds; scheduleAutosave();
+        huds = newHuds; scheduleHudAutosave();
         const upd = huds.find(h => h.id === selectedHudId);
         if (upd) renderHandoutEditor(upd);
       }
@@ -2500,7 +2499,7 @@ function renderHandoutImageCards(hud) {
       if (idx === activeIdx) return;
       const newHuds = await window.electronAPI.updateHud(selectedHudId, { activeImageIdx: idx });
       if (newHuds) {
-        huds = newHuds; scheduleAutosave();
+        huds = newHuds; scheduleHudAutosave();
         const upd = huds.find(h => h.id === selectedHudId);
         if (upd) renderHandoutEditor(upd);
       }
@@ -2557,7 +2556,7 @@ function renderHandoutPositions(hud) {
 
     const save = async () => {
       const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
-      if (newHuds) { huds = newHuds; renderHudPreview(); }
+      if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudPreview(); }
     };
     chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
     facingSelect.addEventListener('change', save);
@@ -2571,14 +2570,14 @@ document.getElementById('handout-name')?.addEventListener('change', async () => 
   if (!selectedHudId) return;
   const v = document.getElementById('handout-name').value;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { name: v });
-  if (newHuds) { huds = newHuds; renderHudList(); }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); }
 });
 
 document.getElementById('handout-width')?.addEventListener('change', async () => {
   if (!selectedHudId) return;
   const v = parseInt(document.getElementById('handout-width').value) || 300;
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { width: v });
-  if (newHuds) { huds = newHuds; }
+  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
 });
 
 document.getElementById('btn-handout-add-images')?.addEventListener('click', async () => {
@@ -2594,7 +2593,7 @@ document.getElementById('btn-handout-add-images')?.addEventListener('click', asy
   ];
   const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages });
   if (newHuds) {
-    huds = newHuds; scheduleAutosave();
+    huds = newHuds; scheduleHudAutosave();
     const upd = huds.find(h => h.id === selectedHudId);
     if (upd) renderHandoutEditor(upd);
   }
@@ -2840,6 +2839,7 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
       const newHuds = await window.electronAPI.updateHud(hud.id, { sides: newSides });
       if (newHuds) {
         huds = newHuds;
+        scheduleHudAutosave();
         applyHudSelection(hud.id);
         updateHudSimulation();
       }
@@ -2877,6 +2877,16 @@ function scheduleAutosave() {
     if (meta) loadedSceneId = meta.id;
     setAutosaveBadge('saved');
     renderSceneList();
+  }, 800);
+}
+
+function scheduleHudAutosave() {
+  if (!sceneReady || !selectedCampaignId) return;
+  clearTimeout(hudAutosaveTimer);
+  setAutosaveBadge('saving');
+  hudAutosaveTimer = setTimeout(async () => {
+    await window.electronAPI.saveHudsCampaign(selectedCampaignId, selectedSessionId);
+    setAutosaveBadge('saved');
   }, 800);
 }
 
@@ -2970,14 +2980,23 @@ function startSceneRename(row, nameEl, s) {
 }
 
 async function applyLoadedScene(sceneIdOrScene) {
-  const scene = typeof sceneIdOrScene === 'string'
+  const fromCampaign = typeof sceneIdOrScene === 'string';
+  const scene = fromCampaign
     ? await window.electronAPI.loadSceneCampaign(selectedCampaignId, selectedSessionId, sceneIdOrScene)
     : sceneIdOrScene;
   if (!scene) return;
+
+  // Load HUDs from separate session file when operating inside a campaign session
+  if (fromCampaign && selectedCampaignId) {
+    huds = await window.electronAPI.loadHudsCampaign(selectedCampaignId, selectedSessionId) ?? [];
+  } else {
+    // Imported scene: keep current in-memory HUDs (or fall back to scene's legacy huds field)
+    huds = huds.length ? huds : (scene.huds ?? []);
+  }
+
   loadedSceneId = scene.id ?? null;
   window.electronAPI.setScene(scene);
   layers    = scene.layers   ?? [];
-  huds      = scene.huds     ?? [];
   vpCx      = scene.viewport?.cx    ?? 4096;
   vpCy      = scene.viewport?.cy    ?? 4096;
   vpZoom    = scene.viewport?.zoom   ?? 1.0;

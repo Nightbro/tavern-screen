@@ -119,6 +119,17 @@ ipcMain.handle('remove-hud',     (_e, id)        => { manager.removeHud(id);    
 ipcMain.on('send-ping',         (_e, x, y)    => manager.sendPing(x, y));
 ipcMain.on('update-scene-meta', (_e, patch)   => manager.updateSceneMeta(patch));
 
+// ── Campaign-scoped HUD persistence ───────────────────────────────────────────
+ipcMain.handle('save-huds-campaign', (_e, campaignId, sessionId) => {
+  campaignLib.saveHuds(campaignId, sessionId, manager.getHuds());
+});
+
+ipcMain.handle('load-huds-campaign', (_e, campaignId, sessionId) => {
+  const huds = campaignLib.loadHuds(campaignId, sessionId);
+  manager.setHuds(huds);
+  return huds;
+});
+
 // ── Campaign-scoped scene persistence ──────────────────────────────────────────
 ipcMain.handle('save-scene-campaign', (_e, campaignId, sessionId) => {
   const scene = manager.getScene();
