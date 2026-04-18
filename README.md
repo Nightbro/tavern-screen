@@ -307,6 +307,13 @@ Rendering transform: `screenX = (canvasX − cx) × zoom + screenW/2`
 
 ## Roadmap
 
+### HUD Simulation — Known issues & improvements
+
+- **Selection not preserved after drag** — After dragging a HUD panel in the simulation, the panel becomes deselected in the GM right panel; a second click is required to re-select it. The `selectedHudId` is set correctly in code but something in the subsequent `renderHudList()` call resets the visual selection state.
+- **Background image in simulation** — The HUD Simulation currently shows HUD panels on a plain dark background. Displaying the current player screen layer composition (the scene the players are seeing) behind the panels would allow the GM to reposition HUDs so they don't obscure important parts of the map.
+
+---
+
 ### Initiative Persistence & Sorting
 
 - **Auto-save** — every change to the initiative tracker saved immediately
