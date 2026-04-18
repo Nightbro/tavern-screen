@@ -7,6 +7,7 @@ const NOTES_FILE    = 'notes.md';
 const SCENES_DIR    = 'scenes';
 const SCENE_EXT     = '.json';
 const HUDS_FILE     = 'huds.json';
+const HUD_CONFIGS_DIR = 'hud-configs';
 
 function createCampaignLibrary(config) {
   let rootFolder = (() => {
@@ -51,6 +52,10 @@ function createCampaignLibrary(config) {
 
   function hudsFilePath(campaignId, sessionId) {
     return path.join(sessionPath(campaignId, sessionId), HUDS_FILE);
+  }
+
+  function hudConfigsDir(campaignId, sessionId) {
+    return path.join(sessionPath(campaignId, sessionId), HUD_CONFIGS_DIR);
   }
 
   // ── Root folder ────────────────────────────────────────────────────────────
@@ -172,6 +177,56 @@ function createCampaignLibrary(config) {
     catch { return []; }
   }
 
+  // ── HUD Configs (named snapshots of the huds array) ──────────────────────
+
+  function saveHudConfig(campaignId, sessionId, config) {
+    if (!sessionId) return null;
+    const dir = hudConfigsDir(campaignId, sessionId);
+    fs.mkdirSync(dir, { recursive: true });
+    const data = { ...config, savedAt: new Date().toISOString() };
+    fs.writeFileSync(path.join(dir, config.id + SCENE_EXT), JSON.stringify(data, null, 2), 'utf8');
+    return { id: config.id, name: config.name || '', savedAt: data.savedAt };
+  }
+
+  function listHudConfigs(campaignId, sessionId) {
+    if (!sessionId) return [];
+    const dir = hudConfigsDir(campaignId, sessionId);
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir)
+      .filter(f => f.endsWith(SCENE_EXT))
+      .map(f => {
+        try {
+          const d = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+          return { id: d.id, name: d.name || '(unnamed)', savedAt: d.savedAt ?? '' };
+        } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  }
+
+  function loadHudConfig(campaignId, sessionId, configId) {
+    if (!sessionId) return null;
+    const file = path.join(hudConfigsDir(campaignId, sessionId), configId + SCENE_EXT);
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  }
+
+  function deleteHudConfig(campaignId, sessionId, configId) {
+    if (!sessionId) return;
+    const file = path.join(hudConfigsDir(campaignId, sessionId), configId + SCENE_EXT);
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+  }
+
+  function renameHudConfig(campaignId, sessionId, configId, newName) {
+    if (!sessionId) return false;
+    const file = path.join(hudConfigsDir(campaignId, sessionId), configId + SCENE_EXT);
+    if (!fs.existsSync(file)) return false;
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    data.name = newName;
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  }
+
   // ── Scenes ─────────────────────────────────────────────────────────────────
 
   function saveScene(campaignId, sessionId, scene) {
@@ -227,6 +282,7 @@ function createCampaignLibrary(config) {
     readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
     saveHuds, loadHuds,
+    saveHudConfig, listHudConfigs, loadHudConfig, deleteHudConfig, renameHudConfig,
     saveScene, listScenes, loadScene, deleteScene, renameScene,
   };
 }

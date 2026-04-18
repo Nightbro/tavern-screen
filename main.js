@@ -130,6 +130,28 @@ ipcMain.handle('load-huds-campaign', (_e, campaignId, sessionId) => {
   return huds;
 });
 
+// ── HUD configs ───────────────────────────────────────────────────────────────
+ipcMain.handle('save-hud-config', (_e, campaignId, sessionId, config) =>
+  campaignLib.saveHudConfig(campaignId, sessionId, config)
+);
+ipcMain.handle('list-hud-configs', (_e, campaignId, sessionId) =>
+  campaignLib.listHudConfigs(campaignId, sessionId)
+);
+ipcMain.handle('load-hud-config', (_e, campaignId, sessionId, configId) => {
+  const config = campaignLib.loadHudConfig(campaignId, sessionId, configId);
+  if (config?.huds) {
+    manager.setHuds(config.huds);
+    campaignLib.saveHuds(campaignId, sessionId, config.huds);
+  }
+  return config;
+});
+ipcMain.handle('delete-hud-config', (_e, campaignId, sessionId, configId) => {
+  campaignLib.deleteHudConfig(campaignId, sessionId, configId);
+});
+ipcMain.handle('rename-hud-config', (_e, campaignId, sessionId, configId, newName) =>
+  campaignLib.renameHudConfig(campaignId, sessionId, configId, newName)
+);
+
 // ── Campaign-scoped scene persistence ──────────────────────────────────────────
 ipcMain.handle('save-scene-campaign', (_e, campaignId, sessionId) => {
   const scene = manager.getScene();

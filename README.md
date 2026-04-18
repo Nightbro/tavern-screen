@@ -16,14 +16,20 @@ tavern-screen/
 ├── preload.js                   # IPC bridge (contextIsolation)
 ├── windowManager.js             # Window lifecycle, active map, preview capture
 ├── library.js                   # File-system map library (projects, copy, move, delete)
-├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes)
+├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes, scenes, HUD configs)
 ├── config.js                    # Key-value config backed by JSON (settings + folder persistence)
 ├── renderer/
 │   ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
 │   │   ├── index.html
 │   │   ├── style.css
-│   │   ├── settings.js          # Static config: PF1e conditions, HUD defaults (loaded before gm.js)
-│   │   └── gm.js
+│   │   ├── settings.js          # Static config: PF1e conditions, HUD defaults (loads first)
+│   │   ├── gm-state.js          # Shared DOM refs and mutable state (loads second)
+│   │   ├── gm-library.js        # Map library UI (folder setup, project/map rendering, drag-drop)
+│   │   ├── gm-campaign.js       # Campaign/session management, notes editor
+│   │   ├── gm-monitor.js        # Monitor selector, preview, settings inputs, tab switching
+│   │   ├── gm-layers.js         # Scene init, viewport, layer list/editor, GM canvas overlay
+│   │   ├── gm-huds.js           # HUD list/editor, initiative/statuses/handout editors, HUD simulation
+│   │   └── gm.js                # Scene I/O (save/load/list), HUD config I/O, panel resize, init
 │   ├── screen/                  # Player screen — Simple mode (fullscreen map + grid)
 │   │   ├── index.html
 │   │   ├── style.css
@@ -31,7 +37,10 @@ tavern-screen/
 │   └── screen-advanced/         # Player screen — Advanced mode (layer system + HUDs)
 │       ├── index.html
 │       ├── style.css
-│       └── screen-advanced.js
+│       ├── screen-advanced.js        # State, media loading, render loop, IPC handlers (loads first)
+│       ├── screen-advanced-weather.js # Weather particle system (rain, snow, embers, fog, fireflies)
+│       ├── screen-advanced-layers.js  # Layer and grid rendering (drawLayer, drawGrid)
+│       └── screen-advanced-huds.js   # HUD panel rendering (initiative, statuses, handout, ping)
 ├── test/
 │   ├── config.test.js
 │   ├── library.test.js
@@ -76,7 +85,7 @@ Output is in the `dist/` folder:
 | Panel | Contents |
 |-------|----------|
 | **Left — Assets tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
-| **Left — Campaign tab** | Campaign selector, sessions list, notes editor |
+| **Left — Campaign tab** | Campaign selector, sessions list, scenes list, HUD configs list, notes editor |
 | **Center** | Collapsible monitor selector; **Preview** tab (map + layer overlay) and **HUD Sim** tab (pixel-accurate HUD simulation, advanced mode only) |
 | **Right — Screen tab** | DPI calibration, zoom |
 | **Right — Layers tab** | Grid (collapsible), screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
@@ -259,7 +268,9 @@ Campaigns and sessions are stored alongside the map library under the same root 
         └── sessions/
             └── Session 1/
                 ├── notes.md     # session notes
-                ├── huds.json    # HUD panels for this session (separate from scenes)
+                ├── huds.json    # active HUD panels for this session (auto-saved on every change)
+                ├── hud-configs/ # named HUD configuration snapshots
+                │   └── <uuid>.json
                 └── scenes/
                     └── <uuid>.json  # auto-saved scenes (layers, viewport — no HUDs)
 ```
@@ -276,10 +287,13 @@ Campaigns and sessions are stored alongside the map library under the same root 
 | What | File | Saved when |
 |------|------|-----------|
 | Scene (layers, viewport, background) | `sessions/{s}/scenes/{id}.json` | Any layer or scene change |
-| HUDs | `sessions/{s}/huds.json` | Any HUD change (add, remove, edit, position) |
+| HUDs (active state) | `sessions/{s}/huds.json` | Any HUD change (add, remove, edit, position) |
+| HUD config snapshot | `sessions/{s}/hud-configs/{id}.json` | Manually via "⬆ Save" in HUD Configs |
 | Settings | `userData/config.json` | Any settings change |
 
 HUDs are **session-scoped**, not scene-scoped. Switching between scenes within a session keeps the same HUD panels active. HUDs are loaded from `huds.json` when a session is opened and saved independently whenever HUD data changes — scene saves never touch HUDs, and HUD saves never touch scene files.
+
+**HUD Configs** are named snapshots of the full HUD state (all panels, entries, positions). They appear in the **HUD Configs** section of the Campaign tab alongside the Scenes list. Click ⬆ Save to snapshot, click a config row to restore it, and use the pencil to rename or × to delete.
 
 ---
 

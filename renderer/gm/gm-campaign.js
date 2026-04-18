@@ -26,6 +26,7 @@ async function initCampaigns() {
     renderSessions();
   }
   await loadCurrentNotes();
+  renderHudConfigList();
 }
 
 async function refreshCampaigns() {
@@ -247,6 +248,7 @@ async function selectSession(campaignId, sessionId) {
   });
   await loadCurrentNotes();
   await loadMostRecentScene();
+  renderHudConfigList();
 }
 
 // ── Campaign toolbar ──────────────────────────────────────────────────────────
@@ -258,6 +260,7 @@ campaignSelect.addEventListener('change', async () => {
   renderSessions();
   await loadCurrentNotes();
   await loadMostRecentScene();
+  renderHudConfigList();
 });
 
 btnNewCampaign.addEventListener('click', () => {

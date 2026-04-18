@@ -85,6 +85,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteSceneCampaign:  (campaignId, sessionId, id)    => ipcRenderer.invoke('delete-scene-campaign', campaignId, sessionId, id),
   renameSceneCampaign:  (campaignId, sessionId, id, n) => ipcRenderer.invoke('rename-scene-campaign', campaignId, sessionId, id, n),
 
+  saveHudConfig:        (campaignId, sessionId, config) => ipcRenderer.invoke('save-hud-config', campaignId, sessionId, config),
+  listHudConfigs:       (campaignId, sessionId)         => ipcRenderer.invoke('list-hud-configs', campaignId, sessionId),
+  loadHudConfig:        (campaignId, sessionId, id)     => ipcRenderer.invoke('load-hud-config', campaignId, sessionId, id),
+  deleteHudConfig:      (campaignId, sessionId, id)     => ipcRenderer.invoke('delete-hud-config', campaignId, sessionId, id),
+  renameHudConfig:      (campaignId, sessionId, id, n)  => ipcRenderer.invoke('rename-hud-config', campaignId, sessionId, id, n),
+
   saveSceneDialog: (scene)        => ipcRenderer.invoke('save-scene-dialog', scene),
   loadSceneDialog: ()             => ipcRenderer.invoke('load-scene-dialog'),
 });
