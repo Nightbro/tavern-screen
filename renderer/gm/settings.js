@@ -41,4 +41,4 @@ const PF1E_CONDITIONS = [
 // ---------------------------------------------------------------------------
 // Initiative HUD defaults
 // ---------------------------------------------------------------------------
-const DEFAULT_HUD_FONT_SIZE = 14;
+const DEFAULT_HUD_FONT_SIZE = 24;
