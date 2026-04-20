@@ -1,4 +1,4 @@
-const { randomUUID } = require('crypto');
+const { createSceneState } = require('./sceneState');
 
 const DEFAULT_SETTINGS = {
   gridVisible:          true,
@@ -11,18 +11,6 @@ const DEFAULT_SETTINGS = {
   gridScaleWithViewport: true,     // advanced: grid scales with viewport zoom
 };
 
-function buildDefaultScene() {
-  return {
-    id:         randomUUID(),
-    name:       '',
-    map:        null,
-    viewport:   { cx: 4096, cy: 4096, zoom: 1.0 },
-    background: '#1a1a2e',
-    layers:     [],
-    huds:       [],
-  };
-}
-
 function createWindowManager({
   BrowserWindow, screen,
   preloadPath, gmRendererPath, screenRendererPath,
@@ -34,8 +22,8 @@ function createWindowManager({
   let activeDisplayId = null;
   let settings        = { ...DEFAULT_SETTINGS, ...(initialSettings ?? {}) };
   let currentMap      = null;
-  let currentScene    = buildDefaultScene();
 
+  const sceneState = createSceneState();
   let previewTimer = null;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -133,7 +121,7 @@ function createWindowManager({
     screenWindow.webContents.on('did-finish-load', () => {
       notifyScreen('settings-update', settings);
       if (settings.screenMode === 'advanced') {
-        notifyScreen('scene-update', { ...currentScene, map: currentMap });
+        notifyScreen('scene-update', { ...sceneState.get(), map: currentMap });
       } else {
         if (currentMap) notifyScreen('map-update', currentMap);
       }
@@ -164,7 +152,6 @@ function createWindowManager({
     settings = { ...settings, ...patch };
 
     if ('screenMode' in patch && patch.screenMode !== prevMode && screenWindow) {
-      // Reload the screen window with the correct renderer
       screenWindow.removeAllListeners('closed');
       screenWindow.destroy();
       screenWindow = null;
@@ -179,9 +166,9 @@ function createWindowManager({
 
   function setActiveMap(map) {
     currentMap = map ?? null;
-    if (settings.screenMode === 'advanced' && currentScene) {
-      currentScene = { ...currentScene, map: currentMap };
-      notifyScreen('scene-update', currentScene);
+    if (settings.screenMode === 'advanced') {
+      sceneState.setMap(currentMap);
+      notifyScreen('scene-update', sceneState.get());
     } else {
       notifyScreen('map-update', currentMap);
     }
@@ -190,106 +177,75 @@ function createWindowManager({
 
   // ── Scene ──────────────────────────────────────────────────────────────────
 
-  function getScene() {
-    return currentScene ? JSON.parse(JSON.stringify(currentScene)) : null;
-  }
+  function getScene() { return sceneState.get(); }
 
   function setScene(scene) {
-    // Preserve in-memory HUDs — they are managed separately from scene files
-    const existingHuds = currentScene?.huds ?? [];
-    const { huds: _ignored, ...sceneData } = scene;
-    currentScene = { ...sceneData, huds: existingHuds };
-    notifyScreen('scene-update', { ...currentScene, map: currentScene.map ?? null });
+    sceneState.set(scene);
+    notifyScreen('scene-update', sceneState.get());
   }
 
   function setHuds(huds) {
-    if (!currentScene) return;
-    currentScene = { ...currentScene, huds };
+    sceneState.setHuds(huds);
     notifyScreen('huds-update', huds);
   }
 
-  function getHuds() {
-    return currentScene?.huds ?? [];
-  }
+  function getHuds() { return sceneState.getHuds(); }
 
   function resetScene() {
-    currentScene = buildDefaultScene();
-    notifyScreen('scene-update', currentScene);
+    sceneState.reset();
+    notifyScreen('scene-update', sceneState.get());
   }
 
   function updateSceneMeta(patch) {
-    if (!currentScene) return;
-    const allowed = {};
-    if (patch.name       !== undefined) allowed.name       = patch.name;
-    if (patch.background !== undefined) allowed.background = patch.background;
-    currentScene = { ...currentScene, ...allowed };
+    sceneState.updateMeta(patch);
   }
 
   function updateViewport(patch) {
-    if (!currentScene) return;
-    currentScene = { ...currentScene, viewport: { ...currentScene.viewport, ...patch } };
-    notifyScreen('viewport-update', currentScene.viewport);
+    const viewport = sceneState.updateViewport(patch);
+    notifyScreen('viewport-update', viewport);
     schedulePreview();
   }
 
   // ── Layers ─────────────────────────────────────────────────────────────────
 
   function addLayer(layer) {
-    if (!currentScene) return;
-    const newLayer = { id: randomUUID(), ...layer };
-    currentScene = { ...currentScene, layers: [...currentScene.layers, newLayer] };
-    notifyScreen('layers-update', currentScene.layers);
+    const layers = sceneState.addLayer(layer);
+    notifyScreen('layers-update', layers);
     schedulePreview();
   }
 
   function updateLayer(id, patch) {
-    if (!currentScene) return;
-    currentScene = {
-      ...currentScene,
-      layers: currentScene.layers.map(l => l.id === id ? { ...l, ...patch } : l),
-    };
-    notifyScreen('layers-update', currentScene.layers);
+    const layers = sceneState.updateLayer(id, patch);
+    notifyScreen('layers-update', layers);
     schedulePreview();
   }
 
   function removeLayer(id) {
-    if (!currentScene) return;
-    currentScene = { ...currentScene, layers: currentScene.layers.filter(l => l.id !== id) };
-    notifyScreen('layers-update', currentScene.layers);
+    const layers = sceneState.removeLayer(id);
+    notifyScreen('layers-update', layers);
     schedulePreview();
   }
 
   function reorderLayers(orderedIds) {
-    if (!currentScene) return;
-    const layerMap  = new Map(currentScene.layers.map(l => [l.id, l]));
-    const reordered = orderedIds.map(id => layerMap.get(id)).filter(Boolean);
-    const extra     = currentScene.layers.filter(l => !orderedIds.includes(l.id));
-    currentScene = { ...currentScene, layers: [...reordered, ...extra] };
-    notifyScreen('layers-update', currentScene.layers);
+    const layers = sceneState.reorderLayers(orderedIds);
+    notifyScreen('layers-update', layers);
   }
 
   // ── HUDs ───────────────────────────────────────────────────────────────────
 
   function addHud(hud) {
-    if (!currentScene) return;
-    const newHud = { id: randomUUID(), ...hud };
-    currentScene = { ...currentScene, huds: [...currentScene.huds, newHud] };
-    notifyScreen('huds-update', currentScene.huds);
+    const huds = sceneState.addHud(hud);
+    notifyScreen('huds-update', huds);
   }
 
   function updateHud(id, patch) {
-    if (!currentScene) return;
-    currentScene = {
-      ...currentScene,
-      huds: currentScene.huds.map(h => h.id === id ? { ...h, ...patch } : h),
-    };
-    notifyScreen('huds-update', currentScene.huds);
+    const huds = sceneState.updateHud(id, patch);
+    notifyScreen('huds-update', huds);
   }
 
   function removeHud(id) {
-    if (!currentScene) return;
-    currentScene = { ...currentScene, huds: currentScene.huds.filter(h => h.id !== id) };
-    notifyScreen('huds-update', currentScene.huds);
+    const huds = sceneState.removeHud(id);
+    notifyScreen('huds-update', huds);
   }
 
   function sendPing(x, y) {

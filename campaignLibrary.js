@@ -1,12 +1,12 @@
 const fs   = require('fs');
 const path = require('path');
+const { saveSnapshot, listSnapshots, loadSnapshot, deleteSnapshot, renameSnapshot } = require('./snapshotStore');
 
-const CAMPAIGNS_DIR = 'campaigns';
-const SESSIONS_DIR  = 'sessions';
-const NOTES_FILE    = 'notes.md';
-const SCENES_DIR    = 'scenes';
-const SCENE_EXT     = '.json';
-const HUDS_FILE     = 'huds.json';
+const CAMPAIGNS_DIR   = 'campaigns';
+const SESSIONS_DIR    = 'sessions';
+const NOTES_FILE      = 'notes.md';
+const SCENES_DIR      = 'scenes';
+const HUDS_FILE       = 'huds.json';
 const HUD_CONFIGS_DIR = 'hud-configs';
 
 function createCampaignLibrary(config) {
@@ -160,7 +160,7 @@ function createCampaignLibrary(config) {
     fs.writeFileSync(notesPath(campaignId, sessionId), content, 'utf8');
   }
 
-  // ── HUDs (session-scoped, separate from scene files) ──────────────────────
+  // ── HUDs (session-scoped live state) ──────────────────────────────────────
 
   function saveHuds(campaignId, sessionId, huds) {
     if (!sessionId) return;
@@ -177,101 +177,53 @@ function createCampaignLibrary(config) {
     catch { return []; }
   }
 
-  // ── HUD Configs (named snapshots of the huds array) ──────────────────────
+  // ── HUD Configs (named snapshots) ─────────────────────────────────────────
 
   function saveHudConfig(campaignId, sessionId, config) {
     if (!sessionId) return null;
-    const dir = hudConfigsDir(campaignId, sessionId);
-    fs.mkdirSync(dir, { recursive: true });
-    const data = { ...config, savedAt: new Date().toISOString() };
-    fs.writeFileSync(path.join(dir, config.id + SCENE_EXT), JSON.stringify(data, null, 2), 'utf8');
-    return { id: config.id, name: config.name || '', savedAt: data.savedAt };
+    return saveSnapshot(hudConfigsDir(campaignId, sessionId), config);
   }
 
   function listHudConfigs(campaignId, sessionId) {
     if (!sessionId) return [];
-    const dir = hudConfigsDir(campaignId, sessionId);
-    if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir)
-      .filter(f => f.endsWith(SCENE_EXT))
-      .map(f => {
-        try {
-          const d = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-          return { id: d.id, name: d.name || '(unnamed)', savedAt: d.savedAt ?? '' };
-        } catch { return null; }
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    return listSnapshots(hudConfigsDir(campaignId, sessionId));
   }
 
   function loadHudConfig(campaignId, sessionId, configId) {
     if (!sessionId) return null;
-    const file = path.join(hudConfigsDir(campaignId, sessionId), configId + SCENE_EXT);
-    if (!fs.existsSync(file)) return null;
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return loadSnapshot(hudConfigsDir(campaignId, sessionId), configId);
   }
 
   function deleteHudConfig(campaignId, sessionId, configId) {
     if (!sessionId) return;
-    const file = path.join(hudConfigsDir(campaignId, sessionId), configId + SCENE_EXT);
-    if (fs.existsSync(file)) fs.unlinkSync(file);
+    deleteSnapshot(hudConfigsDir(campaignId, sessionId), configId);
   }
 
   function renameHudConfig(campaignId, sessionId, configId, newName) {
     if (!sessionId) return false;
-    const file = path.join(hudConfigsDir(campaignId, sessionId), configId + SCENE_EXT);
-    if (!fs.existsSync(file)) return false;
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    data.name = newName;
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-    return true;
+    return renameSnapshot(hudConfigsDir(campaignId, sessionId), configId, newName);
   }
 
   // ── Scenes ─────────────────────────────────────────────────────────────────
 
   function saveScene(campaignId, sessionId, scene) {
-    const dir = scenesDir(campaignId, sessionId);
-    fs.mkdirSync(dir, { recursive: true });
-    // Strip huds — they are stored separately in huds.json
-    const { huds: _ignored, ...sceneData } = scene;
-    const data = { ...sceneData, savedAt: new Date().toISOString() };
-    fs.writeFileSync(path.join(dir, scene.id + SCENE_EXT), JSON.stringify(data, null, 2), 'utf8');
-    return { id: scene.id, name: scene.name || '', savedAt: data.savedAt };
+    return saveSnapshot(scenesDir(campaignId, sessionId), scene, { strip: ['huds'] });
   }
 
   function listScenes(campaignId, sessionId) {
-    const dir = scenesDir(campaignId, sessionId);
-    if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir)
-      .filter(f => f.endsWith(SCENE_EXT))
-      .map(f => {
-        try {
-          const d = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-          return { id: d.id, name: d.name || '(unnamed)', savedAt: d.savedAt ?? '' };
-        } catch { return null; }
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    return listSnapshots(scenesDir(campaignId, sessionId));
   }
 
   function loadScene(campaignId, sessionId, sceneId) {
-    const file = path.join(scenesDir(campaignId, sessionId), sceneId + SCENE_EXT);
-    if (!fs.existsSync(file)) return null;
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return loadSnapshot(scenesDir(campaignId, sessionId), sceneId);
   }
 
   function deleteScene(campaignId, sessionId, sceneId) {
-    const file = path.join(scenesDir(campaignId, sessionId), sceneId + SCENE_EXT);
-    if (fs.existsSync(file)) fs.unlinkSync(file);
+    deleteSnapshot(scenesDir(campaignId, sessionId), sceneId);
   }
 
   function renameScene(campaignId, sessionId, sceneId, newName) {
-    const file = path.join(scenesDir(campaignId, sessionId), sceneId + SCENE_EXT);
-    if (!fs.existsSync(file)) return false;
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    data.name = newName;
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-    return true;
+    return renameSnapshot(scenesDir(campaignId, sessionId), sceneId, newName);
   }
 
   return {
