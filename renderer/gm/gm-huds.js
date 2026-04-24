@@ -4,7 +4,7 @@
 
 function renderHudList() {
   hudListEl.innerHTML = '';
-  if (huds.length === 0) {
+  if (sceneState.huds.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'layer-empty';
     empty.textContent = 'No HUDs';
@@ -12,7 +12,7 @@ function renderHudList() {
     renderHudPreview();
     return;
   }
-  for (const hud of huds) {
+  for (const hud of sceneState.huds) {
     hudListEl.appendChild(buildHudRow(hud));
   }
   renderHudPreview();
@@ -20,7 +20,7 @@ function renderHudList() {
 
 function buildHudRow(hud) {
   const row = document.createElement('div');
-  row.className = 'layer-row' + (hud.id === selectedHudId ? ' active' : '');
+  row.className = 'layer-row' + (hud.id === sceneState.selectedHudId ? ' active' : '');
   row.dataset.hudId = hud.id;
 
   const eye = document.createElement('button');
@@ -30,7 +30,7 @@ function buildHudRow(hud) {
   eye.addEventListener('click', async (e) => {
     e.stopPropagation();
     const newHuds = await window.electronAPI.updateHud(hud.id, { visible: !(hud.visible !== false) });
-    if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); }
+    if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); }
   });
 
   const badge = document.createElement('span');
@@ -47,9 +47,9 @@ function buildHudRow(hud) {
   delBtn.title = 'Remove HUD';
   delBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (selectedHudId === hud.id) { selectedHudId = null; initiativeEditor.style.display = 'none'; }
+    if (sceneState.selectedHudId === hud.id) { sceneState.selectedHudId = null; initiativeEditor.style.display = 'none'; }
     const newHuds = await window.electronAPI.removeHud(hud.id);
-    if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); }
+    if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); }
   });
 
   row.appendChild(eye);
@@ -61,9 +61,9 @@ function buildHudRow(hud) {
 }
 
 function applyHudSelection(id) {
-  selectedHudId = id ?? null;
+  sceneState.selectedHudId = id ?? null;
   renderHudList();
-  const hud = selectedHudId ? huds.find(h => h.id === selectedHudId) : null;
+  const hud = sceneState.selectedHudId ? sceneState.huds.find(h => h.id === sceneState.selectedHudId) : null;
   initiativeEditor.style.display = 'none';
   if (statusesEditor) statusesEditor.style.display = 'none';
   if (handoutEditor)  handoutEditor.style.display  = 'none';
@@ -73,7 +73,7 @@ function applyHudSelection(id) {
 }
 
 function selectHud(id) {
-  applyHudSelection(id === selectedHudId ? null : id);
+  applyHudSelection(id === sceneState.selectedHudId ? null : id);
 }
 
 btnAddInitiative.addEventListener('click', async () => {
@@ -81,7 +81,7 @@ btnAddInitiative.addEventListener('click', async () => {
     type: 'initiative', visible: true, combat: false, currentIndex: 0, entries: [],
     sides: [{ corner: 'top-left', facing: 'up' }], fontSize: DEFAULT_HUD_FONT_SIZE,
   });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddStatusHud?.addEventListener('click', async () => {
@@ -90,7 +90,7 @@ btnAddStatusHud?.addEventListener('click', async () => {
     entries: [], sides: [{ corner: 'top-right', facing: 'up' }],
     fontSize: DEFAULT_HUD_FONT_SIZE, showLabels: false,
   });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddHandout?.addEventListener('click', async () => {
@@ -98,15 +98,15 @@ btnAddHandout?.addEventListener('click', async () => {
     type: 'handout', visible: true, name: 'Handout',
     src: null, width: 300, sides: [{ corner: 'top-left', facing: 'up' }],
   });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 document.getElementById('initiative-font-size')?.addEventListener('change', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const v = parseInt(document.getElementById('initiative-font-size').value);
   if (isNaN(v) || v < 8 || v > 48) return;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { fontSize: v });
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -190,7 +190,7 @@ function renderInitiativePositions(hud) {
   const sides = normalizeSides(hud);
 
   const getSides = () => {
-    const current = normalizeSides(huds.find(h => h.id === selectedHudId) ?? hud);
+    const current = normalizeSides(sceneState.huds.find(h => h.id === sceneState.selectedHudId) ?? hud);
     return CORNERS
       .map(({ id: corner }) => {
         const row = posEl.querySelector(`[data-corner="${corner}"]`);
@@ -231,8 +231,8 @@ function renderInitiativePositions(hud) {
     facingSelect.value = existing?.facing ?? 'up';
 
     const save = async () => {
-      const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
-      if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudPreview(); }
+      const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { sides: getSides() });
+      if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudPreview(); }
     };
 
     chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
@@ -261,10 +261,10 @@ function renderInitiativeEditor(hud) {
 }
 
 document.getElementById('initiative-show-labels')?.addEventListener('change', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const checked = document.getElementById('initiative-show-labels').checked;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { showLabels: checked });
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); }
 });
 
 function renderInitiativeEntries(hud) {
@@ -392,7 +392,7 @@ function buildEntryStatusRow(container, hud, idx, entry, updateFn, refreshFn) {
     del.textContent = '×';
     del.addEventListener('click', async () => {
       await updateFn(hud, idx, { statuses: statuses.filter((_, i) => i !== si) });
-      const updated = huds.find(h => h.id === hud.id);
+      const updated = sceneState.huds.find(h => h.id === hud.id);
       if (updated) refreshFn(updated);
     });
 
@@ -417,7 +417,7 @@ function buildEntryStatusRow(container, hud, idx, entry, updateFn, refreshFn) {
   // Quick-add helper
   const quickAdd = async (name, color) => {
     await updateFn(hud, idx, { statuses: [...statuses, { color, label: name }] });
-    const updated = huds.find(h => h.id === hud.id);
+    const updated = sceneState.huds.find(h => h.id === hud.id);
     if (updated) refreshFn(updated);
   };
 
@@ -528,7 +528,7 @@ function buildEntryHpRow(container, hud, idx, entry) {
   maxIn.addEventListener('change', async () => {
     const v = parseInt(maxIn.value) || 0;
     await updateEntryField(hud, idx, { hp: v });
-    const updated = huds.find(h => h.id === hud.id);
+    const updated = sceneState.huds.find(h => h.id === hud.id);
     if (updated) renderInitiativeEntries(updated);
   });
 
@@ -573,7 +573,7 @@ function buildEntryHpRow(container, hud, idx, entry) {
     const total = (entry.damage ?? 0) + newDmg;
     dealIn.value = '';
     await updateEntryField(hud, idx, { damage: total });
-    const updated = huds.find(h => h.id === hud.id);
+    const updated = sceneState.huds.find(h => h.id === hud.id);
     if (updated) renderInitiativeEntries(updated);
   });
 
@@ -600,9 +600,9 @@ async function updateEntryField(hud, idx, patch) {
   const newEntries = hud.entries.map((e, i) => i === idx ? { ...e, ...patch } : e);
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
-    huds = newHuds;
-    scheduleHudAutosave();
-    const updated = huds.find(h => h.id === hud.id);
+    sceneState.huds = newHuds;
+    scheduleAutosave();
+    const updated = sceneState.huds.find(h => h.id === hud.id);
     if (updated) Object.assign(hud, updated);
   }
 }
@@ -611,47 +611,47 @@ async function removeEntry(hud, idx) {
   const newEntries = hud.entries.filter((_, i) => i !== idx);
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
-    huds = newHuds;
-    scheduleHudAutosave();
-    const updated = huds.find(h => h.id === selectedHudId);
+    sceneState.huds = newHuds;
+    scheduleAutosave();
+    const updated = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
     if (updated) renderInitiativeEditor(updated);
   }
 }
 
 btnCombatToggle.addEventListener('click', async () => {
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
   if (!hud) return;
   const inCombat = !(hud.combat ?? false);
   const newHuds = await window.electronAPI.updateHud(hud.id, { combat: inCombat, currentIndex: 0 });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnCombatNext.addEventListener('click', async () => {
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
   if (!hud || !hud.entries.length) return;
   const next = ((hud.currentIndex ?? 0) + 1) % hud.entries.length;
   const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: next });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnCombatPrev.addEventListener('click', async () => {
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
   if (!hud || !hud.entries.length) return;
   const prev = ((hud.currentIndex ?? 0) - 1 + hud.entries.length) % hud.entries.length;
   const newHuds = await window.electronAPI.updateHud(hud.id, { currentIndex: prev });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 btnAddEntry.addEventListener('click', async () => {
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
   if (!hud) return;
   const newEntry = { id: genId(), name: '', initiative: 0, hidden: false, invisible: true, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderInitiativeEditor(upd); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId); if (upd) renderInitiativeEditor(upd); }
 });
 
 document.getElementById('btn-sort-initiative')?.addEventListener('click', async () => {
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
   if (!hud || !hud.entries?.length) return;
   const activeEntry = hud.entries[hud.currentIndex ?? 0];
   const sorted = [...hud.entries].sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
@@ -661,9 +661,9 @@ document.getElementById('btn-sort-initiative')?.addEventListener('click', async 
     currentIndex: newIdx >= 0 ? newIdx : 0,
   });
   if (newHuds) {
-    huds = newHuds;
-    scheduleHudAutosave();
-    const upd = huds.find(h => h.id === selectedHudId);
+    sceneState.huds = newHuds;
+    scheduleAutosave();
+    const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
     if (upd) renderInitiativeEditor(upd);
   }
 });
@@ -692,7 +692,7 @@ function renderStatusesPositions(hud) {
   const sides = normalizeSides(hud);
 
   const getSides = () => {
-    const current = normalizeSides(huds.find(h => h.id === selectedHudId) ?? hud);
+    const current = normalizeSides(sceneState.huds.find(h => h.id === sceneState.selectedHudId) ?? hud);
     return CORNERS
       .map(({ id: corner }) => {
         const row = posEl.querySelector(`[data-corner="${corner}"]`);
@@ -731,8 +731,8 @@ function renderStatusesPositions(hud) {
     facingSelect.value = existing?.facing ?? 'up';
 
     const save = async () => {
-      const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
-      if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudPreview(); }
+      const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { sides: getSides() });
+      if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudPreview(); }
     };
     chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
     facingSelect.addEventListener('change', save);
@@ -803,9 +803,9 @@ async function updateStatusesEntryField(hud, idx, patch) {
   const newEntries = hud.entries.map((e, i) => i === idx ? { ...e, ...patch } : e);
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
-    huds = newHuds;
-    scheduleHudAutosave();
-    const updated = huds.find(h => h.id === hud.id);
+    sceneState.huds = newHuds;
+    scheduleAutosave();
+    const updated = sceneState.huds.find(h => h.id === hud.id);
     if (updated) Object.assign(hud, updated);
   }
 }
@@ -814,41 +814,41 @@ async function removeStatusesEntry(hud, idx) {
   const newEntries = hud.entries.filter((_, i) => i !== idx);
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: newEntries });
   if (newHuds) {
-    huds = newHuds;
-    scheduleHudAutosave();
-    const updated = huds.find(h => h.id === selectedHudId);
+    sceneState.huds = newHuds;
+    scheduleAutosave();
+    const updated = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
     if (updated) renderStatusesEditor(updated);
   }
 }
 
 document.getElementById('statuses-label')?.addEventListener('change', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const v = document.getElementById('statuses-label').value;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { label: v });
-  if (newHuds) { huds = newHuds; renderHudList(); }
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { label: v });
+  if (newHuds) { sceneState.huds = newHuds; renderHudList(); }
 });
 
 document.getElementById('statuses-font-size')?.addEventListener('change', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const v = parseInt(document.getElementById('statuses-font-size').value);
   if (isNaN(v) || v < 8 || v > 48) return;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { fontSize: v });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { fontSize: v });
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); }
 });
 
 document.getElementById('statuses-show-labels')?.addEventListener('change', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const checked = document.getElementById('statuses-show-labels').checked;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { showLabels: checked });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { showLabels: checked });
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); }
 });
 
 document.getElementById('btn-add-status-entry')?.addEventListener('click', async () => {
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
   if (!hud) return;
   const newEntry = { id: genId(), name: '', hidden: false, invisible: true, statuses: [] };
   const newHuds = await window.electronAPI.updateHud(hud.id, { entries: [...(hud.entries ?? []), newEntry] });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); const upd = huds.find(h => h.id === selectedHudId); if (upd) renderStatusesEditor(upd); }
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId); if (upd) renderStatusesEditor(upd); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -910,11 +910,11 @@ function renderHandoutImageCards(hud) {
     label.addEventListener('click', e => e.stopPropagation());
     label.addEventListener('blur', async () => {
       const newName = label.textContent.trim() || `Image ${idx + 1}`;
-      const fresh = huds.find(h => h.id === selectedHudId);
+      const fresh = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
       if (!fresh) return;
       const newImages = getHandoutImages(fresh).map((im, i) => i === idx ? { ...im, name: newName } : im);
-      const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages });
-      if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
+      const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { images: newImages });
+      if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); }
     });
 
     const delBtn = document.createElement('button');
@@ -923,14 +923,14 @@ function renderHandoutImageCards(hud) {
     delBtn.title = 'Remove image';
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const fresh = huds.find(h => h.id === selectedHudId);
+      const fresh = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
       if (!fresh) return;
       const newImages = getHandoutImages(fresh).filter((_, i) => i !== idx);
       const newActive = Math.min(activeIdx, Math.max(0, newImages.length - 1));
-      const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages, activeImageIdx: newActive });
+      const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { images: newImages, activeImageIdx: newActive });
       if (newHuds) {
-        huds = newHuds; scheduleHudAutosave();
-        const upd = huds.find(h => h.id === selectedHudId);
+        sceneState.huds = newHuds; scheduleAutosave();
+        const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
         if (upd) renderHandoutEditor(upd);
       }
     });
@@ -940,10 +940,10 @@ function renderHandoutImageCards(hud) {
     card.appendChild(delBtn);
     card.addEventListener('click', async () => {
       if (idx === activeIdx) return;
-      const newHuds = await window.electronAPI.updateHud(selectedHudId, { activeImageIdx: idx });
+      const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { activeImageIdx: idx });
       if (newHuds) {
-        huds = newHuds; scheduleHudAutosave();
-        const upd = huds.find(h => h.id === selectedHudId);
+        sceneState.huds = newHuds; scheduleAutosave();
+        const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
         if (upd) renderHandoutEditor(upd);
       }
     });
@@ -959,7 +959,7 @@ function renderHandoutPositions(hud) {
   const sides = normalizeSides(hud);
 
   const getSides = () => {
-    const current = normalizeSides(huds.find(h => h.id === selectedHudId) ?? hud);
+    const current = normalizeSides(sceneState.huds.find(h => h.id === sceneState.selectedHudId) ?? hud);
     return CORNERS
       .map(({ id: corner }) => {
         const row = posEl.querySelector(`[data-corner="${corner}"]`);
@@ -998,8 +998,8 @@ function renderHandoutPositions(hud) {
     facingSelect.value = existing?.facing ?? 'up';
 
     const save = async () => {
-      const newHuds = await window.electronAPI.updateHud(selectedHudId, { sides: getSides() });
-      if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudPreview(); }
+      const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { sides: getSides() });
+      if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudPreview(); }
     };
     chk.addEventListener('change', () => { facingSelect.disabled = !chk.checked; save(); });
     facingSelect.addEventListener('change', save);
@@ -1010,34 +1010,34 @@ function renderHandoutPositions(hud) {
 }
 
 document.getElementById('handout-name')?.addEventListener('change', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const v = document.getElementById('handout-name').value;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { name: v });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); renderHudList(); }
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { name: v });
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); }
 });
 
 document.getElementById('handout-width')?.addEventListener('change', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const v = parseInt(document.getElementById('handout-width').value) || 300;
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { width: v });
-  if (newHuds) { huds = newHuds; scheduleHudAutosave(); }
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { width: v });
+  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); }
 });
 
 document.getElementById('btn-handout-add-images')?.addEventListener('click', async () => {
-  if (!selectedHudId) return;
+  if (!sceneState.selectedHudId) return;
   const paths = await window.electronAPI.openMapDialog();
   if (!paths?.length) return;
-  const hud = huds.find(h => h.id === selectedHudId);
+  const hud = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
   if (!hud) return;
   const existing = getHandoutImages(hud);
   const newImages = [
     ...existing,
     ...paths.map((src, i) => ({ id: genId(), name: `Image ${existing.length + i + 1}`, src })),
   ];
-  const newHuds = await window.electronAPI.updateHud(selectedHudId, { images: newImages });
+  const newHuds = await window.electronAPI.updateHud(sceneState.selectedHudId, { images: newImages });
   if (newHuds) {
-    huds = newHuds; scheduleHudAutosave();
-    const upd = huds.find(h => h.id === selectedHudId);
+    sceneState.huds = newHuds; scheduleAutosave();
+    const upd = sceneState.huds.find(h => h.id === sceneState.selectedHudId);
     if (upd) renderHandoutEditor(upd);
   }
 });
@@ -1051,13 +1051,13 @@ const HUD_TYPE_COLOR = { initiative: '#c9a84c', status: '#4a90d9', handout: '#4c
 let simScale = 1;
 
 // renderHudPreview is the public alias so every existing call site works
-function renderHudPreview() { if (!simDragging) updateHudSimulation(); }
+function renderHudPreview() { if (!ui.simDragging) updateHudSimulation(); }
 
 function updateHudSimulation() {
   if (!hudSimScreen || !hudSimWrap || !hudSimViewport) return;
 
-  const sw = playerScreenW || 1920;
-  const sh = playerScreenH || 1080;
+  const sw = display.screenW || 1920;
+  const sh = display.screenH || 1080;
 
   // Fit simulation into the available wrapper space
   const ww = hudSimWrap.clientWidth  - 16;
@@ -1082,7 +1082,7 @@ function updateHudSimulation() {
   // Clear and rebuild panels
   hudSimScreen.innerHTML = '';
 
-  for (const hud of huds) {
+  for (const hud of sceneState.huds) {
     if (hud.visible === false) continue;
     const sides = normalizeSides(hud);
     sides.forEach((side, sideIdx) => {
@@ -1127,7 +1127,7 @@ function buildSimHudPanel(hud, side, sideIdx, screenW, screenH) {
   }
 
   const panel = document.createElement('div');
-  panel.className = 'hud-sim-panel' + (hud.id === selectedHudId ? ' selected' : '');
+  panel.className = 'hud-sim-panel' + (hud.id === sceneState.selectedHudId ? ' selected' : '');
   panel.dataset.hudId   = hud.id;
   panel.dataset.sideIdx = sideIdx;
   panel.style.left  = Math.round(px) + 'px';
@@ -1238,7 +1238,7 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
     const panelH   = panel.offsetHeight || 60;
     let   moved    = false;
 
-    simDragging = true;
+    ui.simDragging = true;
     handle.style.cursor = 'grabbing';
 
     const coordsEl = document.getElementById('hud-sim-coords');
@@ -1258,7 +1258,7 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup',   onUp);
       handle.style.cursor = 'grab';
-      simDragging = false;
+      ui.simDragging = false;
 
       if (!moved) {
         // Treat as a click — select the HUD
@@ -1271,15 +1271,15 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
       if (coordsEl) coordsEl.textContent = `x: ${nx}  y: ${ny}`;
 
       // Persist x,y into the side entry
-      const currentHud = huds.find(h => h.id === hud.id);
+      const currentHud = sceneState.huds.find(h => h.id === hud.id);
       if (!currentHud) return;
       const newSides = normalizeSides(currentHud).map((s, i) =>
         i === sideIdx ? { ...s, x: nx, y: ny } : s
       );
       const newHuds = await window.electronAPI.updateHud(hud.id, { sides: newSides });
       if (newHuds) {
-        huds = newHuds;
-        scheduleHudAutosave();
+        sceneState.huds = newHuds;
+        scheduleAutosave();
         applyHudSelection(hud.id);
         updateHudSimulation();
       }
@@ -1294,5 +1294,5 @@ document.getElementById('btn-refresh-hud-sim')?.addEventListener('click', () => 
 
 // Re-render simulation when the wrapper resizes (skip during active drags)
 if (hudSimWrap) {
-  new ResizeObserver(() => { if (!simDragging) updateHudSimulation(); }).observe(hudSimWrap);
+  new ResizeObserver(() => { if (!ui.simDragging) updateHudSimulation(); }).observe(hudSimWrap);
 }

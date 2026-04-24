@@ -10,42 +10,35 @@ function setAutosaveBadge(state) {
 }
 
 function scheduleAutosave() {
-  if (!sceneReady || !selectedCampaignId) return;
+  if (!sceneState.ready || !campaign.selectedId) return;
   clearTimeout(autosaveTimer);
   setAutosaveBadge('saving');
   autosaveTimer = setTimeout(async () => {
-    const meta = await window.electronAPI.saveSceneCampaign(selectedCampaignId, selectedSessionId);
-    if (meta) loadedSceneId = meta.id;
+    const [meta] = await Promise.all([
+      window.electronAPI.saveSceneCampaign(campaign.selectedId, campaign.sessionId),
+      window.electronAPI.saveHudsCampaign(campaign.selectedId, campaign.sessionId),
+    ]);
+    if (meta) sceneState.loadedId = meta.id;
     setAutosaveBadge('saved');
     renderSceneList();
   }, 800);
 }
 
-function scheduleHudAutosave() {
-  if (!sceneReady || !selectedCampaignId) return;
-  clearTimeout(hudAutosaveTimer);
-  setAutosaveBadge('saving');
-  hudAutosaveTimer = setTimeout(async () => {
-    await window.electronAPI.saveHudsCampaign(selectedCampaignId, selectedSessionId);
-    setAutosaveBadge('saved');
-  }, 800);
-}
-
 async function loadMostRecentScene() {
-  if (!sceneReady || !selectedCampaignId) { renderSceneList(); return; }
-  const scenes = await window.electronAPI.listScenesCampaign(selectedCampaignId, selectedSessionId);
+  if (!sceneState.ready || !campaign.selectedId) { renderSceneList(); return; }
+  const scenes = await window.electronAPI.listScenesCampaign(campaign.selectedId, campaign.sessionId);
   if (scenes.length) {
     await applyLoadedScene(scenes[0].id);
   } else {
-    loadedSceneId = null;
+    sceneState.loadedId = null;
     renderSceneList();
   }
 }
 
 async function renderSceneList() {
   scenesContent.innerHTML = '';
-  if (!selectedCampaignId) return;
-  const scenes = await window.electronAPI.listScenesCampaign(selectedCampaignId, selectedSessionId);
+  if (!campaign.selectedId) return;
+  const scenes = await window.electronAPI.listScenesCampaign(campaign.selectedId, campaign.sessionId);
   if (!scenes.length) return;
   for (const s of scenes) {
     scenesContent.appendChild(buildSceneRow(s));
@@ -54,7 +47,7 @@ async function renderSceneList() {
 
 function buildSceneRow(s) {
   const row = document.createElement('div');
-  row.className = 'scene-row' + (s.id === loadedSceneId ? ' active' : '');
+  row.className = 'scene-row' + (s.id === sceneState.loadedId ? ' active' : '');
   row.dataset.sceneId = s.id;
   row.title = s.savedAt ? new Date(s.savedAt).toLocaleString() : '';
 
@@ -82,8 +75,8 @@ function buildSceneRow(s) {
   btnDel.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (!confirm(`Delete scene "${s.name || '(unnamed)'}"?`)) return;
-    if (loadedSceneId === s.id) loadedSceneId = null;
-    await window.electronAPI.deleteSceneCampaign(selectedCampaignId, selectedSessionId, s.id);
+    if (sceneState.loadedId === s.id) sceneState.loadedId = null;
+    await window.electronAPI.deleteSceneCampaign(campaign.selectedId, campaign.sessionId, s.id);
     renderSceneList();
   });
 
@@ -105,8 +98,8 @@ function startSceneRename(row, nameEl, s) {
   async function commit() {
     const newName = input.value.trim();
     if (newName !== s.name) {
-      await window.electronAPI.renameSceneCampaign(selectedCampaignId, selectedSessionId, s.id, newName);
-      if (loadedSceneId === s.id) {
+      await window.electronAPI.renameSceneCampaign(campaign.selectedId, campaign.sessionId, s.id, newName);
+      if (sceneState.loadedId === s.id) {
         window.electronAPI.updateSceneMeta({ name: newName });
         sceneNameInput.value = newName;
       }
@@ -123,32 +116,32 @@ function startSceneRename(row, nameEl, s) {
 async function applyLoadedScene(sceneIdOrScene) {
   const fromCampaign = typeof sceneIdOrScene === 'string';
   const scene = fromCampaign
-    ? await window.electronAPI.loadSceneCampaign(selectedCampaignId, selectedSessionId, sceneIdOrScene)
+    ? await window.electronAPI.loadSceneCampaign(campaign.selectedId, campaign.sessionId, sceneIdOrScene)
     : sceneIdOrScene;
   if (!scene) return;
 
   // Load HUDs from separate session file when operating inside a campaign session
-  if (fromCampaign && selectedCampaignId) {
-    huds = await window.electronAPI.loadHudsCampaign(selectedCampaignId, selectedSessionId) ?? [];
+  if (fromCampaign && campaign.selectedId) {
+    sceneState.huds = await window.electronAPI.loadHudsCampaign(campaign.selectedId, campaign.sessionId) ?? [];
   } else {
     // Imported scene: keep current in-memory HUDs (or fall back to scene's legacy huds field)
-    huds = huds.length ? huds : (scene.huds ?? []);
+    sceneState.huds = sceneState.huds.length ? sceneState.huds : (scene.huds ?? []);
   }
 
-  loadedSceneId = scene.id ?? null;
+  sceneState.loadedId = scene.id ?? null;
   window.electronAPI.setScene(scene);
-  layers    = scene.layers   ?? [];
-  vpCx      = scene.viewport?.cx    ?? 4096;
-  vpCy      = scene.viewport?.cy    ?? 4096;
-  vpZoom    = scene.viewport?.zoom   ?? 1.0;
-  canvasBg  = scene.background ?? '#1a1a2e';
-  if (elCanvasBg) elCanvasBg.value = canvasBg;
+  sceneState.layers = scene.layers   ?? [];
+  viewport.cx       = scene.viewport?.cx    ?? 4096;
+  viewport.cy       = scene.viewport?.cy    ?? 4096;
+  viewport.zoom     = scene.viewport?.zoom   ?? 1.0;
+  sceneState.bg     = scene.background ?? '#1a1a2e';
+  if (elCanvasBg) elCanvasBg.value = sceneState.bg;
   sceneNameInput.value = scene.name ?? '';
   updateVpZoomUI();
   renderLayerList();
   renderHudList();
-  selectedLayerId = null;
-  selectedHudId   = null;
+  sceneState.selectedLayerId = null;
+  sceneState.selectedHudId   = null;
   layerDetail.style.display      = 'none';
   initiativeEditor.style.display = 'none';
   setAutosaveBadge('');
@@ -169,8 +162,8 @@ btnRefreshScenes.addEventListener('click', renderSceneList);
 
 async function renderHudConfigList() {
   hudConfigsContent.innerHTML = '';
-  if (!selectedCampaignId || !selectedSessionId) return;
-  const configs = await window.electronAPI.listHudConfigs(selectedCampaignId, selectedSessionId);
+  if (!campaign.selectedId || !campaign.sessionId) return;
+  const configs = await window.electronAPI.listHudConfigs(campaign.selectedId, campaign.sessionId);
   if (!configs.length) return;
   for (const c of configs) {
     hudConfigsContent.appendChild(buildHudConfigRow(c));
@@ -179,7 +172,7 @@ async function renderHudConfigList() {
 
 function buildHudConfigRow(c) {
   const row = document.createElement('div');
-  row.className = 'scene-row' + (c.id === loadedHudConfigId ? ' active' : '');
+  row.className = 'scene-row' + (c.id === sceneState.loadedHudConfigId ? ' active' : '');
   row.dataset.configId = c.id;
   row.title = c.savedAt ? new Date(c.savedAt).toLocaleString() : '';
 
@@ -207,8 +200,8 @@ function buildHudConfigRow(c) {
   btnDel.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (!confirm(`Delete HUD config "${c.name || '(unnamed)'}"?`)) return;
-    if (loadedHudConfigId === c.id) loadedHudConfigId = null;
-    await window.electronAPI.deleteHudConfig(selectedCampaignId, selectedSessionId, c.id);
+    if (sceneState.loadedHudConfigId === c.id) sceneState.loadedHudConfigId = null;
+    await window.electronAPI.deleteHudConfig(campaign.selectedId, campaign.sessionId, c.id);
     renderHudConfigList();
   });
 
@@ -230,7 +223,7 @@ function startHudConfigRename(row, nameEl, c) {
   async function commit() {
     const newName = input.value.trim();
     if (newName && newName !== c.name) {
-      await window.electronAPI.renameHudConfig(selectedCampaignId, selectedSessionId, c.id, newName);
+      await window.electronAPI.renameHudConfig(campaign.selectedId, campaign.sessionId, c.id, newName);
     }
     renderHudConfigList();
   }
@@ -242,17 +235,17 @@ function startHudConfigRename(row, nameEl, c) {
 }
 
 async function applyLoadedHudConfig(configId) {
-  const config = await window.electronAPI.loadHudConfig(selectedCampaignId, selectedSessionId, configId);
+  const config = await window.electronAPI.loadHudConfig(campaign.selectedId, campaign.sessionId, configId);
   if (!config?.huds) return;
-  huds = config.huds;
-  loadedHudConfigId = config.id;
+  sceneState.huds = config.huds;
+  sceneState.loadedHudConfigId = config.id;
   renderHudList();
   renderHudPreview();
   renderHudConfigList();
 }
 
 btnSaveHudConfig?.addEventListener('click', async () => {
-  if (!selectedCampaignId || !selectedSessionId) return;
+  if (!campaign.selectedId || !campaign.sessionId) return;
   const input = document.createElement('input');
   input.className = 'scene-row-name-input';
   input.placeholder = 'Config name…';
@@ -266,8 +259,8 @@ btnSaveHudConfig?.addEventListener('click', async () => {
     input.remove();
     if (!name) return;
     const id = genId();
-    await window.electronAPI.saveHudConfig(selectedCampaignId, selectedSessionId, { id, name, huds });
-    loadedHudConfigId = id;
+    await window.electronAPI.saveHudConfig(campaign.selectedId, campaign.sessionId, { id, name, huds: sceneState.huds });
+    sceneState.loadedHudConfigId = id;
     renderHudConfigList();
   }
   input.addEventListener('blur', commit);
@@ -296,18 +289,18 @@ btnLoadScene.addEventListener('click', async () => {
 btnResetScene.addEventListener('click', () => {
   confirmInline(btnResetScene, () => {
     window.electronAPI.resetScene();
-    loadedSceneId = null;
-    layers    = [];
-    huds      = [];
-    vpCx = 4096; vpCy = 4096; vpZoom = 1.0;
-    canvasBg = '#1a1a2e';
-    if (elCanvasBg) elCanvasBg.value = canvasBg;
+    sceneState.loadedId = null;
+    sceneState.layers = [];
+    sceneState.huds   = [];
+    viewport.cx = 4096; viewport.cy = 4096; viewport.zoom = 1.0;
+    sceneState.bg = '#1a1a2e';
+    if (elCanvasBg) elCanvasBg.value = sceneState.bg;
     sceneNameInput.value = '';
     updateVpZoomUI();
     renderLayerList();
     renderHudList();
-    selectedLayerId = null;
-    selectedHudId   = null;
+    sceneState.selectedLayerId = null;
+    sceneState.selectedHudId   = null;
     layerDetail.style.display      = 'none';
     initiativeEditor.style.display = 'none';
     setAutosaveBadge('');
@@ -322,7 +315,7 @@ btnResetScene.addEventListener('click', () => {
 // Receive persisted settings from main process on startup
 window.electronAPI.onInitialSettings(async (s) => {
   applySettingsToUI(s);
-  if (s.screenMode === 'advanced' && !sceneReady) await initScene();
+  if (s.screenMode === 'advanced' && !sceneState.ready) await initScene();
 });
 
 // ════════════════════════════════════════════════════════════════════════════

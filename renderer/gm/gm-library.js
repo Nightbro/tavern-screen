@@ -120,7 +120,7 @@ function buildProjectSection(projectId, label, maps, isUnsorted) {
   // Drop zone: accept internal drags + filesystem drops
   mapsGrid.addEventListener('dragover', (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = dragMapId ? 'move' : 'copy';
+    e.dataTransfer.dropEffect = mapLib.dragId ? 'move' : 'copy';
     mapsGrid.classList.add('drag-over');
   });
   mapsGrid.addEventListener('dragleave', () => mapsGrid.classList.remove('drag-over'));
@@ -130,20 +130,20 @@ function buildProjectSection(projectId, label, maps, isUnsorted) {
     mapsGrid.classList.remove('drag-over');
     const targetProjectId = mapsGrid.dataset.projectId || null;
 
-    if (dragMapId) {
+    if (mapLib.dragId) {
       // Internal move
-      if (dragMapId !== targetProjectId && getProjectIdFromMapId(dragMapId) !== targetProjectId) {
-        await window.electronAPI.moveMap(dragMapId, targetProjectId);
+      if (mapLib.dragId !== targetProjectId && getProjectIdFromMapId(mapLib.dragId) !== targetProjectId) {
+        await window.electronAPI.moveMap(mapLib.dragId, targetProjectId);
         // If the active map moved, update its id
-        if (activeMapId === dragMapId) {
+        if (mapLib.activeId === mapLib.dragId) {
           const result = await window.electronAPI.scanLibrary();
           const allMaps = [...result.rootMaps, ...result.projects.flatMap(p => p.maps)];
-          const moved = allMaps.find(m => m.name === getNameFromMapId(dragMapId) && m.projectId === targetProjectId);
+          const moved = allMaps.find(m => m.name === getNameFromMapId(mapLib.dragId) && m.projectId === targetProjectId);
           if (moved) activateMap(moved);
         }
         await refreshLibrary();
       }
-      dragMapId = null;
+      mapLib.dragId = null;
     } else if (e.dataTransfer.files.length > 0) {
       // Files dropped from filesystem — handled globally, but also accept here
       const files = [...e.dataTransfer.files]
@@ -151,7 +151,7 @@ function buildProjectSection(projectId, label, maps, isUnsorted) {
         .map(f => window.electronAPI.getFilePath(f));
       if (files.length) {
         const added = await window.electronAPI.copyFiles(files, targetProjectId);
-        if (added.length && !activeMapId) activateMap(added[0]);
+        if (added.length && !mapLib.activeId) activateMap(added[0]);
         await refreshLibrary();
       }
     }
@@ -164,7 +164,7 @@ function buildProjectSection(projectId, label, maps, isUnsorted) {
 
 function buildMapCard(map) {
   const card = document.createElement('div');
-  card.className = 'map-card' + (map.id === activeMapId ? ' active' : '');
+  card.className = 'map-card' + (map.id === mapLib.activeId ? ' active' : '');
   card.title = map.name;
   card.draggable = true;
   card.dataset.mapId = map.id;
@@ -184,9 +184,9 @@ function buildMapCard(map) {
   removeBtn.title = 'Remove from library';
   removeBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (map.id === activeMapId) {
+    if (map.id === mapLib.activeId) {
       window.electronAPI.setActiveMap(null);
-      activeMapId = null;
+      mapLib.activeId = null;
     }
     window.electronAPI.deleteMap(map.id);
     await refreshLibrary();
@@ -200,13 +200,13 @@ function buildMapCard(map) {
 
   // Internal drag
   card.addEventListener('dragstart', (e) => {
-    dragMapId = map.id;
+    mapLib.dragId = map.id;
     card.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', map.id);
   });
   card.addEventListener('dragend', () => {
-    dragMapId = null;
+    mapLib.dragId = null;
     card.classList.remove('dragging');
   });
 
@@ -232,7 +232,7 @@ function imageBoundsFromSrc(src) {
 }
 
 function activateMap(map) {
-  if (screenModeAdvanced) {
+  if (display.advanced) {
     const src = 'file:///' + map.path.replace(/\\/g, '/');
     imageBoundsFromSrc(src).then(bounds => {
       window.electronAPI.addLayer({
@@ -251,7 +251,7 @@ function activateMap(map) {
     });
     return;
   }
-  activeMapId = map.id;
+  mapLib.activeId = map.id;
   window.electronAPI.setActiveMap(map);
   document.querySelectorAll('.map-card').forEach((c) => {
     c.classList.toggle('active', c.dataset.mapId === map.id);
@@ -344,28 +344,28 @@ btnAddImages.addEventListener('click', async () => {
   const files = await window.electronAPI.openMapDialog();
   if (files.length) {
     const added = await window.electronAPI.copyFiles(files, null);
-    if (added.length && !activeMapId) activateMap(added[0]);
+    if (added.length && !mapLib.activeId) activateMap(added[0]);
     await refreshLibrary();
   }
 });
 
 // ── Global drag & drop from filesystem ───────────────────────────────────────
 document.addEventListener('dragenter', (e) => {
-  if (e.dataTransfer.types.includes('Files') && !dragMapId) {
-    dropCounter++;
+  if (e.dataTransfer.types.includes('Files') && !mapLib.dragId) {
+    mapLib.dropCounter++;
     dropOverlay.classList.add('visible');
   }
 });
 document.addEventListener('dragleave', () => {
-  dropCounter--;
-  if (dropCounter <= 0) { dropCounter = 0; dropOverlay.classList.remove('visible'); }
+  mapLib.dropCounter--;
+  if (mapLib.dropCounter <= 0) { mapLib.dropCounter = 0; dropOverlay.classList.remove('visible'); }
 });
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', async (e) => {
   e.preventDefault();
-  dropCounter = 0;
+  mapLib.dropCounter = 0;
   dropOverlay.classList.remove('visible');
-  if (dragMapId) return;
+  if (mapLib.dragId) return;
 
   const files = [...e.dataTransfer.files]
     .filter(f => /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
@@ -373,6 +373,6 @@ document.addEventListener('drop', async (e) => {
   if (!files.length) return;
 
   const added = await window.electronAPI.copyFiles(files, null);
-  if (added.length && !activeMapId) activateMap(added[0]);
+  if (added.length && !mapLib.activeId) activateMap(added[0]);
   await refreshLibrary();
 });

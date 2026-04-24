@@ -3,11 +3,11 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 async function loadDisplays() {
-  displays = await window.electronAPI.getDisplays();
-  activeDisplayId = (displays.find((d) => d.active) || {}).id || null;
+  display.list = await window.electronAPI.getDisplays();
+  display.activeId = (display.list.find((d) => d.active) || {}).id || null;
   renderMonitorMap();
   renderMonitorCards();
-  btnCloseScreen.disabled = activeDisplayId === null;
+  btnCloseScreen.disabled = display.activeId === null;
 }
 
 function renderMonitorMap() {
@@ -15,19 +15,19 @@ function renderMonitorMap() {
   const pad = 10;
   const mW = monitorMap.clientWidth - pad * 2;
   const mH = monitorMap.clientHeight - pad * 2;
-  const rights  = displays.map((d) => d.bounds.x + d.bounds.width);
-  const bottoms = displays.map((d) => d.bounds.y + d.bounds.height);
-  const minX = Math.min(...displays.map((d) => d.bounds.x));
-  const minY = Math.min(...displays.map((d) => d.bounds.y));
+  const rights  = display.list.map((d) => d.bounds.x + d.bounds.width);
+  const bottoms = display.list.map((d) => d.bounds.y + d.bounds.height);
+  const minX = Math.min(...display.list.map((d) => d.bounds.x));
+  const minY = Math.min(...display.list.map((d) => d.bounds.y));
   const totW = Math.max(...rights) - minX;
   const totH = Math.max(...bottoms) - minY;
   const scale = Math.min(mW / totW, mH / totH);
   const offX  = pad + (mW - totW * scale) / 2;
   const offY  = pad + (mH - totH * scale) / 2;
 
-  displays.forEach((d, i) => {
+  display.list.forEach((d, i) => {
     const el = document.createElement('div');
-    el.className = 'map-monitor' + (d.id === activeDisplayId ? ' active' : '');
+    el.className = 'map-monitor' + (d.id === display.activeId ? ' active' : '');
     el.style.left   = offX + (d.bounds.x - minX) * scale + 'px';
     el.style.top    = offY + (d.bounds.y - minY) * scale + 'px';
     el.style.width  = d.bounds.width  * scale + 'px';
@@ -40,8 +40,8 @@ function renderMonitorMap() {
 
 function renderMonitorCards() {
   monitorList.innerHTML = '';
-  displays.forEach((d, i) => {
-    const isActive = d.id === activeDisplayId;
+  display.list.forEach((d, i) => {
+    const isActive = d.id === display.activeId;
     const card = document.createElement('div');
     card.className = 'monitor-card' + (isActive ? ' active' : '');
     card.innerHTML = `
@@ -62,10 +62,10 @@ function renderMonitorCards() {
 }
 
 function selectDisplay(displayId) {
-  if (displayId === activeDisplayId) return;
+  if (displayId === display.activeId) return;
   window.electronAPI.selectDisplay(displayId);
-  activeDisplayId = displayId;
-  displays = displays.map((d) => ({ ...d, active: d.id === displayId }));
+  display.activeId = displayId;
+  display.list = display.list.map((d) => ({ ...d, active: d.id === displayId }));
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = false;
@@ -74,8 +74,8 @@ function selectDisplay(displayId) {
 
 btnCloseScreen.addEventListener('click', () => {
   window.electronAPI.closeScreen();
-  activeDisplayId = null;
-  displays = displays.map((d) => ({ ...d, active: false }));
+  display.activeId = null;
+  display.list = display.list.map((d) => ({ ...d, active: false }));
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = true;
@@ -83,8 +83,8 @@ btnCloseScreen.addEventListener('click', () => {
 });
 
 window.electronAPI.onScreenClosed(() => {
-  activeDisplayId = null;
-  displays = displays.map((d) => ({ ...d, active: false }));
+  display.activeId = null;
+  display.list = display.list.map((d) => ({ ...d, active: false }));
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = true;
@@ -92,15 +92,15 @@ window.electronAPI.onScreenClosed(() => {
 });
 
 window.electronAPI.onScreenOpened(async (displayId, suggestedDpi, sw, sh) => {
-  activeDisplayId = displayId;
-  displays = displays.map((d) => ({ ...d, active: d.id === displayId }));
+  display.activeId = displayId;
+  display.list = display.list.map((d) => ({ ...d, active: d.id === displayId }));
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = false;
   if (suggestedDpi) { elDpi.value = suggestedDpi; sendSettings({ dpi: suggestedDpi }); }
-  if (sw) playerScreenW = sw;
-  if (sh) playerScreenH = sh;
-  if (screenModeAdvanced) await initScene();
+  if (sw) display.screenW = sw;
+  if (sh) display.screenH = sh;
+  if (display.advanced) await initScene();
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -113,14 +113,14 @@ function showPreviewPlaceholder() {
 }
 
 window.electronAPI.onScreenPreview((dataUrl) => {
-  lastScreenPreviewUrl = dataUrl;
-  if (!screenModeAdvanced) {
+  display.previewUrl = dataUrl;
+  if (!display.advanced) {
     previewImg.src = dataUrl;
     previewImg.style.display = 'block';
     previewPlaceholder.style.display = 'none';
     setTimeout(renderLayerOverlay, 50);
   } else {
-    if (!simDragging) updateHudSimulation();
+    if (!ui.simDragging) updateHudSimulation();
   }
 });
 
@@ -155,10 +155,10 @@ function applySettingsToUI(s) {
   }
   if (s.screenMode !== undefined) {
     const isAdv = s.screenMode === 'advanced';
-    screenModeAdvanced = isAdv;
+    display.advanced = isAdv;
     if (elScreenModeSimple) elScreenModeSimple.checked = !isAdv;
     document.body.classList.toggle('advanced-mode', isAdv);
-    if (isAdv && !sceneReady) initScene();
+    if (isAdv && !sceneState.ready) initScene();
     else renderLayerOverlay();
   }
   if (s.gridScaleWithViewport !== undefined) {

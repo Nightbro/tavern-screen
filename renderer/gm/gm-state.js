@@ -50,18 +50,30 @@ const btnZoomOut      = document.getElementById('zoom-out');
 const btnZoomReset    = document.getElementById('zoom-reset');
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let campaigns           = [];
-let selectedCampaignId  = null;
-let selectedSessionId   = null;
-let notesDebounceTimer  = null;
 const NOTES_DEBOUNCE_MS = 800;
+const settings = { gridVisible: true, cellSizeInches: 1.0, zoom: 1.0, dpi: 96, gridColor: '#ffffff', gridOpacity: 0.25 };
 
-let displays        = [];
-let activeDisplayId = null;
-let activeMapId     = null;
-let dragMapId       = null;
-let dropCounter     = 0;
-const settings      = { gridVisible: true, cellSizeInches: 1.0, zoom: 1.0, dpi: 96, gridColor: '#ffffff', gridOpacity: 0.25 };
+const campaign = {
+  list:       [],
+  selectedId: null,
+  sessionId:  null,
+  notesTimer: null,
+};
+
+const display = {
+  list:       [],
+  activeId:   null,
+  screenW:    1920,
+  screenH:    1080,
+  previewUrl: null,
+  advanced:   false,
+};
+
+const mapLib = {
+  activeId:    null,
+  dragId:      null,
+  dropCounter: 0,
+};
 
 // ── Advanced DOM refs ─────────────────────────────────────────────────────────
 const elScreenModeSimple   = document.getElementById('screen-mode-simple');
@@ -116,31 +128,35 @@ const CANVAS_SIZE    = 8192;
 const MIN_LAYER_SIZE = 20;
 
 // ── Advanced state ────────────────────────────────────────────────────────────
-let layers           = [];
-let huds             = [];
-let selectedLayerId  = null;
-let dragSrcLayerId   = null;
-let vpCx             = 4096;
-let vpCy             = 4096;
-let vpZoom           = 1.0;
-let gmCamX           = 4096;
-let gmCamY           = 4096;
-let gmCamZoom        = 0.05;
-let gmCamPanDrag     = null;
-let playerScreenW    = 1920;
-let playerScreenH    = 1080;
-let snapToGrid       = false;
-let canvasBg         = '#1a1a2e';
-let sceneReady       = false;
-let autosaveTimer    = null;
-let hudAutosaveTimer = null;
-let loadedSceneId      = null;
-let loadedHudConfigId  = null;
-let selectedHudId        = null;
-let lastScreenPreviewUrl = null;
-let pingMode             = false;
-let screenModeAdvanced   = false;
-let simDragging          = false;
+const sceneState = {
+  layers:           [],
+  huds:             [],
+  loadedId:         null,
+  loadedHudConfigId: null,
+  selectedLayerId:  null,
+  selectedHudId:    null,
+  dragSrcLayerId:   null,
+  ready:            false,
+  bg:               '#1a1a2e',
+};
+
+const viewport = {
+  cx:           4096,
+  cy:           4096,
+  zoom:         1.0,
+  gmCamX:       4096,
+  gmCamY:       4096,
+  gmCamZoom:    0.05,
+  gmCamPanDrag: null,
+  snapToGrid:   false,
+};
+
+const ui = {
+  pingMode:    false,
+  simDragging: false,
+};
+
+let autosaveTimer = null;
 
 const gmImageCache   = new Map();
 

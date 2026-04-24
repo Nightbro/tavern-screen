@@ -17,12 +17,12 @@ tabBtns.forEach(btn => {
 // ════════════════════════════════════════════════════════════════════════════
 
 async function initCampaigns() {
-  const { campaigns: list } = await window.electronAPI.scanCampaigns();
-  campaigns = list;
+  const { campaign.list: list } = await window.electronAPI.scanCampaigns();
+  campaign.list = list;
   renderCampaignSelect();
-  if (campaigns.length > 0) {
-    selectedCampaignId = campaigns[0].id;
-    campaignSelect.value = selectedCampaignId;
+  if (campaign.list.length > 0) {
+    campaign.selectedId = campaign.list[0].id;
+    campaignSelect.value = campaign.selectedId;
     renderSessions();
   }
   await loadCurrentNotes();
@@ -30,39 +30,39 @@ async function initCampaigns() {
 }
 
 async function refreshCampaigns() {
-  const { campaigns: list } = await window.electronAPI.scanCampaigns();
-  campaigns = list;
+  const { campaign.list: list } = await window.electronAPI.scanCampaigns();
+  campaign.list = list;
   renderCampaignSelect();
   renderSessions();
 }
 
 function renderCampaignSelect() {
   campaignSelect.innerHTML = '';
-  if (campaigns.length === 0) {
+  if (campaign.list.length === 0) {
     const opt = document.createElement('option');
     opt.disabled = true;
     opt.selected = true;
-    opt.textContent = 'No campaigns yet';
+    opt.textContent = 'No campaign.list yet';
     campaignSelect.appendChild(opt);
     return;
   }
-  for (const c of campaigns) {
+  for (const c of campaign.list) {
     const opt = document.createElement('option');
     opt.value = c.id;
     opt.textContent = c.name;
     campaignSelect.appendChild(opt);
   }
-  if (selectedCampaignId && campaigns.find(c => c.id === selectedCampaignId)) {
-    campaignSelect.value = selectedCampaignId;
+  if (campaign.selectedId && campaign.list.find(c => c.id === campaign.selectedId)) {
+    campaignSelect.value = campaign.selectedId;
   } else {
-    selectedCampaignId = campaigns[0]?.id ?? null;
-    campaignSelect.value = selectedCampaignId ?? '';
+    campaign.selectedId = campaign.list[0]?.id ?? null;
+    campaignSelect.value = campaign.selectedId ?? '';
   }
 }
 
 function renderSessions() {
   sessionsContent.innerHTML = '';
-  const campaign = campaigns.find(c => c.id === selectedCampaignId);
+  const campaign = campaign.list.find(c => c.id === campaign.selectedId);
   if (!campaign || campaign.sessions.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'sessions-empty';
@@ -114,18 +114,18 @@ function setNotesStatus(state) {
 }
 
 async function flushNotes() {
-  clearTimeout(notesDebounceTimer);
+  clearTimeout(campaign.notesTimer);
   if (!notesStatus.classList.contains('unsaved')) return;
-  if (selectedSessionId) {
-    await window.electronAPI.writeNotes(selectedCampaignId, selectedSessionId, notesTextarea.value);
-  } else if (selectedCampaignId) {
-    await window.electronAPI.writeCampaignNotes(selectedCampaignId, notesTextarea.value);
+  if (campaign.sessionId) {
+    await window.electronAPI.writeNotes(campaign.selectedId, campaign.sessionId, notesTextarea.value);
+  } else if (campaign.selectedId) {
+    await window.electronAPI.writeCampaignNotes(campaign.selectedId, notesTextarea.value);
   }
   setNotesStatus('');
 }
 
 async function loadCurrentNotes() {
-  if (!selectedCampaignId) {
+  if (!campaign.selectedId) {
     notesTextarea.disabled = true;
     notesTextarea.value = '';
     notesTextarea.placeholder = 'Select a campaign to edit notes…';
@@ -134,26 +134,26 @@ async function loadCurrentNotes() {
     return;
   }
   notesTextarea.disabled = false;
-  if (selectedSessionId) {
-    notesTitle.textContent = selectedSessionId;
+  if (campaign.sessionId) {
+    notesTitle.textContent = campaign.sessionId;
     notesTextarea.placeholder = 'Session notes…';
-    notesTextarea.value = await window.electronAPI.readNotes(selectedCampaignId, selectedSessionId);
+    notesTextarea.value = await window.electronAPI.readNotes(campaign.selectedId, campaign.sessionId);
   } else {
     notesTitle.textContent = 'Campaign Notes';
     notesTextarea.placeholder = 'Campaign notes…';
-    notesTextarea.value = await window.electronAPI.readCampaignNotes(selectedCampaignId);
+    notesTextarea.value = await window.electronAPI.readCampaignNotes(campaign.selectedId);
   }
   setNotesStatus('');
 }
 
 notesTextarea.addEventListener('input', () => {
   setNotesStatus('unsaved');
-  clearTimeout(notesDebounceTimer);
-  notesDebounceTimer = setTimeout(async () => {
-    if (selectedSessionId) {
-      await window.electronAPI.writeNotes(selectedCampaignId, selectedSessionId, notesTextarea.value);
-    } else if (selectedCampaignId) {
-      await window.electronAPI.writeCampaignNotes(selectedCampaignId, notesTextarea.value);
+  clearTimeout(campaign.notesTimer);
+  campaign.notesTimer = setTimeout(async () => {
+    if (campaign.sessionId) {
+      await window.electronAPI.writeNotes(campaign.selectedId, campaign.sessionId, notesTextarea.value);
+    } else if (campaign.selectedId) {
+      await window.electronAPI.writeCampaignNotes(campaign.selectedId, notesTextarea.value);
     }
     setNotesStatus('saved');
     setTimeout(() => { if (notesStatus.classList.contains('saved')) setNotesStatus(''); }, 2000);
@@ -164,7 +164,7 @@ notesTextarea.addEventListener('input', () => {
 
 function buildSessionRow(session) {
   const row = document.createElement('div');
-  row.className = 'session-row' + (session.id === selectedSessionId ? ' active' : '');
+  row.className = 'session-row' + (session.id === campaign.sessionId ? ' active' : '');
   row.dataset.sessionId = session.id;
 
   const nameEl = document.createElement('span');
@@ -191,8 +191,8 @@ function buildSessionRow(session) {
     e.stopPropagation();
     confirmInline(btnDel, async () => {
       await flushNotes();
-      if (session.id === selectedSessionId) selectedSessionId = null;
-      await window.electronAPI.deleteSession(selectedCampaignId, session.id);
+      if (session.id === campaign.sessionId) campaign.sessionId = null;
+      await window.electronAPI.deleteSession(campaign.selectedId, session.id);
       await refreshCampaigns();
       await loadCurrentNotes();
     });
@@ -207,7 +207,7 @@ function buildSessionRow(session) {
   row.appendChild(nameEl);
   row.appendChild(actions);
 
-  row.addEventListener('click', () => selectSession(selectedCampaignId, session.id));
+  row.addEventListener('click', () => selectSession(campaign.selectedId, session.id));
   return row;
 }
 
@@ -222,8 +222,8 @@ function startSessionRename(row, nameEl, sessionId) {
   async function commit() {
     const newName = input.value.trim();
     if (newName && newName !== sessionId) {
-      await window.electronAPI.renameSession(selectedCampaignId, sessionId, newName);
-      if (selectedSessionId === sessionId) selectedSessionId = newName;
+      await window.electronAPI.renameSession(campaign.selectedId, sessionId, newName);
+      if (campaign.sessionId === sessionId) campaign.sessionId = newName;
     }
     await refreshCampaigns();
   }
@@ -237,14 +237,14 @@ function startSessionRename(row, nameEl, sessionId) {
 async function selectSession(campaignId, sessionId) {
   await flushNotes();
   // Clicking the active session deselects it
-  if (selectedCampaignId === campaignId && selectedSessionId === sessionId) {
-    selectedSessionId = null;
+  if (campaign.selectedId === campaignId && campaign.sessionId === sessionId) {
+    campaign.sessionId = null;
   } else {
-    selectedCampaignId = campaignId;
-    selectedSessionId  = sessionId;
+    campaign.selectedId = campaignId;
+    campaign.sessionId  = sessionId;
   }
   document.querySelectorAll('.session-row').forEach(r => {
-    r.classList.toggle('active', r.dataset.sessionId === selectedSessionId);
+    r.classList.toggle('active', r.dataset.sessionId === campaign.sessionId);
   });
   await loadCurrentNotes();
   await loadMostRecentScene();
@@ -255,8 +255,8 @@ async function selectSession(campaignId, sessionId) {
 
 campaignSelect.addEventListener('change', async () => {
   await flushNotes();
-  selectedCampaignId = campaignSelect.value;
-  selectedSessionId  = null;
+  campaign.selectedId = campaignSelect.value;
+  campaign.sessionId  = null;
   renderSessions();
   await loadCurrentNotes();
   await loadMostRecentScene();
@@ -277,7 +277,7 @@ btnNewCampaign.addEventListener('click', () => {
     input.replaceWith(campaignSelect);
     if (name) {
       await window.electronAPI.createCampaign(name);
-      selectedCampaignId = name;
+      campaign.selectedId = name;
       await refreshCampaigns();
     }
   }
@@ -289,10 +289,10 @@ btnNewCampaign.addEventListener('click', () => {
 });
 
 btnRenameCampaign.addEventListener('click', () => {
-  if (!selectedCampaignId) return;
+  if (!campaign.selectedId) return;
   const input = document.createElement('input');
   input.className = 'campaign-name-input';
-  input.value = selectedCampaignId;
+  input.value = campaign.selectedId;
   input.maxLength = 64;
   const toolbar = campaignSelect.parentElement;
   campaignSelect.replaceWith(input);
@@ -302,30 +302,30 @@ btnRenameCampaign.addEventListener('click', () => {
   async function commit() {
     const newName = input.value.trim();
     input.replaceWith(campaignSelect);
-    if (newName && newName !== selectedCampaignId) {
-      await window.electronAPI.renameCampaign(selectedCampaignId, newName);
-      selectedCampaignId = newName;
+    if (newName && newName !== campaign.selectedId) {
+      await window.electronAPI.renameCampaign(campaign.selectedId, newName);
+      campaign.selectedId = newName;
       await refreshCampaigns();
     }
   }
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter')  input.blur();
-    if (e.key === 'Escape') { input.value = selectedCampaignId; input.blur(); }
+    if (e.key === 'Escape') { input.value = campaign.selectedId; input.blur(); }
   });
 });
 
 btnDeleteCampaign.addEventListener('click', () => {
-  if (!selectedCampaignId) return;
+  if (!campaign.selectedId) return;
   confirmInline(btnDeleteCampaign, async () => {
     await flushNotes();
-    selectedSessionId = null;
-    await window.electronAPI.deleteCampaign(selectedCampaignId);
-    selectedCampaignId = null;
+    campaign.sessionId = null;
+    await window.electronAPI.deleteCampaign(campaign.selectedId);
+    campaign.selectedId = null;
     await refreshCampaigns();
-    if (campaigns.length > 0) {
-      selectedCampaignId = campaigns[0].id;
-      campaignSelect.value = selectedCampaignId;
+    if (campaign.list.length > 0) {
+      campaign.selectedId = campaign.list[0].id;
+      campaignSelect.value = campaign.selectedId;
       renderSessions();
     }
     await loadCurrentNotes();
@@ -333,7 +333,7 @@ btnDeleteCampaign.addEventListener('click', () => {
 });
 
 btnNewSession.addEventListener('click', () => {
-  if (!selectedCampaignId) return;
+  if (!campaign.selectedId) return;
   const input = document.createElement('input');
   input.className = 'session-name-input';
   input.placeholder = 'Session name…';
@@ -346,9 +346,9 @@ btnNewSession.addEventListener('click', () => {
     const name = input.value.trim();
     input.remove();
     if (name) {
-      await window.electronAPI.createSession(selectedCampaignId, name);
+      await window.electronAPI.createSession(campaign.selectedId, name);
       await refreshCampaigns();
-      selectSession(selectedCampaignId, name);
+      selectSession(campaign.selectedId, name);
     }
   }
   input.addEventListener('blur', commit);

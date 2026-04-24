@@ -5,7 +5,7 @@
 elScreenModeSimple.addEventListener('change', async () => {
   const isSimple = elScreenModeSimple.checked;
   const isAdv = !isSimple;
-  screenModeAdvanced = isAdv;
+  display.advanced = isAdv;
   document.body.classList.toggle('advanced-mode', isAdv);
   sendSettings({ screenMode: isAdv ? 'advanced' : 'simple' });
   if (isAdv) await initScene();
@@ -24,8 +24,8 @@ elGridScaleViewport.addEventListener('change', () => {
 });
 
 elCanvasBg?.addEventListener('input', () => {
-  canvasBg = elCanvasBg.value;
-  window.electronAPI.updateSceneMeta({ background: canvasBg });
+  sceneState.bg = elCanvasBg.value;
+  window.electronAPI.updateSceneMeta({ background: sceneState.bg });
   renderLayerOverlay();
   scheduleAutosave();
 });
@@ -47,41 +47,41 @@ if (btnToggleGrid && gridGroupBody) {
   });
 }
 
-elSnapToGrid?.addEventListener('change', () => { snapToGrid = elSnapToGrid.checked; });
+elSnapToGrid?.addEventListener('change', () => { viewport.snapToGrid = elSnapToGrid.checked; });
 
 // ── Scene init ────────────────────────────────────────────────────────────────
 
 async function initScene() {
   const scene = await window.electronAPI.getScene();
   if (!scene) return;
-  layers    = scene.layers   ?? [];
-  huds      = scene.huds     ?? [];
-  vpCx      = scene.viewport?.cx   ?? 4096;
-  vpCy      = scene.viewport?.cy   ?? 4096;
-  vpZoom    = scene.viewport?.zoom  ?? 1.0;
-  canvasBg  = scene.background ?? '#1a1a2e';
+  sceneState.layers = scene.layers   ?? [];
+  sceneState.huds   = scene.huds     ?? [];
+  viewport.cx       = scene.viewport?.cx   ?? 4096;
+  viewport.cy       = scene.viewport?.cy   ?? 4096;
+  viewport.zoom     = scene.viewport?.zoom  ?? 1.0;
+  sceneState.bg     = scene.background ?? '#1a1a2e';
   sceneNameInput.value = scene.name ?? '';
   renderLayerList();
   renderHudList();
   renderHudPreview();
   updateVpZoomUI();
   fitGMCamera();
-  sceneReady = true;
+  sceneState.ready = true;
   renderSceneList();
 }
 
 function fitGMCamera() {
   const ow = layerOverlay.width  || 400;
   const oh = layerOverlay.height || 300;
-  gmCamZoom = Math.min(ow / CANVAS_SIZE, oh / CANVAS_SIZE) * 0.9;
-  gmCamX = CANVAS_SIZE / 2;
-  gmCamY = CANVAS_SIZE / 2;
+  viewport.gmCamZoom = Math.min(ow / CANVAS_SIZE, oh / CANVAS_SIZE) * 0.9;
+  viewport.gmCamX = CANVAS_SIZE / 2;
+  viewport.gmCamY = CANVAS_SIZE / 2;
   renderLayerOverlay();
 }
 
 function fitView() {
-  if (layers.length === 0) { fitGMCamera(); return; }
-  const visible = layers.filter(l => l.visible !== false && l.x != null);
+  if (sceneState.layers.length === 0) { fitGMCamera(); return; }
+  const visible = sceneState.layers.filter(l => l.visible !== false && l.x != null);
   if (!visible.length) { fitGMCamera(); return; }
   const minX = Math.min(...visible.map(l => l.x));
   const minY = Math.min(...visible.map(l => l.y));
@@ -89,43 +89,43 @@ function fitView() {
   const maxY = Math.max(...visible.map(l => l.y + l.h));
   const ow = layerOverlay.width, oh = layerOverlay.height;
   const padding = 40;
-  gmCamZoom = Math.min((ow - padding * 2) / (maxX - minX), (oh - padding * 2) / (maxY - minY));
-  gmCamX = (minX + maxX) / 2;
-  gmCamY = (minY + maxY) / 2;
+  viewport.gmCamZoom = Math.min((ow - padding * 2) / (maxX - minX), (oh - padding * 2) / (maxY - minY));
+  viewport.gmCamX = (minX + maxX) / 2;
+  viewport.gmCamY = (minY + maxY) / 2;
   renderLayerOverlay();
 }
 
 // ── Viewport zoom ─────────────────────────────────────────────────────────────
 
 function updateVpZoomUI() {
-  const pct = Math.round(vpZoom * 100);
+  const pct = Math.round(viewport.zoom * 100);
   vpZoomVal.textContent = pct + '%';
   vpZoomSlider.value    = pct;
 }
 
 function setVpZoom(value) {
-  vpZoom = Math.max(0.1, Math.min(4, value));
+  viewport.zoom = Math.max(0.1, Math.min(4, value));
   updateVpZoomUI();
-  window.electronAPI.updateViewport({ zoom: vpZoom });
+  window.electronAPI.updateViewport({ zoom: viewport.zoom });
   renderLayerOverlay();
   scheduleAutosave();
 }
 
-vpZoomIn.addEventListener('click',     () => setVpZoom(vpZoom + 0.1));
-vpZoomOut.addEventListener('click',    () => setVpZoom(vpZoom - 0.1));
+vpZoomIn.addEventListener('click',     () => setVpZoom(viewport.zoom + 0.1));
+vpZoomOut.addEventListener('click',    () => setVpZoom(viewport.zoom - 0.1));
 vpZoomReset.addEventListener('click',  () => setVpZoom(1.0));
 vpZoomSlider.addEventListener('input', () => setVpZoom(parseInt(vpZoomSlider.value) / 100));
 
 // ── Ping mode ─────────────────────────────────────────────────────────────────
 
 btnPingMode.addEventListener('click', () => {
-  pingMode = !pingMode;
-  btnPingMode.classList.toggle('ping-active', pingMode);
-  layerOverlay.parentElement.classList.toggle('ping-mode', pingMode);
+  ui.pingMode = !ui.pingMode;
+  btnPingMode.classList.toggle('ping-active', ui.pingMode);
+  layerOverlay.parentElement.classList.toggle('ping-mode', ui.pingMode);
 });
 
 previewImg.addEventListener('click', (e) => {
-  if (!pingMode || previewImg.style.display === 'none' || screenModeAdvanced) return;
+  if (!ui.pingMode || previewImg.style.display === 'none' || display.advanced) return;
   const rect     = previewImg.getBoundingClientRect();
   const imgAR    = previewImg.naturalWidth / (previewImg.naturalHeight || 1);
   const boxAR    = rect.width / (rect.height || 1);
@@ -141,7 +141,7 @@ previewImg.addEventListener('click', (e) => {
   const ny = (e.clientY - cy) / ch;
   if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
   window.electronAPI.sendPing(nx, ny);
-  pingMode = false;
+  ui.pingMode = false;
   btnPingMode.classList.remove('ping-active');
   previewImg.parentElement.classList.remove('ping-mode');
 });
@@ -157,7 +157,7 @@ const WEATHER_TYPES = ['rain', 'snow', 'embers', 'fog', 'fireflies'];
 
 function renderLayerList() {
   layerListEl.innerHTML = '';
-  if (layers.length === 0) {
+  if (sceneState.layers.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'layer-empty';
     empty.textContent = 'No layers yet';
@@ -167,8 +167,8 @@ function renderLayerList() {
     return;
   }
   // Render in reverse (top of stack first visually)
-  for (let i = layers.length - 1; i >= 0; i--) {
-    layerListEl.appendChild(buildLayerRow(layers[i]));
+  for (let i = sceneState.layers.length - 1; i >= 0; i--) {
+    layerListEl.appendChild(buildLayerRow(sceneState.layers[i]));
   }
   renderLayerOverlay();
   scheduleAutosave();
@@ -176,7 +176,7 @@ function renderLayerList() {
 
 function buildLayerRow(layer) {
   const row = document.createElement('div');
-  row.className = 'layer-row' + (layer.id === selectedLayerId ? ' active' : '');
+  row.className = 'layer-row' + (layer.id === sceneState.selectedLayerId ? ' active' : '');
   row.dataset.layerId = layer.id;
 
   const eye = document.createElement('button');
@@ -186,7 +186,7 @@ function buildLayerRow(layer) {
   eye.addEventListener('click', async (e) => {
     e.stopPropagation();
     const newLayers = await window.electronAPI.updateLayer(layer.id, { visible: !(layer.visible !== false) });
-    if (newLayers) { layers = newLayers; renderLayerList(); }
+    if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
   });
 
   const badge = document.createElement('span');
@@ -205,9 +205,9 @@ function buildLayerRow(layer) {
     e.stopPropagation();
     const layerName = layer.name || LAYER_TYPE_LABELS[layer.type] || layer.type;
     if (!confirm(`Delete layer "${layerName}"?\n\nThis cannot be undone.`)) return;
-    if (selectedLayerId === layer.id) { selectedLayerId = null; layerDetail.style.display = 'none'; }
+    if (sceneState.selectedLayerId === layer.id) { sceneState.selectedLayerId = null; layerDetail.style.display = 'none'; }
     const newLayers = await window.electronAPI.removeLayer(layer.id);
-    if (newLayers) { layers = newLayers; renderLayerList(); }
+    if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
   });
 
   const grip = document.createElement('span');
@@ -218,18 +218,18 @@ function buildLayerRow(layer) {
   row.draggable = true;
 
   row.addEventListener('dragstart', (e) => {
-    dragSrcLayerId = layer.id;
+    sceneState.dragSrcLayerId = layer.id;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', layer.id);
     setTimeout(() => row.classList.add('dragging'), 0);
   });
   row.addEventListener('dragend', () => {
-    dragSrcLayerId = null;
+    sceneState.dragSrcLayerId = null;
     row.classList.remove('dragging');
     layerListEl.querySelectorAll('.layer-row').forEach(r => r.classList.remove('drag-over'));
   });
   row.addEventListener('dragover', (e) => {
-    if (!dragSrcLayerId || dragSrcLayerId === layer.id) return;
+    if (!sceneState.dragSrcLayerId || sceneState.dragSrcLayerId === layer.id) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     layerListEl.querySelectorAll('.layer-row').forEach(r => r.classList.remove('drag-over'));
@@ -237,22 +237,22 @@ function buildLayerRow(layer) {
   });
   row.addEventListener('drop', async (e) => {
     e.preventDefault();
-    if (!dragSrcLayerId || dragSrcLayerId === layer.id) return;
+    if (!sceneState.dragSrcLayerId || sceneState.dragSrcLayerId === layer.id) return;
     layerListEl.querySelectorAll('.layer-row').forEach(r => r.classList.remove('drag-over'));
 
     // Collect visual order (top → bottom) from current DOM rows
     const rows = [...layerListEl.querySelectorAll('.layer-row[data-layer-id]')];
     const ids  = rows.map(r => r.dataset.layerId);
 
-    const srcIdx = ids.indexOf(dragSrcLayerId);
+    const srcIdx = ids.indexOf(sceneState.dragSrcLayerId);
     const tgtIdx = ids.indexOf(layer.id);
     ids.splice(srcIdx, 1);
     const adjusted = srcIdx < tgtIdx ? tgtIdx - 1 : tgtIdx;
-    ids.splice(adjusted, 0, dragSrcLayerId);
+    ids.splice(adjusted, 0, sceneState.dragSrcLayerId);
 
     // Visual list is top→bottom; data array is bottom→top, so reverse
     const newLayers = await window.electronAPI.reorderLayers([...ids].reverse());
-    if (newLayers) { layers = newLayers; renderLayerList(); }
+    if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
   });
 
   row.appendChild(grip);
@@ -265,9 +265,9 @@ function buildLayerRow(layer) {
 }
 
 function selectLayer(id) {
-  selectedLayerId = (id === selectedLayerId) ? null : id;
+  sceneState.selectedLayerId = (id === sceneState.selectedLayerId) ? null : id;
   renderLayerList();   // also calls renderLayerOverlay
-  const layer = layers.find(l => l.id === selectedLayerId);
+  const layer = sceneState.layers.find(l => l.id === sceneState.selectedLayerId);
   if (layer) renderLayerDetail(layer);
   else layerDetail.style.display = 'none';
 }
@@ -295,7 +295,7 @@ function renderLayerDetail(layer) {
   addField('Name', nameInput);
   nameInput.addEventListener('change', async () => {
     const newLayers = await window.electronAPI.updateLayer(layer.id, { name: nameInput.value });
-    if (newLayers) layers = newLayers;
+    if (newLayers) sceneState.layers = newLayers;
   });
 
   if (layer.type === 'image' || layer.type === 'gif' || layer.type === 'video') {
@@ -318,8 +318,8 @@ function renderLayerDetail(layer) {
         const bounds = hasBounds ? {} : await imageBoundsFromSrc(src);
         const newLayers = await window.electronAPI.updateLayer(layer.id, { src, ...bounds });
         if (newLayers) {
-          layers = newLayers;
-          const updated = layers.find(l => l.id === layer.id);
+          sceneState.layers = newLayers;
+          const updated = sceneState.layers.find(l => l.id === layer.id);
           if (updated) renderLayerDetail(updated);
         }
       }
@@ -335,7 +335,7 @@ function renderLayerDetail(layer) {
     addField('Opacity', opInput);
     opInput.addEventListener('change', async () => {
       const newLayers = await window.electronAPI.updateLayer(layer.id, { opacity: parseFloat(opInput.value) || 1 });
-      if (newLayers) layers = newLayers;
+      if (newLayers) sceneState.layers = newLayers;
     });
   }
 
@@ -345,7 +345,7 @@ function renderLayerDetail(layer) {
     addField('Color', colorInput);
     colorInput.addEventListener('input', async () => {
       const newLayers = await window.electronAPI.updateLayer(layer.id, { color: colorInput.value });
-      if (newLayers) layers = newLayers;
+      if (newLayers) sceneState.layers = newLayers;
     });
 
     const opInput = document.createElement('input');
@@ -354,7 +354,7 @@ function renderLayerDetail(layer) {
     addField('Opacity', opInput);
     opInput.addEventListener('change', async () => {
       const newLayers = await window.electronAPI.updateLayer(layer.id, { opacity: parseFloat(opInput.value) || 0.6 });
-      if (newLayers) layers = newLayers;
+      if (newLayers) sceneState.layers = newLayers;
     });
   }
 
@@ -369,7 +369,7 @@ function renderLayerDetail(layer) {
     addField('Type', typeSelect);
     typeSelect.addEventListener('change', async () => {
       const newLayers = await window.electronAPI.updateLayer(layer.id, { weatherType: typeSelect.value });
-      if (newLayers) layers = newLayers;
+      if (newLayers) sceneState.layers = newLayers;
     });
 
     const intInput = document.createElement('input');
@@ -378,7 +378,7 @@ function renderLayerDetail(layer) {
     addField('Intensity', intInput);
     intInput.addEventListener('change', async () => {
       const newLayers = await window.electronAPI.updateLayer(layer.id, { intensity: parseFloat(intInput.value) || 1 });
-      if (newLayers) layers = newLayers;
+      if (newLayers) sceneState.layers = newLayers;
     });
   }
 }
@@ -393,7 +393,7 @@ document.querySelectorAll('.btn-asset').forEach(btn => {
       type: 'weather', weatherType: type, intensity: 1, visible: true, name: label,
     });
     if (newLayers) {
-      layers = newLayers;
+      sceneState.layers = newLayers;
       renderLayerList();
       const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
       if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
@@ -405,22 +405,22 @@ document.querySelectorAll('.btn-asset').forEach(btn => {
 
 btnAddImageLayer.addEventListener('click', async () => {
   const newLayers = await window.electronAPI.addLayer({ type: 'image', visible: true, opacity: 1 });
-  if (newLayers) { layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
+  if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
 btnAddLightLayer.addEventListener('click', async () => {
   const newLayers = await window.electronAPI.addLayer({ type: 'light', visible: true, color: '#000033', opacity: 0.6 });
-  if (newLayers) { layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
+  if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
 btnAddFogLayer.addEventListener('click', async () => {
   const newLayers = await window.electronAPI.addLayer({ type: 'fog', visible: true, revealed: [] });
-  if (newLayers) { layers = newLayers; renderLayerList(); }
+  if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
 });
 
 btnAddWeatherLayer.addEventListener('click', async () => {
   const newLayers = await window.electronAPI.addLayer({ type: 'weather', visible: true, weatherType: 'rain', intensity: 1 });
-  if (newLayers) { layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
+  if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -443,18 +443,18 @@ new ResizeObserver(resizeOverlayCanvas).observe(document.getElementById('preview
 
 function canvasToOverlay(cx, cy) {
   const ow = layerOverlay.width, oh = layerOverlay.height;
-  return { x: (cx - gmCamX) * gmCamZoom + ow / 2, y: (cy - gmCamY) * gmCamZoom + oh / 2 };
+  return { x: (cx - viewport.gmCamX) * viewport.gmCamZoom + ow / 2, y: (cy - viewport.gmCamY) * viewport.gmCamZoom + oh / 2 };
 }
 
 function overlayToCanvas(px, py) {
   const ow = layerOverlay.width, oh = layerOverlay.height;
-  return { x: (px - ow / 2) / gmCamZoom + gmCamX, y: (py - oh / 2) / gmCamZoom + gmCamY };
+  return { x: (px - ow / 2) / viewport.gmCamZoom + viewport.gmCamX, y: (py - oh / 2) / viewport.gmCamZoom + viewport.gmCamY };
 }
 
 function getContentArea() {
   const cw = layerOverlay.width;
   const ch = layerOverlay.height;
-  if (screenModeAdvanced) return { cx: 0, cy: 0, cw, ch };
+  if (display.advanced) return { cx: 0, cy: 0, cw, ch };
   if (previewImg.style.display === 'none' || !previewImg.naturalWidth) {
     return { cx: 0, cy: 0, cw, ch };
   }
@@ -476,10 +476,10 @@ function getContentArea() {
 function layerBoundsOnCanvas(layer) {
   if (layer.x == null || layer.y == null || layer.w == null || layer.h == null) {
     const tl = canvasToOverlay(0, 0);
-    return { px: tl.x, py: tl.y, pw: CANVAS_SIZE * gmCamZoom, ph: CANVAS_SIZE * gmCamZoom };
+    return { px: tl.x, py: tl.y, pw: CANVAS_SIZE * viewport.gmCamZoom, ph: CANVAS_SIZE * viewport.gmCamZoom };
   }
   const tl = canvasToOverlay(layer.x, layer.y);
-  return { px: tl.x, py: tl.y, pw: layer.w * gmCamZoom, ph: layer.h * gmCamZoom };
+  return { px: tl.x, py: tl.y, pw: layer.w * viewport.gmCamZoom, ph: layer.h * viewport.gmCamZoom };
 }
 
 function getHandlePositions(px, py, pw, ph) {
@@ -509,8 +509,8 @@ function hitTestHandle(mx, my, px, py, pw, ph) {
 
 function hitTestOverlay(mx, my) {
   // 1. Selected layer handles
-  if (selectedLayerId) {
-    const layer = layers.find(l => l.id === selectedLayerId);
+  if (sceneState.selectedLayerId) {
+    const layer = sceneState.layers.find(l => l.id === sceneState.selectedLayerId);
     if (layer && POSITIONABLE_TYPES.has(layer.type)) {
       const b = layerBoundsOnCanvas(layer);
       const handle = hitTestHandle(mx, my, b.px, b.py, b.pw, b.ph);
@@ -521,8 +521,8 @@ function hitTestOverlay(mx, my) {
   }
 
   // 2. Passive layer scan (fog/weather excluded)
-  for (let i = layers.length - 1; i >= 0; i--) {
-    const layer = layers[i];
+  for (let i = sceneState.layers.length - 1; i >= 0; i--) {
+    const layer = sceneState.layers[i];
     if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
     if (layer.type === 'fog' || layer.type === 'weather') continue;
     const b = layerBoundsOnCanvas(layer);
@@ -531,10 +531,10 @@ function hitTestOverlay(mx, my) {
   }
 
   // 3. Viewport rect pan (always available)
-  const halfW = playerScreenW / (2 * vpZoom);
-  const halfH = playerScreenH / (2 * vpZoom);
-  const vpTL = canvasToOverlay(vpCx - halfW, vpCy - halfH);
-  const vpBR = canvasToOverlay(vpCx + halfW, vpCy + halfH);
+  const halfW = display.screenW / (2 * viewport.zoom);
+  const halfH = display.screenH / (2 * viewport.zoom);
+  const vpTL = canvasToOverlay(viewport.cx - halfW, viewport.cy - halfH);
+  const vpBR = canvasToOverlay(viewport.cx + halfW, viewport.cy + halfH);
   if (mx >= vpTL.x && mx <= vpBR.x && my >= vpTL.y && my <= vpBR.y)
     return { mode: 'vpPan' };
 
@@ -547,10 +547,10 @@ function renderLayerOverlay() {
   const ctx = overlayCtx;
   const ow = layerOverlay.width, oh = layerOverlay.height;
   ctx.clearRect(0, 0, ow, oh);
-  if (!screenModeAdvanced) return;
+  if (!display.advanced) return;
 
   // Background fill
-  ctx.fillStyle = canvasBg;
+  ctx.fillStyle = sceneState.bg;
   ctx.fillRect(0, 0, ow, oh);
 
   // Canvas boundary
@@ -565,7 +565,7 @@ function renderLayerOverlay() {
 
   // Grid (if enabled and cell is large enough)
   if (settings.gridVisible) {
-    const cellPx = settings.cellSizeInches * settings.dpi * gmCamZoom;
+    const cellPx = settings.cellSizeInches * settings.dpi * viewport.gmCamZoom;
     if (cellPx >= 4) {
       ctx.save();
       const hex = (settings.gridColor || '#ffffff').replace('#', '');
@@ -587,10 +587,10 @@ function renderLayerOverlay() {
   }
 
   // Layer outlines + images
-  for (const layer of layers) {
+  for (const layer of sceneState.layers) {
     if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
     const b = layerBoundsOnCanvas(layer);
-    const isSelected = layer.id === selectedLayerId;
+    const isSelected = layer.id === sceneState.selectedLayerId;
 
     // For image layers: draw the actual image
     if ((layer.type === 'image' || layer.type === 'gif') && layer.src) {
@@ -637,10 +637,10 @@ function renderLayerOverlay() {
   }
 
   // Player viewport rectangle
-  const halfW = playerScreenW / (2 * vpZoom);
-  const halfH = playerScreenH / (2 * vpZoom);
-  const vpTL = canvasToOverlay(vpCx - halfW, vpCy - halfH);
-  const vpBR = canvasToOverlay(vpCx + halfW, vpCy + halfH);
+  const halfW = display.screenW / (2 * viewport.zoom);
+  const halfH = display.screenH / (2 * viewport.zoom);
+  const vpTL = canvasToOverlay(viewport.cx - halfW, viewport.cy - halfH);
+  const vpBR = canvasToOverlay(viewport.cx + halfW, viewport.cy + halfH);
   const rx = vpTL.x, ry = vpTL.y, rw = vpBR.x - vpTL.x, rh = vpBR.y - vpTL.y;
 
   // Dim outside
@@ -666,7 +666,7 @@ function renderLayerOverlay() {
 
 function throttledUpdateLayer(id, patch) {
   // Apply locally for instant visual feedback
-  layers = layers.map(l => l.id === id ? { ...l, ...patch } : l);
+  layers = sceneState.layers.map(l => l.id === id ? { ...l, ...patch } : l);
   renderLayerOverlay();
 
   // Send to main process at ~20 fps
@@ -694,23 +694,23 @@ layerOverlay.addEventListener('mousemove', (e) => {
   const my = e.clientY - rect.top;
 
   // Update canvas coordinates readout
-  if (screenModeAdvanced && canvasCoordsEl) {
+  if (display.advanced && canvasCoordsEl) {
     const { x, y } = overlayToCanvas(mx, my);
     canvasCoordsEl.textContent = `${Math.round(x)}, ${Math.round(y)} px`;
   }
 
-  if (gmCamPanDrag) {
-    const dx = (mx - gmCamPanDrag.startMx) / gmCamZoom;
-    const dy = (my - gmCamPanDrag.startMy) / gmCamZoom;
-    gmCamX = gmCamPanDrag.startCamX - dx;
-    gmCamY = gmCamPanDrag.startCamY - dy;
+  if (viewport.gmCamPanDrag) {
+    const dx = (mx - viewport.gmCamPanDrag.startMx) / viewport.gmCamZoom;
+    const dy = (my - viewport.gmCamPanDrag.startMy) / viewport.gmCamZoom;
+    viewport.gmCamX = viewport.gmCamPanDrag.startCamX - dx;
+    viewport.gmCamY = viewport.gmCamPanDrag.startCamY - dy;
     renderLayerOverlay();
     return;
   }
 
   if (overlayDrag) return;
-  if (pingMode) { layerOverlay.style.cursor = 'crosshair'; return; }
-  if (!screenModeAdvanced) return;
+  if (ui.pingMode) { layerOverlay.style.cursor = 'crosshair'; return; }
+  if (!display.advanced) return;
   const hit = hitTestOverlay(mx, my);
   if (!hit)                      layerOverlay.style.cursor = 'default';
   else if (hit.mode === 'vpPan') layerOverlay.style.cursor = 'grab';
@@ -719,17 +719,17 @@ layerOverlay.addEventListener('mousemove', (e) => {
 });
 
 layerOverlay.addEventListener('wheel', (e) => {
-  if (!screenModeAdvanced) return;
+  if (!display.advanced) return;
   e.preventDefault();
   const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
   const rect = layerOverlay.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
   const before = overlayToCanvas(mx, my);
-  gmCamZoom = Math.max(0.01, Math.min(4, gmCamZoom * factor));
+  viewport.gmCamZoom = Math.max(0.01, Math.min(4, viewport.gmCamZoom * factor));
   const ow = layerOverlay.width, oh = layerOverlay.height;
-  gmCamX = before.x - (mx - ow / 2) / gmCamZoom;
-  gmCamY = before.y - (my - oh / 2) / gmCamZoom;
+  viewport.gmCamX = before.x - (mx - ow / 2) / viewport.gmCamZoom;
+  viewport.gmCamY = before.y - (my - oh / 2) / viewport.gmCamZoom;
   renderLayerOverlay();
 }, { passive: false });
 
@@ -741,16 +741,16 @@ layerOverlay.addEventListener('mousedown', (e) => {
   const my = e.clientY - rect.top;
 
   // Middle-click or right-click: GM camera pan
-  if ((e.button === 1 || e.button === 2) && screenModeAdvanced) {
+  if ((e.button === 1 || e.button === 2) && display.advanced) {
     e.preventDefault();
-    gmCamPanDrag = { startMx: mx, startMy: my, startCamX: gmCamX, startCamY: gmCamY };
+    viewport.gmCamPanDrag = { startMx: mx, startMy: my, startCamX: viewport.gmCamX, startCamY: viewport.gmCamY };
     layerOverlay.style.cursor = 'grabbing';
     return;
   }
 
   // ── Ping mode ────────────────────────────────────────────────────────────
-  if (pingMode) {
-    if (screenModeAdvanced) {
+  if (ui.pingMode) {
+    if (display.advanced) {
       const canvasCoords = overlayToCanvas(mx, my);
       window.electronAPI.sendPing(canvasCoords.x, canvasCoords.y);
     } else {
@@ -761,18 +761,18 @@ layerOverlay.addEventListener('mousedown', (e) => {
         window.electronAPI.sendPing(nx, ny);
       }
     }
-    pingMode = false;
+    ui.pingMode = false;
     btnPingMode.classList.remove('ping-active');
     document.getElementById('preview-wrap').classList.remove('ping-mode');
     return;
   }
 
-  if (!screenModeAdvanced) return;
+  if (!display.advanced) return;
 
   const hit = hitTestOverlay(mx, my);
 
   if (!hit) {
-    if (selectedLayerId) selectLayer(null);
+    if (sceneState.selectedLayerId) selectLayer(null);
     return;
   }
 
@@ -780,20 +780,20 @@ layerOverlay.addEventListener('mousedown', (e) => {
 
   // ── Viewport pan drag ────────────────────────────────────────────────────
   if (hit.mode === 'vpPan') {
-    overlayDrag = { mode: 'vpPan', startMx: mx, startMy: my, startCx: vpCx, startCy: vpCy };
+    overlayDrag = { mode: 'vpPan', startMx: mx, startMy: my, startCx: viewport.cx, startCy: viewport.cy };
     layerOverlay.style.cursor = 'grabbing';
     return;
   }
 
   // Select the hit layer if it isn't already
-  if (hit.layerId !== selectedLayerId) {
-    selectedLayerId = hit.layerId;
+  if (hit.layerId !== sceneState.selectedLayerId) {
+    sceneState.selectedLayerId = hit.layerId;
     renderLayerList();
-    const layer = layers.find(l => l.id === selectedLayerId);
+    const layer = sceneState.layers.find(l => l.id === sceneState.selectedLayerId);
     if (layer) renderLayerDetail(layer);
   }
 
-  const layer = layers.find(l => l.id === hit.layerId);
+  const layer = sceneState.layers.find(l => l.id === hit.layerId);
   if (!layer) return;
 
   overlayDrag = {
@@ -824,24 +824,24 @@ document.addEventListener('mousemove', (e) => {
 
   // ── Viewport pan ──────────────────────────────────────────────────────────
   if (overlayDrag.mode === 'vpPan') {
-    const dx_canvas = (mx - startMx) / gmCamZoom;
-    const dy_canvas = (my - startMy) / gmCamZoom;
-    vpCx = overlayDrag.startCx + dx_canvas;
-    vpCy = overlayDrag.startCy + dy_canvas;
+    const dx_canvas = (mx - startMx) / viewport.gmCamZoom;
+    const dy_canvas = (my - startMy) / viewport.gmCamZoom;
+    viewport.cx = overlayDrag.startCx + dx_canvas;
+    viewport.cy = overlayDrag.startCy + dy_canvas;
     renderLayerOverlay();
-    window.electronAPI.updateViewport({ cx: vpCx, cy: vpCy });
+    window.electronAPI.updateViewport({ cx: viewport.cx, cy: viewport.cy });
     return;
   }
 
   const { startLayer } = overlayDrag;
-  const dx_canvas = (mx - startMx) / gmCamZoom;
-  const dy_canvas = (my - startMy) / gmCamZoom;
+  const dx_canvas = (mx - startMx) / viewport.gmCamZoom;
+  const dy_canvas = (my - startMy) / viewport.gmCamZoom;
   const MIN = MIN_LAYER_SIZE;
 
   let patch;
 
   if (overlayDrag.mode === 'move') {
-    if (snapToGrid && settings.cellSizeInches && settings.dpi) {
+    if (viewport.snapToGrid && settings.cellSizeInches && settings.dpi) {
       const cellPx = settings.cellSizeInches * settings.dpi;
       patch = {
         x: Math.round((startLayer.x + dx_canvas) / cellPx) * cellPx,
@@ -870,7 +870,7 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('mouseup', async () => {
-  if (gmCamPanDrag) { gmCamPanDrag = null; layerOverlay.style.cursor = ''; return; }
+  if (viewport.gmCamPanDrag) { viewport.gmCamPanDrag = null; layerOverlay.style.cursor = ''; return; }
   if (!overlayDrag) return;
   const drag = overlayDrag;
   overlayDrag = null;
@@ -884,10 +884,10 @@ document.addEventListener('mouseup', async () => {
   }
 
   // Flush the final layer position to main
-  const layer = layers.find(l => l.id === drag.layerId);
+  const layer = sceneState.layers.find(l => l.id === drag.layerId);
   if (layer) {
     const { x, y, w, h } = layer;
     const newLayers = await window.electronAPI.updateLayer(drag.layerId, { x, y, w, h });
-    if (newLayers) { layers = newLayers; renderLayerOverlay(); }
+    if (newLayers) { sceneState.layers = newLayers; renderLayerOverlay(); }
   }
 });
