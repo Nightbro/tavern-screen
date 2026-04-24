@@ -30,6 +30,7 @@
       "main.js",
       "preload.js",
       "windowManager.js",
+      "displayManager.js",
       "library.js",
       "config.js",
       "renderer/**/*",

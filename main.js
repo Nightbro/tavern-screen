@@ -32,6 +32,20 @@ registerLibraryHandlers(ipcMain,  { lib, campaignLib, manager, dialog, BrowserWi
 registerCampaignHandlers(ipcMain, { campaignLib, manager });
 registerSceneHandlers(ipcMain,    { manager, campaignLib, dialog, BrowserWindow });
 
+// ── CSS hot-reload (dev only) ──────────────────────────────────────────────
+if (!app.isPackaged) {
+  const fs = require('fs');
+  fs.watch(path.join(__dirname, 'renderer'), { recursive: true }, (_event, filename) => {
+    if (!filename?.endsWith('.css')) return;
+    const snippet = `document.querySelectorAll('link[rel=stylesheet]').forEach(l => {
+      const h = l.href; l.href = ''; l.href = h;
+    });`;
+    BrowserWindow.getAllWindows().forEach(win => {
+      if (!win.isDestroyed()) win.webContents.executeJavaScript(snippet).catch(() => {});
+    });
+  });
+}
+
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   manager.createGMWindow();
