@@ -1,6 +1,5 @@
 import { canvas, ctx, state, mediaCache, weatherParticles, computeMapTransform } from './screen-advanced-state.js';
-import { drawLayer, drawGrid }                    from './screen-advanced-layers.js';
-import { drawWeatherLayer, setLastWeatherTs }     from './screen-advanced-weather.js';
+import { drawLayer, drawGrid, drawWeatherLayer, setLastWeatherTs } from './screen-advanced-layers.js';
 import { renderHuds, showPing }                   from './screen-advanced-huds.js';
 
 // ── Canvas resize ─────────────────────────────────────────────────────────────
