@@ -84,7 +84,7 @@ function renderSessions() {
 
 // ── Inline confirmation helper ────────────────────────────────────────────────
 
-function confirmInline(deleteBtn, onConfirm) {
+export function confirmInline(deleteBtn, onConfirm) {
   const wrapper = document.createElement('span');
   wrapper.style.cssText = 'display:inline-flex;gap:3px;align-items:center;';
 

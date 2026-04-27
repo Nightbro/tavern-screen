@@ -1,3 +1,20 @@
+import {
+  sceneState, campaign, viewport, autosaveTimer, genId,
+  sceneAutosaveBadge, sceneNameInput, btnRefreshScenes,
+  scenesContent, hudConfigsContent,
+  btnSaveHudConfig, btnRefreshHudConfigs,
+  btnSaveScene, btnLoadScene, btnResetScene,
+  layerDetail, initiativeEditor, elCanvasBg,
+  monitorSectionBody, btnToggleMonitors,
+  panelMaps, panelSettings, resizeHandleLeft, resizeHandleRight,
+} from './gm-state.js';
+
+import { loadDisplays, applySettingsToUI, renderMonitorMap } from './gm-monitor.js';
+import { initLibrary }                                        from './gm-library.js';
+import { initCampaigns, confirmInline }                       from './gm-campaign.js';
+import { initScene, updateVpZoomUI, renderLayerList }         from './gm-layers.js';
+import { renderHudList, renderHudPreview }                    from './gm-huds.js';
+
 // ════════════════════════════════════════════════════════════════════════════
 // SCENE I/O
 // ════════════════════════════════════════════════════════════════════════════
@@ -9,11 +26,11 @@ function setAutosaveBadge(state) {
     state === 'saved'  ? '✓ Saved' : '';
 }
 
-function scheduleAutosave() {
+export function scheduleAutosave() {
   if (!sceneState.ready || !campaign.selectedId) return;
   clearTimeout(autosaveTimer);
   setAutosaveBadge('saving');
-  autosaveTimer = setTimeout(async () => {
+  window.autosaveTimer = setTimeout(async () => {
     const [meta] = await Promise.all([
       window.electronAPI.saveSceneCampaign(campaign.selectedId, campaign.sessionId),
       window.electronAPI.saveHudsCampaign(campaign.selectedId, campaign.sessionId),
@@ -24,7 +41,7 @@ function scheduleAutosave() {
   }, 800);
 }
 
-async function loadMostRecentScene() {
+export async function loadMostRecentScene() {
   if (!sceneState.ready || !campaign.selectedId) { renderSceneList(); return; }
   const scenes = await window.electronAPI.listScenesCampaign(campaign.selectedId, campaign.sessionId);
   if (scenes.length) {
@@ -35,7 +52,7 @@ async function loadMostRecentScene() {
   }
 }
 
-async function renderSceneList() {
+export async function renderSceneList() {
   scenesContent.innerHTML = '';
   if (!campaign.selectedId) return;
   const scenes = await window.electronAPI.listScenesCampaign(campaign.selectedId, campaign.sessionId);
@@ -160,7 +177,7 @@ btnRefreshScenes.addEventListener('click', renderSceneList);
 // HUD CONFIGS
 // ════════════════════════════════════════════════════════════════════════════
 
-async function renderHudConfigList() {
+export async function renderHudConfigList() {
   hudConfigsContent.innerHTML = '';
   if (!campaign.selectedId || !campaign.sessionId) return;
   const configs = await window.electronAPI.listHudConfigs(campaign.selectedId, campaign.sessionId);
@@ -360,7 +377,7 @@ document.addEventListener('mouseup', () => {
 // MONITOR SECTION COLLAPSE
 // ════════════════════════════════════════════════════════════════════════════
 
-function setMonitorSectionCollapsed(collapsed) {
+export function setMonitorSectionCollapsed(collapsed) {
   monitorSectionBody.classList.toggle('collapsed', collapsed);
   btnToggleMonitors.classList.toggle('collapsed', collapsed);
 }
@@ -377,3 +394,12 @@ btnToggleMonitors.addEventListener('click', () => {
 loadDisplays();
 initLibrary();
 initCampaigns();
+
+// ── Window bridge (for other modules that still call via window) ──────────────
+Object.assign(window, {
+  scheduleAutosave,
+  renderSceneList,
+  loadMostRecentScene,
+  renderHudConfigList,
+  setMonitorSectionCollapsed,
+});

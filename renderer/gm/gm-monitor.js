@@ -19,7 +19,7 @@ export async function loadDisplays() {
   btnCloseScreen.disabled = display.activeId === null;
 }
 
-function renderMonitorMap() {
+export function renderMonitorMap() {
   monitorMap.innerHTML = '';
   const pad = 10;
   const mW = monitorMap.clientWidth - pad * 2;
