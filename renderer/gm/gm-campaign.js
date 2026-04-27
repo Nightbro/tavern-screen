@@ -1,3 +1,10 @@
+import {
+  campaign, NOTES_DEBOUNCE_MS,
+  tabBtns, tabPaneAssets, tabPaneCampaign,
+  campaignSelect, btnNewCampaign, btnRenameCampaign, btnDeleteCampaign,
+  sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
+} from './gm-state.js';
+
 // ════════════════════════════════════════════════════════════════════════════
 // TABS
 // ════════════════════════════════════════════════════════════════════════════
@@ -16,8 +23,8 @@ tabBtns.forEach(btn => {
 // CAMPAIGNS
 // ════════════════════════════════════════════════════════════════════════════
 
-async function initCampaigns() {
-  const { campaign.list: list } = await window.electronAPI.scanCampaigns();
+export async function initCampaigns() {
+  const { campaigns: list } = await window.electronAPI.scanCampaigns();
   campaign.list = list;
   renderCampaignSelect();
   if (campaign.list.length > 0) {
@@ -26,11 +33,11 @@ async function initCampaigns() {
     renderSessions();
   }
   await loadCurrentNotes();
-  renderHudConfigList();
+  window.renderHudConfigList();
 }
 
 async function refreshCampaigns() {
-  const { campaign.list: list } = await window.electronAPI.scanCampaigns();
+  const { campaigns: list } = await window.electronAPI.scanCampaigns();
   campaign.list = list;
   renderCampaignSelect();
   renderSessions();
@@ -42,7 +49,7 @@ function renderCampaignSelect() {
     const opt = document.createElement('option');
     opt.disabled = true;
     opt.selected = true;
-    opt.textContent = 'No campaign.list yet';
+    opt.textContent = 'No campaigns yet';
     campaignSelect.appendChild(opt);
     return;
   }
@@ -62,15 +69,15 @@ function renderCampaignSelect() {
 
 function renderSessions() {
   sessionsContent.innerHTML = '';
-  const campaign = campaign.list.find(c => c.id === campaign.selectedId);
-  if (!campaign || campaign.sessions.length === 0) {
+  const selectedCampaign = campaign.list.find(c => c.id === campaign.selectedId);
+  if (!selectedCampaign || selectedCampaign.sessions.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'sessions-empty';
-    empty.textContent = campaign ? 'No sessions yet' : '';
+    empty.textContent = selectedCampaign ? 'No sessions yet' : '';
     sessionsContent.appendChild(empty);
     return;
   }
-  for (const session of campaign.sessions) {
+  for (const session of selectedCampaign.sessions) {
     sessionsContent.appendChild(buildSessionRow(session));
   }
 }
@@ -247,8 +254,8 @@ async function selectSession(campaignId, sessionId) {
     r.classList.toggle('active', r.dataset.sessionId === campaign.sessionId);
   });
   await loadCurrentNotes();
-  await loadMostRecentScene();
-  renderHudConfigList();
+  await window.loadMostRecentScene();
+  window.renderHudConfigList();
 }
 
 // ── Campaign toolbar ──────────────────────────────────────────────────────────
@@ -259,8 +266,8 @@ campaignSelect.addEventListener('change', async () => {
   campaign.sessionId  = null;
   renderSessions();
   await loadCurrentNotes();
-  await loadMostRecentScene();
-  renderHudConfigList();
+  await window.loadMostRecentScene();
+  window.renderHudConfigList();
 });
 
 btnNewCampaign.addEventListener('click', () => {
@@ -268,7 +275,6 @@ btnNewCampaign.addEventListener('click', () => {
   input.className = 'campaign-name-input';
   input.placeholder = 'Campaign name…';
   input.maxLength = 64;
-  const toolbar = campaignSelect.parentElement;
   campaignSelect.replaceWith(input);
   input.focus();
 
@@ -294,7 +300,6 @@ btnRenameCampaign.addEventListener('click', () => {
   input.className = 'campaign-name-input';
   input.value = campaign.selectedId;
   input.maxLength = 64;
-  const toolbar = campaignSelect.parentElement;
   campaignSelect.replaceWith(input);
   input.focus();
   input.select();
@@ -357,3 +362,6 @@ btnNewSession.addEventListener('click', () => {
     if (e.key === 'Escape') { input.value = ''; input.blur(); }
   });
 });
+
+// ── Window bridge (for unconverted classic scripts) ───────────────────────────
+Object.assign(window, { initCampaigns });
