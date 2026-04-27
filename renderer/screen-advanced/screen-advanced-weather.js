@@ -1,4 +1,4 @@
-// ── Weather particle system ───────────────────────────────────────────────────
+import { ctx, state, weatherParticles, computeMapTransform } from './screen-advanced-state.js';
 
 const WEATHER_CFG = {
   rain: {
@@ -92,7 +92,10 @@ function getWeatherParticles(type) {
 }
 
 let _lastTs = 0;
-function drawWeatherLayer(layer, timestamp) {
+
+export function setLastWeatherTs(ts) { _lastTs = ts; }
+
+export function drawWeatherLayer(layer, timestamp) {
   const type      = layer.weatherType || 'rain';
   const intensity = Math.max(0, Math.min(3, layer.intensity ?? 1));
   const cfg       = WEATHER_CFG[type] || WEATHER_CFG.rain;
@@ -104,7 +107,7 @@ function drawWeatherLayer(layer, timestamp) {
 
   ctx.save();
   if (layer.x != null && layer.y != null && layer.w != null && layer.h != null) {
-    const tx = computeMapTransform(scene.viewport);
+    const tx = computeMapTransform(state.scene.viewport);
     ctx.beginPath();
     ctx.rect(
       tx.originX + layer.x * tx.zoom,

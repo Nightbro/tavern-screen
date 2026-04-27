@@ -1,17 +1,17 @@
-// ── HUD registry (player-side, same classes as GM but only player methods used) ──
+import { hudRoot, state, computeMapTransform } from './screen-advanced-state.js';
+import { HudBase, InitiativeHud, StatusHud, HandoutHud } from '../huds/index.js';
+
 const HUD_REGISTRY = {
   initiative: new InitiativeHud(),
   status:     new StatusHud(),
   handout:    new HandoutHud(),
 };
 
-// ── Rendering ─────────────────────────────────────────────────────────────────
-
-function renderHuds() {
+export function renderHuds() {
   hudRoot.innerHTML = '';
   const pending = [];
 
-  for (const hud of (scene.huds ?? [])) {
+  for (const hud of (state.scene.huds ?? [])) {
     if (hud.visible === false) continue;
     const reg = HUD_REGISTRY[hud.type];
     if (!reg) continue;
@@ -21,7 +21,6 @@ function renderHuds() {
     }
   }
 
-  // Position after layout so offsetWidth/offsetHeight are real.
   requestAnimationFrame(() => {
     for (const { panel, corner, facing, x, y } of pending) {
       HudBase.positionPanel(panel, corner, facing, x, y);
@@ -29,10 +28,8 @@ function renderHuds() {
   });
 }
 
-// ── Ping ──────────────────────────────────────────────────────────────────────
-
-function showPing(canvasX, canvasY) {
-  const tx = computeMapTransform(scene.viewport);
+export function showPing(canvasX, canvasY) {
+  const tx = computeMapTransform(state.scene.viewport);
   const px = tx.originX + canvasX * tx.zoom;
   const py = tx.originY + canvasY * tx.zoom;
 
