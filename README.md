@@ -19,16 +19,34 @@ tavern-screen/
 ├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes, scenes, HUD configs)
 ├── config.js                    # Key-value config backed by JSON (settings + folder persistence)
 ├── renderer/
+│   ├── layers/                  # Layer type module (mirrors the HUD module structure)
+│   │   ├── ILayer.js            # Abstract interface all layer types must implement
+│   │   ├── LayerBase.js         # Base class — default GM preview, shared editor helpers
+│   │   ├── ImageLayer.js        # image type
+│   │   ├── GifLayer.js          # gif type (extends ImageLayer)
+│   │   ├── VideoLayer.js        # video type
+│   │   ├── LightLayer.js        # light/shadow overlay type
+│   │   ├── FogLayer.js          # fog of war type (with reveal circles)
+│   │   ├── WeatherLayer.js      # weather particles type (rain, snow, embers, fog, fireflies)
+│   │   ├── settings-layers.js   # WEATHER_TYPES and GM overlay color constants
+│   │   └── index.js             # Re-exports everything + LAYER_REGISTRY singleton
+│   ├── huds/                    # HUD type module
+│   │   ├── IHud.js              # Abstract interface all HUD types must implement
+│   │   ├── HudBase.js           # Base class — positioning, drag, status presets, shared editor helpers
+│   │   ├── InitiativeHud.js     # Combat tracker with turns, HP, status effects
+│   │   ├── StatusHud.js         # Simple status-effect list
+│   │   ├── HandoutHud.js        # Multi-image card carousel
+│   │   ├── settings-huds.js     # DEFAULT_HUD_FONT_SIZE and PF1E_CONDITIONS
+│   │   └── index.js             # Re-exports everything
 │   ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
 │   │   ├── index.html
 │   │   ├── style.css
-│   │   ├── settings.js          # Static config: PF1e conditions, HUD defaults (loads first)
-│   │   ├── gm-state.js          # Shared DOM refs and mutable state (loads second)
+│   │   ├── gm-state.js          # Shared DOM refs and mutable state
 │   │   ├── gm-library.js        # Map library UI (folder setup, project/map rendering, drag-drop)
 │   │   ├── gm-campaign.js       # Campaign/session management, notes editor
 │   │   ├── gm-monitor.js        # Monitor selector, preview, settings inputs, tab switching
 │   │   ├── gm-layers.js         # Scene init, viewport, layer list/editor, GM canvas overlay
-│   │   ├── gm-huds.js           # HUD list/editor, initiative/statuses/handout editors, HUD simulation
+│   │   ├── gm-huds.js           # HUD list/editor, HUD simulation
 │   │   └── gm.js                # Scene I/O (save/load/list), HUD config I/O, panel resize, init
 │   ├── screen/                  # Player screen — Simple mode (fullscreen map + grid)
 │   │   ├── index.html
@@ -37,9 +55,9 @@ tavern-screen/
 │   └── screen-advanced/         # Player screen — Advanced mode (layer system + HUDs)
 │       ├── index.html
 │       ├── style.css
-│       ├── screen-advanced.js        # State, media loading, render loop, IPC handlers (loads first)
-│       ├── screen-advanced-weather.js # Weather particle system (rain, snow, embers, fog, fireflies)
-│       ├── screen-advanced-layers.js  # Layer and grid rendering (drawLayer, drawGrid)
+│       ├── screen-advanced-state.js  # Shared canvas, media cache, weather particles, scene state
+│       ├── screen-advanced.js        # Render loop, IPC handlers, canvas resize
+│       ├── screen-advanced-layers.js # Thin dispatchers: drawLayer → LAYER_REGISTRY, drawGrid
 │       └── screen-advanced-huds.js   # HUD panel rendering (initiative, statuses, handout, ping)
 ├── test/
 │   ├── config.test.js
@@ -319,6 +337,21 @@ Advanced Mode uses a fixed **8192 × 8192 pixel virtual canvas**. All layer posi
 | Viewport `zoom` | Screen pixels per canvas pixel (`1.0` = 1:1) |
 
 Rendering transform: `screenX = (canvasX − cx) × zoom + screenW/2`
+
+### Layer type system
+
+Layer types are implemented as ES module classes under `renderer/layers/`. Each type extends `LayerBase` and is registered in `LAYER_REGISTRY`:
+
+| Class | Type | GM editor fields | Player rendering |
+|---|---|---|---|
+| `ImageLayer` | `image` | source file, opacity | draws image at canvas position |
+| `GifLayer` | `gif` | source file, opacity | same as ImageLayer |
+| `VideoLayer` | `video` | source file, opacity | draws video element |
+| `LightLayer` | `light` | color, opacity | solid colored rectangle |
+| `FogLayer` | `fog` | *(name only)* | dark fill with destination-out reveal circles |
+| `WeatherLayer` | `weather` | weather type, intensity | animated particle system |
+
+Adding a new layer type: create a class extending `LayerBase` in `renderer/layers/`, implement the `ILayer` interface, and add it to `LAYER_REGISTRY` in `index.js`.
 
 ### Features
 
