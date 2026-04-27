@@ -1,3 +1,22 @@
+import {
+  sceneState, display, viewport, ui, settings, gmImageCache,
+  CANVAS_SIZE, MIN_LAYER_SIZE, POSITIONABLE_TYPES, HANDLE_SIZE,
+  layerOverlay, overlayCtx,
+  elScreenModeSimple, elAdvGridVisible, elGridVisible, elGridScaleViewport,
+  elCanvasBg, btnFitView, elSnapToGrid,
+  vpZoomIn, vpZoomOut, vpZoomReset, vpZoomSlider, vpZoomVal,
+  btnPingMode, previewImg, canvasCoordsEl,
+  layerListEl, layerDetail, layerDetailTitle, layerDetailFields,
+  btnAddImageLayer, btnAddLightLayer, btnAddFogLayer, btnAddWeatherLayer,
+  sceneNameInput,
+} from './gm-state.js';
+
+import { imageBoundsFromSrc } from './gm-library.js';
+
+// ── Local drag state (only ever used within this module) ──────────────────────
+let overlayDrag = null;
+let overlayThrottleTimer = null;
+
 // ════════════════════════════════════════════════════════════════════════════
 // SCREEN MODE TOGGLE & ADVANCED CONTROLS
 // ════════════════════════════════════════════════════════════════════════════
@@ -7,7 +26,7 @@ elScreenModeSimple.addEventListener('change', async () => {
   const isAdv = !isSimple;
   display.advanced = isAdv;
   document.body.classList.toggle('advanced-mode', isAdv);
-  sendSettings({ screenMode: isAdv ? 'advanced' : 'simple' });
+  window.sendSettings({ screenMode: isAdv ? 'advanced' : 'simple' });
   if (isAdv) await initScene();
   else renderLayerOverlay();
 });
@@ -15,19 +34,19 @@ elScreenModeSimple.addEventListener('change', async () => {
 // Grid visibility shortcut (syncs with Settings-tab checkbox)
 elAdvGridVisible.addEventListener('change', () => {
   elGridVisible.checked = elAdvGridVisible.checked;
-  sendSettings({ gridVisible: elAdvGridVisible.checked });
+  window.sendSettings({ gridVisible: elAdvGridVisible.checked });
 });
 
 // Grid scale mode
 elGridScaleViewport.addEventListener('change', () => {
-  sendSettings({ gridScaleWithViewport: elGridScaleViewport.checked });
+  window.sendSettings({ gridScaleWithViewport: elGridScaleViewport.checked });
 });
 
 elCanvasBg?.addEventListener('input', () => {
   sceneState.bg = elCanvasBg.value;
   window.electronAPI.updateSceneMeta({ background: sceneState.bg });
   renderLayerOverlay();
-  scheduleAutosave();
+  window.scheduleAutosave();
 });
 
 btnFitView?.addEventListener('click', fitView);
@@ -51,7 +70,7 @@ elSnapToGrid?.addEventListener('change', () => { viewport.snapToGrid = elSnapToG
 
 // ── Scene init ────────────────────────────────────────────────────────────────
 
-async function initScene() {
+export async function initScene() {
   const scene = await window.electronAPI.getScene();
   if (!scene) return;
   sceneState.layers = scene.layers   ?? [];
@@ -62,12 +81,12 @@ async function initScene() {
   sceneState.bg     = scene.background ?? '#1a1a2e';
   sceneNameInput.value = scene.name ?? '';
   renderLayerList();
-  renderHudList();
-  renderHudPreview();
+  window.renderHudList();
+  window.renderHudPreview();
   updateVpZoomUI();
   fitGMCamera();
   sceneState.ready = true;
-  renderSceneList();
+  window.renderSceneList();
 }
 
 function fitGMCamera() {
@@ -97,7 +116,7 @@ function fitView() {
 
 // ── Viewport zoom ─────────────────────────────────────────────────────────────
 
-function updateVpZoomUI() {
+export function updateVpZoomUI() {
   const pct = Math.round(viewport.zoom * 100);
   vpZoomVal.textContent = pct + '%';
   vpZoomSlider.value    = pct;
@@ -108,7 +127,7 @@ function setVpZoom(value) {
   updateVpZoomUI();
   window.electronAPI.updateViewport({ zoom: viewport.zoom });
   renderLayerOverlay();
-  scheduleAutosave();
+  window.scheduleAutosave();
 }
 
 vpZoomIn.addEventListener('click',     () => setVpZoom(viewport.zoom + 0.1));
@@ -155,7 +174,7 @@ const LAYER_TYPE_LABELS = {
 };
 const WEATHER_TYPES = ['rain', 'snow', 'embers', 'fog', 'fireflies'];
 
-function renderLayerList() {
+export function renderLayerList() {
   layerListEl.innerHTML = '';
   if (sceneState.layers.length === 0) {
     const empty = document.createElement('div');
@@ -163,7 +182,7 @@ function renderLayerList() {
     empty.textContent = 'No layers yet';
     layerListEl.appendChild(empty);
     renderLayerOverlay();
-    scheduleAutosave();
+    window.scheduleAutosave();
     return;
   }
   // Render in reverse (top of stack first visually)
@@ -171,7 +190,7 @@ function renderLayerList() {
     layerListEl.appendChild(buildLayerRow(sceneState.layers[i]));
   }
   renderLayerOverlay();
-  scheduleAutosave();
+  window.scheduleAutosave();
 }
 
 function buildLayerRow(layer) {
@@ -543,7 +562,7 @@ function hitTestOverlay(mx, my) {
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
-function renderLayerOverlay() {
+export function renderLayerOverlay() {
   const ctx = overlayCtx;
   const ow = layerOverlay.width, oh = layerOverlay.height;
   ctx.clearRect(0, 0, ow, oh);
@@ -666,7 +685,7 @@ function renderLayerOverlay() {
 
 function throttledUpdateLayer(id, patch) {
   // Apply locally for instant visual feedback
-  layers = sceneState.layers.map(l => l.id === id ? { ...l, ...patch } : l);
+  sceneState.layers = sceneState.layers.map(l => l.id === id ? { ...l, ...patch } : l);
   renderLayerOverlay();
 
   // Send to main process at ~20 fps
@@ -891,3 +910,6 @@ document.addEventListener('mouseup', async () => {
     if (newLayers) { sceneState.layers = newLayers; renderLayerOverlay(); }
   }
 });
+
+// ── Window bridge (for unconverted classic scripts) ───────────────────────────
+Object.assign(window, { initScene, renderLayerList, renderLayerOverlay, updateVpZoomUI });

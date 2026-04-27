@@ -173,9 +173,6 @@ export const overlayCtx    = layerOverlay.getContext('2d');
 export const POSITIONABLE_TYPES = new Set(['image', 'gif', 'video', 'light', 'fog', 'weather']);
 export const HANDLE_SIZE        = 8;
 
-export let overlayDrag = null;
-export let overlayThrottleTimer = null;
-
 // ── Window bridge (for unconverted classic scripts) ───────────────────────────
 Object.assign(window, {
   libSetup, libRootPath, libContent, libFooter,
@@ -211,8 +208,6 @@ Object.assign(window, {
 for (const [key, get, set] of [
   ['autosaveTimer',        () => autosaveTimer,        v => { autosaveTimer = v; }],
   ['lastScreenPreviewUrl', () => lastScreenPreviewUrl, v => { lastScreenPreviewUrl = v; }],
-  ['overlayDrag',          () => overlayDrag,          v => { overlayDrag = v; }],
-  ['overlayThrottleTimer', () => overlayThrottleTimer, v => { overlayThrottleTimer = v; }],
 ]) {
   Object.defineProperty(window, key, { get, set, configurable: true });
 }

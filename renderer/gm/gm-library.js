@@ -220,7 +220,7 @@ function buildMapCard(map) {
   return card;
 }
 
-function imageBoundsFromSrc(src) {
+export function imageBoundsFromSrc(src) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
