@@ -1,10 +1,8 @@
-// GM panel static configuration.
-// Edit colours or add entries here to customise defaults app-wide.
-// This file is loaded before gm.js and exposes globals used by the GM renderer.
+// HUD configuration — conditions list and defaults.
+// Used by HudBase (status picker) and concrete HUD classes (getDefaults).
 
-// ---------------------------------------------------------------------------
-// Pathfinder 1e – all standard conditions
-// ---------------------------------------------------------------------------
+const DEFAULT_HUD_FONT_SIZE = 24;
+
 const PF1E_CONDITIONS = [
   { name: 'Blinded',        color: '#555555' },
   { name: 'Confused',       color: '#cc44cc' },
@@ -37,8 +35,3 @@ const PF1E_CONDITIONS = [
   { name: 'Stunned',        color: '#8833cc' },
   { name: 'Unconscious',    color: '#333355' },
 ];
-
-// ---------------------------------------------------------------------------
-// Initiative HUD defaults
-// ---------------------------------------------------------------------------
-const DEFAULT_HUD_FONT_SIZE = 24;

@@ -261,7 +261,7 @@ class HudBase extends IHud {
 
     const pf1eGrid = document.createElement('div');
     pf1eGrid.className = 'preset-grid';
-    for (const { name, color } of (window.PF1E_CONDITIONS ?? [])) {
+    for (const { name, color } of (typeof PF1E_CONDITIONS !== 'undefined' ? PF1E_CONDITIONS : [])) {
       const btn = document.createElement('button');
       btn.className = 'preset-btn';
       btn.title     = name;
