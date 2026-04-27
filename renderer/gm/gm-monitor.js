@@ -1,8 +1,17 @@
+import {
+  display, ui, sceneState, settings,
+  monitorMap, monitorList, btnCloseScreen,
+  previewImg, previewPlaceholder, btnRefreshPreview,
+  elGridVisible, elAdvGridVisible, elCellSize, elGridColor, elGridOpacity, elGridOpacityVal,
+  elDpi, elZoomSlider, elZoomVal, btnZoomIn, btnZoomOut, btnZoomReset,
+  elScreenModeSimple, elGridScaleViewport,
+} from './gm-state.js';
+
 // ════════════════════════════════════════════════════════════════════════════
 // MONITORS
 // ════════════════════════════════════════════════════════════════════════════
 
-async function loadDisplays() {
+export async function loadDisplays() {
   display.list = await window.electronAPI.getDisplays();
   display.activeId = (display.list.find((d) => d.active) || {}).id || null;
   renderMonitorMap();
@@ -69,7 +78,7 @@ function selectDisplay(displayId) {
   renderMonitorMap();
   renderMonitorCards();
   btnCloseScreen.disabled = false;
-  setMonitorSectionCollapsed(true);
+  window.setMonitorSectionCollapsed(true);
 }
 
 btnCloseScreen.addEventListener('click', () => {
@@ -100,28 +109,29 @@ window.electronAPI.onScreenOpened(async (displayId, suggestedDpi, sw, sh) => {
   if (suggestedDpi) { elDpi.value = suggestedDpi; sendSettings({ dpi: suggestedDpi }); }
   if (sw) display.screenW = sw;
   if (sh) display.screenH = sh;
-  if (display.advanced) await initScene();
+  if (display.advanced) await window.initScene();
 });
 
 // ════════════════════════════════════════════════════════════════════════════
 // PREVIEW
 // ════════════════════════════════════════════════════════════════════════════
 
-function showPreviewPlaceholder() {
+export function showPreviewPlaceholder() {
   previewImg.style.display = 'none';
   previewPlaceholder.style.display = '';
 }
 
 window.electronAPI.onScreenPreview((dataUrl) => {
   display.previewUrl = dataUrl;
-  lastScreenPreviewUrl = dataUrl;
+  // Write through the window setter so the gm-state module binding stays in sync.
+  window.lastScreenPreviewUrl = dataUrl;
   if (!display.advanced) {
     previewImg.src = dataUrl;
     previewImg.style.display = 'block';
     previewPlaceholder.style.display = 'none';
-    setTimeout(renderLayerOverlay, 50);
+    setTimeout(() => window.renderLayerOverlay(), 50);
   } else {
-    if (!ui.simDragging) updateHudSimulation();
+    if (!ui.simDragging) window.updateHudSimulation();
   }
 });
 
@@ -131,12 +141,12 @@ btnRefreshPreview.addEventListener('click', () => window.electronAPI.requestPrev
 // SETTINGS
 // ════════════════════════════════════════════════════════════════════════════
 
-function sendSettings(patch) {
+export function sendSettings(patch) {
   Object.assign(settings, patch);
   window.electronAPI.updateSettings(patch);
 }
 
-function applySettingsToUI(s) {
+export function applySettingsToUI(s) {
   if (s.gridVisible    !== undefined) {
     elGridVisible.checked = s.gridVisible;
     if (elAdvGridVisible) elAdvGridVisible.checked = s.gridVisible;
@@ -159,8 +169,8 @@ function applySettingsToUI(s) {
     display.advanced = isAdv;
     if (elScreenModeSimple) elScreenModeSimple.checked = !isAdv;
     document.body.classList.toggle('advanced-mode', isAdv);
-    if (isAdv && !sceneState.ready) initScene();
-    else renderLayerOverlay();
+    if (isAdv && !sceneState.ready) window.initScene();
+    else window.renderLayerOverlay();
   }
   if (s.gridScaleWithViewport !== undefined) {
     if (elGridScaleViewport) elGridScaleViewport.checked = s.gridScaleWithViewport;
@@ -216,7 +226,7 @@ rightTabBtns.forEach(btn => {
     const tab = btn.dataset.rightTab;
     rightTabPaneSettings.style.display = tab === 'settings' ? '' : 'none';
     rightTabPaneLayers.style.display   = tab === 'layers'   ? '' : 'none';
-    if (tab === 'layers') renderSceneList();
+    if (tab === 'layers') window.renderSceneList();
   });
 });
 
@@ -234,7 +244,10 @@ centerPreviewTabs.forEach(btn => {
     centerTabHudSim.style.display   = tab === 'hud-sim'  ? '' : 'none';
     if (tab === 'hud-sim') {
       window.electronAPI.requestPreview();
-      updateHudSimulation();
+      window.updateHudSimulation();
     }
   });
 });
+
+// ── Window bridge (for unconverted classic scripts) ───────────────────────────
+Object.assign(window, { loadDisplays, showPreviewPlaceholder, applySettingsToUI, sendSettings });
