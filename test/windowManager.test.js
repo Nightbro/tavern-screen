@@ -1,4 +1,4 @@
-const { createWindowManager, DEFAULT_SETTINGS } = require('../windowManager');
+const { createWindowManager, DEFAULT_SETTINGS } = require('../src/main/windowManager');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

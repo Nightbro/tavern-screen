@@ -12,68 +12,75 @@ An Electron app for sharing a map on a second screen as a fullscreen display. De
 
 ```
 tavern-screen/
-├── main.js                      # Electron main process, IPC wiring
+├── main.js                      # Electron entry point, bootstraps the app
 ├── preload.js                   # IPC bridge (contextIsolation)
-├── windowManager.js             # Window lifecycle, active map, preview capture
-├── library.js                   # File-system map library (projects, copy, move, delete)
-├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes, scenes, HUD configs)
-├── config.js                    # Key-value config backed by JSON (settings + folder persistence)
-├── ipc/                         # Electron message handlers — main process receives these from the renderer
-│   ├── display.js               # Display selection, settings, preview
-│   ├── library.js               # Map library (folder, projects, files)
-│   ├── campaign.js              # Campaigns, sessions, notes, HUDs, HUD configs
-│   └── scene.js                 # Scene state, layers, viewport, ping, file dialogs
-├── renderer/
-│   ├── layers/                  # Layer type module (mirrors the HUD module structure)
-│   │   ├── ILayer.js            # Abstract interface all layer types must implement
-│   │   ├── LayerBase.js         # Base class — default GM preview, shared editor helpers
-│   │   ├── ImageLayer.js        # image type
-│   │   ├── GifLayer.js          # gif type (extends ImageLayer)
-│   │   ├── VideoLayer.js        # video type
-│   │   ├── LightLayer.js        # light/shadow overlay type
-│   │   ├── FogLayer.js          # fog of war type (with reveal circles)
-│   │   ├── WeatherLayer.js      # weather particles type (rain, snow, embers, fog, fireflies)
-│   │   ├── settings-layers.js   # WEATHER_TYPES and GM overlay color constants
-│   │   └── index.js             # Re-exports everything + LAYER_REGISTRY singleton
-│   ├── huds/                    # HUD type module
-│   │   ├── IHud.js              # Abstract interface all HUD types must implement
-│   │   ├── HudBase.js           # Base class — positioning, drag, status presets, shared editor helpers
-│   │   ├── InitiativeHud.js     # Combat tracker with turns, HP, status effects
-│   │   ├── StatusHud.js         # Simple status-effect list
-│   │   ├── HandoutHud.js        # Multi-image card carousel
-│   │   ├── settings-huds.js     # DEFAULT_HUD_FONT_SIZE and PF1E_CONDITIONS
-│   │   └── index.js             # Re-exports everything
-│   ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
-│   │   ├── index.html
-│   │   ├── gm-base.css          # Reset, layout, panels, resize handles, shared labels
-│   │   ├── gm-library.css       # Map library, project sections, map cards, panel tabs
-│   │   ├── gm-campaign.css      # Campaign toolbar, sessions, scenes, notes, drop overlay
-│   │   ├── gm-monitors.css      # Monitor map/cards, preview, HUD simulation, handout cards
-│   │   ├── gm-controls.css      # Settings groups, form fields, all btn-* variants
-│   │   ├── gm-layers.css        # Right panel, layer rows, detail fields, advanced-mode overrides
-│   │   ├── gm-huds.css          # Initiative entries, status chips, preset picker
-│   │   ├── gm-state.js          # Shared DOM refs and mutable state
-│   │   ├── gm-library.js        # Map library UI (folder setup, project/map rendering, drag-drop)
-│   │   ├── gm-campaign.js       # Campaign/session management, notes editor
-│   │   ├── gm-monitor.js        # Monitor selector, preview, settings inputs, tab switching
-│   │   ├── gm-layers.js         # Scene init, viewport, layer list/editor, GM canvas overlay
-│   │   ├── gm-huds.js           # HUD list/editor, HUD simulation
-│   │   └── gm.js                # Scene I/O (save/load/list), HUD config I/O, panel resize, init
-│   ├── screen/                  # Player screen — Simple mode (fullscreen map + grid)
-│   │   ├── index.html
-│   │   ├── style.css
-│   │   └── screen.js
-│   └── screen-advanced/         # Player screen — Advanced mode (layer system + HUDs)
-│       ├── index.html
-│       ├── style.css
-│       ├── screen-advanced-state.js  # Shared canvas, media cache, weather particles, scene state
-│       ├── screen-advanced.js        # Render loop, IPC handlers, canvas resize
-│       ├── screen-advanced-layers.js # Thin dispatchers: drawLayer → LAYER_REGISTRY, drawGrid
-│       └── screen-advanced-huds.js   # HUD panel rendering (initiative, statuses, handout, ping)
+├── src/
+│   ├── main/                    # Main process — runs in Node.js, never loaded by the browser
+│   │   ├── windowManager.js     # Window lifecycle, active map, preview capture
+│   │   ├── displayManager.js    # Display selection, screen window creation
+│   │   ├── library.js           # File-system map library (projects, copy, move, delete)
+│   │   ├── campaignLibrary.js   # File-system campaign library (campaigns, sessions, notes, scenes, HUD configs)
+│   │   ├── config.js            # Key-value config backed by JSON (settings + folder persistence)
+│   │   ├── sceneState.js        # In-memory scene state (layers, HUDs, viewport)
+│   │   ├── snapshotStore.js     # Generic JSON snapshot persistence (used by campaignLibrary)
+│   │   └── ipc/                 # Electron message handlers — main process receives these from the renderer
+│   │       ├── display.js       # Display selection, settings, preview
+│   │       ├── library.js       # Map library (folder, projects, files)
+│   │       ├── campaign.js      # Campaigns, sessions, notes, HUDs, HUD configs
+│   │       └── scene.js         # Scene state, layers, viewport, ping, file dialogs
+│   └── renderer/                    # Renderer process — runs in Chromium, no Node.js access
+│       ├── layers/                  # Layer type module (mirrors the HUD module structure)
+│       │   ├── ILayer.js            # Abstract interface all layer types must implement
+│       │   ├── LayerBase.js         # Base class — default GM preview, shared editor helpers
+│       │   ├── ImageLayer.js        # image type
+│       │   ├── GifLayer.js          # gif type (extends ImageLayer)
+│       │   ├── VideoLayer.js        # video type
+│       │   ├── LightLayer.js        # light/shadow overlay type
+│       │   ├── FogLayer.js          # fog of war type (with reveal circles)
+│       │   ├── WeatherLayer.js      # weather particles type (rain, snow, embers, fog, fireflies)
+│       │   ├── settings-layers.js   # WEATHER_TYPES and GM overlay color constants
+│       │   └── index.js             # Re-exports everything + LAYER_REGISTRY singleton
+│       ├── huds/                    # HUD type module
+│       │   ├── IHud.js              # Abstract interface all HUD types must implement
+│       │   ├── HudBase.js           # Base class — positioning, drag, status presets, shared editor helpers
+│       │   ├── InitiativeHud.js     # Combat tracker with turns, HP, status effects
+│       │   ├── StatusHud.js         # Simple status-effect list
+│       │   ├── HandoutHud.js        # Multi-image card carousel
+│       │   ├── settings-huds.js     # DEFAULT_HUD_FONT_SIZE and PF1E_CONDITIONS
+│       │   └── index.js             # Re-exports everything
+│       ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
+│       │   ├── index.html
+│       │   ├── gm-base.css          # Reset, layout, panels, resize handles, shared labels
+│       │   ├── gm-library.css       # Map library, project sections, map cards, panel tabs
+│       │   ├── gm-campaign.css      # Campaign toolbar, sessions, scenes, notes, drop overlay
+│       │   ├── gm-monitors.css      # Monitor map/cards, preview, HUD simulation, handout cards
+│       │   ├── gm-controls.css      # Settings groups, form fields, all btn-* variants
+│       │   ├── gm-layers.css        # Right panel, layer rows, detail fields, advanced-mode overrides
+│       │   ├── gm-huds.css          # Initiative entries, status chips, preset picker
+│       │   ├── gm-state.js          # Shared DOM refs and mutable state
+│       │   ├── gm-library.js        # Map library UI (folder setup, project/map rendering, drag-drop)
+│       │   ├── gm-campaign.js       # Campaign/session management, notes editor
+│       │   ├── gm-monitor.js        # Monitor selector, preview, settings inputs, tab switching
+│       │   ├── gm-layers.js         # Scene init, viewport, layer list/editor, GM canvas overlay
+│       │   ├── gm-huds.js           # HUD list/editor, HUD simulation
+│       │   └── gm.js                # Scene I/O (save/load/list), HUD config I/O, panel resize, init
+│       ├── screen/                  # Player screen — Simple mode (fullscreen map + grid)
+│       │   ├── index.html
+│       │   ├── style.css
+│       │   └── screen.js
+│       └── screen-advanced/         # Player screen — Advanced mode (layer system + HUDs)
+│           ├── index.html
+│           ├── style.css
+│           ├── screen-advanced-state.js  # Shared canvas, media cache, weather particles, scene state
+│           ├── screen-advanced.js        # Render loop, IPC handlers, canvas resize
+│           ├── screen-advanced-layers.js # Thin dispatchers: drawLayer → LAYER_REGISTRY, drawGrid
+│           └── screen-advanced-huds.js   # HUD panel rendering (initiative, statuses, handout, ping)
 ├── test/
 │   ├── config.test.js
 │   ├── library.test.js
 │   ├── campaignLibrary.test.js
+│   ├── sceneState.test.js
+│   ├── snapshotStore.test.js
 │   └── windowManager.test.js
 ├── run.bat                      # Double-click to start the app
 ├── build.bat                    # Double-click to build the Windows installer + portable exe

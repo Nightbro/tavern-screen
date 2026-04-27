@@ -1,4 +1,4 @@
-const { createSceneState, buildDefaultScene } = require('../sceneState');
+const { createSceneState, buildDefaultScene } = require('../src/main/sceneState');
 
 // ── buildDefaultScene ─────────────────────────────────────────────────────────
 

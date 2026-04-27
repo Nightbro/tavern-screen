@@ -1,7 +1,7 @@
 const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
-const { createLibrary } = require('../library');
+const { createLibrary } = require('../src/main/library');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

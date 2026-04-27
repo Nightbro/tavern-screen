@@ -1,7 +1,7 @@
 const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
-const { createCampaignLibrary } = require('../campaignLibrary');
+const { createCampaignLibrary } = require('../src/main/campaignLibrary');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

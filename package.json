@@ -29,11 +29,8 @@
     "files": [
       "main.js",
       "preload.js",
-      "windowManager.js",
-      "displayManager.js",
-      "library.js",
-      "config.js",
-      "renderer/**/*",
+      "src/main/**/*",
+      "src/renderer/**/*",
       "package.json",
       "node_modules/**/*"
     ],

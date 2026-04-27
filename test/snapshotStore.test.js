@@ -1,7 +1,7 @@
 const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
-const { saveSnapshot, listSnapshots, loadSnapshot, deleteSnapshot, renameSnapshot } = require('../snapshotStore');
+const { saveSnapshot, listSnapshots, loadSnapshot, deleteSnapshot, renameSnapshot } = require('../src/main/snapshotStore');
 
 function makeTmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'tavern-snap-'));

@@ -1,7 +1,7 @@
 const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
-const { createConfig } = require('../config');
+const { createConfig } = require('../src/main/config');
 
 function makeTmpFile() {
   return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tavern-cfg-')), 'config.json');

@@ -5,14 +5,14 @@ const { app, BrowserWindow, ipcMain, screen, dialog } = require('electron');
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 const path = require('path');
 
-const { createConfig }           = require('./config');
-const { createLibrary }          = require('./library');
-const { createCampaignLibrary }  = require('./campaignLibrary');
-const { createWindowManager }    = require('./windowManager');
-const { registerDisplayHandlers }  = require('./ipc/display');
-const { registerLibraryHandlers }  = require('./ipc/library');
-const { registerCampaignHandlers } = require('./ipc/campaign');
-const { registerSceneHandlers }    = require('./ipc/scene');
+const { createConfig }           = require('./src/main/config');
+const { createLibrary }          = require('./src/main/library');
+const { createCampaignLibrary }  = require('./src/main/campaignLibrary');
+const { createWindowManager }    = require('./src/main/windowManager');
+const { registerDisplayHandlers }  = require('./src/main/ipc/display');
+const { registerLibraryHandlers }  = require('./src/main/ipc/library');
+const { registerCampaignHandlers } = require('./src/main/ipc/campaign');
+const { registerSceneHandlers }    = require('./src/main/ipc/scene');
 
 const config      = createConfig(path.join(app.getPath('userData'), 'config.json'));
 const lib         = createLibrary(config);
@@ -21,9 +21,9 @@ const campaignLib = createCampaignLibrary(config);
 const manager = createWindowManager({
   BrowserWindow, screen,
   preloadPath:                path.join(__dirname, 'preload.js'),
-  gmRendererPath:             path.join(__dirname, 'renderer', 'gm',              'index.html'),
-  screenRendererPath:         path.join(__dirname, 'renderer', 'screen',          'index.html'),
-  screenAdvancedRendererPath: path.join(__dirname, 'renderer', 'screen-advanced', 'index.html'),
+  gmRendererPath:             path.join(__dirname, 'src', 'renderer', 'gm',              'index.html'),
+  screenRendererPath:         path.join(__dirname, 'src', 'renderer', 'screen',          'index.html'),
+  screenAdvancedRendererPath: path.join(__dirname, 'src', 'renderer', 'screen-advanced', 'index.html'),
   initialSettings:            config.get('settings', null),
 });
 
@@ -35,7 +35,7 @@ registerSceneHandlers(ipcMain,    { manager, campaignLib, dialog, BrowserWindow 
 // ── CSS hot-reload (dev only) ──────────────────────────────────────────────
 if (!app.isPackaged) {
   const fs = require('fs');
-  fs.watch(path.join(__dirname, 'renderer'), { recursive: true }, (_event, filename) => {
+  fs.watch(path.join(__dirname, 'src', 'renderer'), { recursive: true }, (_event, filename) => {
     if (!filename?.endsWith('.css')) return;
     const snippet = `document.querySelectorAll('link[rel=stylesheet]').forEach(l => {
       const h = l.href; l.href = ''; l.href = h;
