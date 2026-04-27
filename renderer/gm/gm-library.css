@@ -1,0 +1,149 @@
+/* ════════════════════════════════════════════════════════════════
+   MAP LIBRARY
+   ════════════════════════════════════════════════════════════════ */
+
+.lib-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.lib-toolbar-actions { display: flex; gap: 6px; align-items: center; }
+
+#lib-setup {
+  text-align: center; padding: 20px 8px;
+  color: #555; font-size: 12px; line-height: 1.7;
+  border: 1px dashed #2e2e4e; border-radius: 8px;
+}
+#lib-setup code { color: #888; background: #11111f; padding: 1px 5px; border-radius: 3px; }
+#lib-setup .btn-primary { margin-top: 10px; width: 100%; }
+
+#lib-root-path {
+  font-size: 10px; color: #3a3a5e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+/* Library content: scrollable project list */
+#lib-content {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+/* ── Project section ── */
+.project-section { flex-shrink: 0; }
+
+.project-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 6px; border-radius: 6px;
+  cursor: pointer; user-select: none;
+  transition: background 0.12s;
+}
+.project-header:hover { background: #1e1e38; }
+
+.project-chevron { font-size: 10px; color: #555; width: 12px; flex-shrink: 0; transition: transform 0.15s; }
+.project-section.collapsed .project-chevron { transform: rotate(-90deg); }
+
+.project-name {
+  flex: 1; font-size: 12px; font-weight: 600; color: #aaa;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.project-name-input {
+  flex: 1; background: #11111f; border: 1px solid #c9a84c;
+  border-radius: 3px; color: #e0e0e0; font-size: 12px; font-weight: 600;
+  padding: 1px 5px; outline: none;
+}
+
+.project-count { font-size: 10px; color: #3a3a5e; }
+.project-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.12s; }
+.project-header:hover .project-actions { opacity: 1; }
+
+/* Project drop zone (the maps grid inside a project) */
+.project-maps {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 4px 4px 8px 18px;
+  min-height: 8px;
+  border-radius: 6px;
+  transition: background 0.12s, outline 0.12s;
+}
+.project-section.collapsed .project-maps { display: none; }
+
+.project-maps.drag-over {
+  background: #c9a84c11;
+  outline: 2px dashed #c9a84c55;
+}
+
+.project-empty {
+  width: 100%; font-size: 11px; color: #333;
+  text-align: center; padding: 8px 0;
+  font-style: italic;
+}
+
+/* ── Map card ── */
+.map-card {
+  position: relative;
+  width: 72px;
+  border: 2px solid #2e2e4e; border-radius: 5px;
+  overflow: hidden; cursor: pointer;
+  transition: border-color 0.12s; background: #11111f;
+  flex-shrink: 0;
+}
+.map-card:hover  { border-color: #c9a84c; }
+.map-card.active { border-color: #4caf7d; }
+.map-card.dragging { opacity: 0.4; }
+
+.map-card img {
+  width: 100%; aspect-ratio: 4/3;
+  object-fit: cover; display: block; pointer-events: none;
+}
+
+.map-card-name {
+  font-size: 9px; color: #666;
+  padding: 2px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: #0d0d1a;
+}
+.map-card.active .map-card-name { color: #4caf7d; }
+
+.map-card-remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 16px; height: 16px;
+  background: #0009; border: none; border-radius: 3px;
+  color: #ccc; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.12s, background 0.12s;
+}
+.map-card:hover .map-card-remove { opacity: 1; }
+.map-card-remove:hover { background: #e05555; color: #fff; }
+
+/* ════════════════════════════════════════════════════════════════
+   LEFT PANEL TABS
+   ════════════════════════════════════════════════════════════════ */
+.panel-tabs {
+  display: flex; gap: 2px; flex-shrink: 0;
+  border-bottom: 1px solid #2e2e4e; padding-bottom: 6px;
+}
+.panel-tab {
+  flex: 1; padding: 4px 0;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 4px; color: #555; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.panel-tab:hover  { color: #aaa; }
+.panel-tab.active { color: #c9a84c; border-color: #c9a84c44; background: #c9a84c0d; }
+
+.tab-pane {
+  display: flex; flex-direction: column; gap: 10px;
+  flex: 1; min-height: 0; overflow: hidden;
+}
+
+/* ── Library footer ── */
+.lib-footer {
+  display: flex; gap: 6px; align-items: center;
+  flex-shrink: 0; padding-top: 6px; border-top: 1px solid #2e2e4e;
+}
+.new-project-input {
+  flex: 1; background: #11111f; border: 1px solid #c9a84c;
+  border-radius: 4px; color: #e0e0e0; font-size: 12px;
+  padding: 3px 7px; outline: none; min-width: 0;
+}
+.new-project-input::placeholder { color: #444; }

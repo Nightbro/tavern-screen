@@ -1,0 +1,187 @@
+/* ════════════════════════════════════════════════════════════════
+   MONITORS
+   ════════════════════════════════════════════════════════════════ */
+#monitor-map {
+  position: relative; width: 100%; height: 120px;
+  background: #11111f; border: 1px solid #2e2e4e;
+  border-radius: 8px; overflow: hidden; flex-shrink: 0;
+}
+.map-monitor {
+  position: absolute; border: 2px solid #3a3a5e; border-radius: 4px;
+  background: #1e1e38; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s; user-select: none;
+}
+.map-monitor:hover         { border-color: #c9a84c; background: #252540; }
+.map-monitor.active        { border-color: #4caf7d; background: #1a2e24; }
+.map-monitor .map-label    { font-size: 11px; color: #aaa; font-weight: 500; }
+.map-monitor .map-res      { font-size: 9px; color: #555; margin-top: 2px; }
+.map-monitor .map-badge    { font-size: 8px; color: #c9a84c; margin-top: 3px; text-transform: uppercase; }
+.map-monitor.active .map-label,
+.map-monitor.active .map-res { color: #81e0ab; }
+
+#monitor-list { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+
+.monitor-card {
+  flex: 1 1 160px; background: #11111f;
+  border: 1px solid #2e2e4e; border-radius: 8px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.monitor-card.active { border-color: #4caf7d; }
+.monitor-card-header { display: flex; align-items: center; gap: 6px; }
+.monitor-card-header h2 { font-size: 13px; font-weight: 600; color: #ddd; }
+.badge-primary { font-size: 9px; background: #c9a84c22; color: #c9a84c; border: 1px solid #c9a84c55; border-radius: 4px; padding: 1px 5px; }
+.badge-active  { font-size: 9px; background: #4caf7d22; color: #4caf7d; border: 1px solid #4caf7d55; border-radius: 4px; padding: 1px 5px; }
+.monitor-res   { font-size: 11px; color: #555; }
+
+/* ── Center preview tabs ── */
+.center-preview-tabs {
+  flex-shrink: 0;
+  border-bottom: 1px solid #2e2e4e;
+  padding-bottom: 6px;
+}
+.center-preview-pane {
+  display: flex; flex-direction: column; gap: 6px;
+  flex: 1; min-height: 0;
+}
+
+/* ── Player screen preview ── */
+#preview-wrap {
+  flex: 1; min-height: 150px;
+  background: #0a0a18; border: 1px solid #2e2e4e;
+  border-radius: 8px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+
+/* ── HUD Simulation ── */
+#hud-sim-wrap {
+  flex: 1; min-height: 0;
+  background: #050510; border: 1px solid #2e2e4e;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+#hud-sim-viewport {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #0c0c22;
+  border: 1px solid #242440;
+  box-shadow: 0 0 0 1px #1a1a3a;
+}
+#hud-sim-screen {
+  position: absolute; top: 0; left: 0;
+  background: transparent;
+}
+
+.hud-sim-panel {
+  position: absolute;
+  background: rgba(10, 10, 22, 0.96);
+  border: 1px solid #2a2a50;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.hud-sim-panel:hover  { border-color: #3a3a6a; }
+.hud-sim-panel.selected {
+  border-color: #4caf7d88;
+  box-shadow: 0 0 0 1px #4caf7d33;
+}
+
+.hud-sim-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0.35em 0.6em;
+  border-bottom: 1px solid #1a1a38;
+  cursor: grab; background: rgba(12, 12, 28, 0.9);
+}
+.hud-sim-header:active { cursor: grabbing; }
+
+.hud-sim-badge {
+  font-size: 0.55em; border: 1px solid; border-radius: 3px;
+  padding: 1px 4px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.hud-sim-title-text {
+  font-size: 0.65em; font-weight: 700; color: #555;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.hud-sim-body { padding: 0.3em 0.6em 0.45em; }
+
+.hud-sim-entry {
+  display: flex; align-items: center; gap: 0.4em;
+  padding: 0.25em 0;
+  border-bottom: 1px solid #14142a;
+  color: #999;
+}
+.hud-sim-entry:last-child { border-bottom: none; }
+
+.hud-sim-roll {
+  font-size: 0.75em; font-weight: 700; color: #4a4a6e;
+  min-width: 1.8em; text-align: right; flex-shrink: 0;
+}
+.hud-sim-name { flex: 1; font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-sim-pips { display: flex; gap: 3px; flex-shrink: 0; }
+.hud-sim-pip  { width: 0.45em; height: 0.45em; border-radius: 50%; flex-shrink: 0; }
+.hud-sim-empty { font-size: 0.75em; color: #2a2a4a; font-style: italic; padding: 0.3em 0; }
+
+.hud-sim-coords {
+  font-size: 10px; color: #c9a84c; font-family: monospace;
+  margin-left: auto; letter-spacing: 0.5px;
+}
+
+/* ── Handout image cards ── */
+.handout-image-cards {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.handout-card {
+  position: relative; display: flex; align-items: center; gap: 7px;
+  background: #1a1a2e; border: 1px solid #2e2e4e; border-radius: 5px;
+  padding: 4px 6px; cursor: pointer; transition: border-color 0.15s;
+}
+.handout-card:hover { border-color: #5a5a9e; }
+.handout-card.active {
+  border-color: #c9a84c; background: #1e1c10;
+}
+.handout-card-thumb {
+  width: 44px; height: 30px; object-fit: cover;
+  border-radius: 3px; flex-shrink: 0;
+  border: 1px solid #2e2e4e;
+}
+.handout-card-label {
+  flex: 1; font-size: 11px; color: #aaa; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  outline: none;
+}
+.handout-card.active .handout-card-label { color: #e8c96a; }
+.handout-card-del {
+  background: none; border: none; color: #5a5a8e; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0 2px; flex-shrink: 0;
+}
+.handout-card-del:hover { color: #e05555; }
+#preview-placeholder { font-size: 12px; color: #333; }
+#preview-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Layer overlay canvas: sits on top of the preview image */
+#layer-overlay {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  display: block;
+}
+body.advanced-mode #layer-overlay { pointer-events: auto; }
+
+.canvas-coords {
+  position: absolute; bottom: 4px; left: 4px;
+  font-size: 10px; color: rgba(200,200,200,0.5);
+  pointer-events: none; font-family: monospace;
+  background: rgba(0,0,0,0.4); padding: 2px 5px; border-radius: 3px;
+}
+
+.center-footer {
+  flex-shrink: 0; display: flex; justify-content: flex-end;
+  padding-top: 6px; border-top: 1px solid #2e2e4e;
+}

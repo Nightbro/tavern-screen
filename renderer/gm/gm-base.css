@@ -1,0 +1,53 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', sans-serif;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+header {
+  padding: 12px 24px;
+  border-bottom: 1px solid #2e2e4e;
+  flex-shrink: 0;
+}
+header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1px; }
+
+/* ── Workspace ── */
+.workspace { flex: 1; display: flex; overflow: hidden; }
+
+.panel { display: flex; flex-direction: column; gap: 12px; padding: 14px; overflow: hidden; }
+
+#panel-maps    { width: 280px; min-width: 180px; border-right: none; flex-shrink: 0; overflow-y: auto; }
+#panel-center  { flex: 1; min-width: 200px; }
+#panel-settings{ width: 255px; min-width: 180px; flex-shrink: 0; overflow-y: auto; }
+
+/* ── Panel resize handles ── */
+.panel-resize-handle {
+  width: 5px; flex-shrink: 0; cursor: ew-resize;
+  background: #2e2e4e;
+  transition: background 0.15s;
+  z-index: 10;
+}
+.panel-resize-handle:hover,
+.panel-resize-handle.dragging { background: #4a90d9; }
+
+/* ── Shared labels ── */
+.panel-title, .section-title {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; color: #555;
+  flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+}
+.section-title .btn-icon-xs { margin-left: auto; opacity: 0.5; transition: opacity 0.15s, transform 0.2s; }
+.section-title .btn-icon-xs:hover { opacity: 1; }
+.preview-title { gap: 8px; }
+
+/* Monitor section collapse */
+#monitor-section-body { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+#monitor-section-body.collapsed { display: none; }
+#btn-toggle-monitors { transition: transform 0.2s; }
+#btn-toggle-monitors.collapsed { transform: rotate(-90deg); }

@@ -1,0 +1,139 @@
+/* ════════════════════════════════════════════════════════════════
+   RIGHT PANEL — LAYERS TAB
+   ════════════════════════════════════════════════════════════════ */
+
+/* Right tab pane: scrollable, flex column */
+.right-tab-pane {
+  overflow-y: auto;
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* ── Scene name + autosave ── */
+.scene-name-row { display: flex; align-items: center; gap: 6px; padding: 0 8px; }
+.scene-name-input {
+  flex: 1; background: #11111f; border: 1px solid #2e2e4e;
+  border-radius: 4px; color: #ddd; font-size: 12px;
+  padding: 4px 7px; outline: none; min-width: 0;
+}
+.scene-name-input:focus { border-color: #4a90d9; }
+.scene-autosave-badge {
+  font-size: 9px; white-space: nowrap; flex-shrink: 0;
+  color: #555; margin-left: auto;
+}
+.scene-autosave-badge[data-state="saved"]  { color: #4caf7d; }
+.scene-autosave-badge[data-state="saving"] { color: #c9a84c; }
+.scenes-actions { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 8px; }
+
+
+/* adv-only: hidden unless body has .advanced-mode */
+.adv-only { display: none; }
+body.advanced-mode .adv-only { display: flex; }
+
+/* Layer group header (title + add buttons on same row) */
+.layer-group-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.layer-add-btns { display: flex; gap: 3px; }
+
+/* Layer row */
+.layer-row {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 2px; border-radius: 4px;
+  cursor: pointer; user-select: none;
+  transition: background 0.12s;
+}
+.layer-row:hover  { background: #1e1e38; }
+.layer-row.active { background: #1a2e24; }
+.layer-row.active .layer-name { color: #81e0ab; }
+.layer-row.dragging  { opacity: 0.4; }
+.layer-row.drag-over { background: #1e2e3e; outline: 1px dashed #4a90d9; }
+
+.layer-drag-grip {
+  font-size: 14px; color: #333; cursor: grab; flex-shrink: 0;
+  line-height: 1; padding: 0 1px;
+}
+.layer-drag-grip:hover { color: #777; }
+
+.layer-type-badge {
+  font-size: 9px; background: #1e1e38; color: #555;
+  padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.layer-name {
+  flex: 1; font-size: 12px; color: #aaa;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.layer-empty { font-size: 11px; color: #333; font-style: italic; padding: 2px 0; }
+
+/* Layer detail fields */
+#layer-detail-fields {
+  display: flex; flex-direction: column; gap: 5px; padding-top: 4px;
+}
+.detail-field {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: #ccc;
+}
+.detail-field label {
+  font-size: 11px; color: #666; flex-shrink: 0; min-width: 52px;
+}
+.detail-field input[type="text"],
+.detail-field input[type="number"],
+.detail-field select {
+  flex: 1; background: #11111f; border: 1px solid #2e2e4e;
+  border-radius: 3px; color: #e0e0e0; font-size: 11px;
+  padding: 2px 6px; outline: none; min-width: 0;
+}
+.detail-field input:focus, .detail-field select:focus { border-color: #c9a84c; }
+.detail-field input[type="color"] {
+  flex: 0 0 34px; height: 22px; padding: 1px; cursor: pointer;
+}
+
+/* Ping mode active state */
+#btn-ping-mode.ping-active { color: #c9a84c; border-color: #c9a84c55; background: #c9a84c0d; }
+#preview-wrap.ping-mode { cursor: crosshair; }
+
+/* ── Quick Assets (advanced mode, left panel) ── */
+#lib-assets {
+  flex-direction: column; gap: 6px; flex-shrink: 0;
+  border-top: 1px solid #2e2e4e; padding-top: 8px;
+}
+.lib-assets-header { display: flex; align-items: center; }
+.lib-assets-grid {
+  display: flex; flex-wrap: wrap; gap: 5px;
+}
+.btn-asset {
+  padding: 4px 8px; background: #11111f; border: 1px solid #2e2e4e;
+  border-radius: 5px; color: #888; font-size: 11px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn-asset:hover { border-color: #c9a84c55; color: #c9a84c; background: #c9a84c0a; }
+
+/* ── Map cards in advanced mode: indicate "click = add as layer" ── */
+body.advanced-mode .map-card:hover { border-color: #4a90d9; }
+body.advanced-mode .map-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+body.advanced-mode .map-card:hover::after {
+  content: '+ Layer';
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(74, 144, 217, 0.45);
+  color: #fff; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.field-select {
+  background: #11111f; border: 1px solid #3a3a5e;
+  border-radius: 4px; color: #e0e0e0; font-size: 11px;
+  padding: 2px 4px; outline: none; cursor: pointer; min-width: 0;
+}
+.field-select:focus { border-color: #c9a84c; }
+
+.session-badge {
+  font-size: 9px; color: #3a3a5e; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  flex-shrink: 0; padding-right: 2px;
+}
