@@ -1,8 +1,15 @@
+import {
+  display, mapLib, sceneState, CANVAS_SIZE,
+  libSetup, libRootPath, libContent, libFooter,
+  btnRefreshLib, btnSelectFolder, btnSetupFolder, btnNewProject, btnAddImages,
+  dropOverlay,
+} from './gm-state.js';
+
 // ════════════════════════════════════════════════════════════════════════════
 // LIBRARY
 // ════════════════════════════════════════════════════════════════════════════
 
-async function initLibrary() {
+export async function initLibrary() {
   const root = await window.electronAPI.getLibraryRoot();
   if (!root) {
     showLibSetup();
@@ -241,8 +248,8 @@ function activateMap(map) {
         ...bounds,
       }).then(newLayers => {
         if (newLayers) {
-          layers = newLayers;
-          renderLayerList();
+          sceneState.layers = newLayers;
+          window.renderLayerList();
           const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
           if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
         }
@@ -376,3 +383,6 @@ document.addEventListener('drop', async (e) => {
   if (added.length && !mapLib.activeId) activateMap(added[0]);
   await refreshLibrary();
 });
+
+// ── Window bridge (for unconverted classic scripts) ───────────────────────────
+Object.assign(window, { initLibrary });
