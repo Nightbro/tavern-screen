@@ -12,6 +12,7 @@ import {
 } from './gm-state.js';
 
 import { imageBoundsFromSrc } from './gm-library.js';
+import { LAYER_REGISTRY }    from '../layers/index.js';
 
 // ── Local drag state (only ever used within this module) ──────────────────────
 let overlayDrag = null;
@@ -169,10 +170,6 @@ previewImg.addEventListener('click', (e) => {
 // LAYER MANAGEMENT
 // ════════════════════════════════════════════════════════════════════════════
 
-const LAYER_TYPE_LABELS = {
-  image: 'Img', gif: 'GIF', video: 'Vid', light: 'Lgt', fog: 'Fog', weather: 'Wx',
-};
-const WEATHER_TYPES = ['rain', 'snow', 'embers', 'fog', 'fireflies'];
 
 export function renderLayerList() {
   layerListEl.innerHTML = '';
@@ -210,7 +207,7 @@ function buildLayerRow(layer) {
 
   const badge = document.createElement('span');
   badge.className = 'layer-type-badge';
-  badge.textContent = LAYER_TYPE_LABELS[layer.type] ?? layer.type;
+  badge.textContent = LAYER_REGISTRY[layer.type]?.getBadge() ?? layer.type;
 
   const name = document.createElement('span');
   name.className = 'layer-name';
@@ -222,7 +219,7 @@ function buildLayerRow(layer) {
   delBtn.title = 'Remove layer';
   delBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const layerName = layer.name || LAYER_TYPE_LABELS[layer.type] || layer.type;
+    const layerName = layer.name || LAYER_REGISTRY[layer.type]?.getBadge() || layer.type;
     if (!confirm(`Delete layer "${layerName}"?\n\nThis cannot be undone.`)) return;
     if (sceneState.selectedLayerId === layer.id) { sceneState.selectedLayerId = null; layerDetail.style.display = 'none'; }
     const newLayers = await window.electronAPI.removeLayer(layer.id);
@@ -293,8 +290,20 @@ function selectLayer(id) {
 
 function renderLayerDetail(layer) {
   layerDetail.style.display = '';
-  layerDetailTitle.textContent = (LAYER_TYPE_LABELS[layer.type] ?? layer.type) + ' Layer';
+  const reg = LAYER_REGISTRY[layer.type];
+  layerDetailTitle.textContent = (reg?.getBadge() ?? layer.type) + ' Layer';
   layerDetailFields.innerHTML = '';
+
+  const layerCtx = {
+    sceneState,
+    imageBoundsFromSrc,
+    refreshDetail: (updatedLayer) => renderLayerDetail(updatedLayer),
+    updateLayer: async (id, patch) => {
+      const newLayers = await window.electronAPI.updateLayer(id, patch);
+      if (newLayers) sceneState.layers = newLayers;
+      return newLayers;
+    },
+  };
 
   function addField(labelText, inputEl) {
     const row = document.createElement('div');
@@ -313,93 +322,10 @@ function renderLayerDetail(layer) {
   nameInput.placeholder = 'Layer name…';
   addField('Name', nameInput);
   nameInput.addEventListener('change', async () => {
-    const newLayers = await window.electronAPI.updateLayer(layer.id, { name: nameInput.value });
-    if (newLayers) sceneState.layers = newLayers;
+    await layerCtx.updateLayer(layer.id, { name: nameInput.value });
   });
 
-  if (layer.type === 'image' || layer.type === 'gif' || layer.type === 'video') {
-    // Source file
-    const srcWrap = document.createElement('div');
-    srcWrap.style.cssText = 'display:flex;gap:4px;flex:1;min-width:0;align-items:center;';
-    const srcSpan = document.createElement('span');
-    srcSpan.style.cssText = 'font-size:10px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;';
-    srcSpan.title = layer.src ?? '';
-    srcSpan.textContent = layer.src ? layer.src.split(/[/\\]/).at(-1) : '(none)';
-    const pickBtn = document.createElement('button');
-    pickBtn.className = 'btn-ghost-sm';
-    pickBtn.textContent = '📁';
-    pickBtn.title = 'Pick file';
-    pickBtn.addEventListener('click', async () => {
-      const files = await window.electronAPI.openMapDialog();
-      if (files.length) {
-        const src = 'file:///' + files[0].replace(/\\/g, '/');
-        const hasBounds = layer.w != null && layer.h != null;
-        const bounds = hasBounds ? {} : await imageBoundsFromSrc(src);
-        const newLayers = await window.electronAPI.updateLayer(layer.id, { src, ...bounds });
-        if (newLayers) {
-          sceneState.layers = newLayers;
-          const updated = sceneState.layers.find(l => l.id === layer.id);
-          if (updated) renderLayerDetail(updated);
-        }
-      }
-    });
-    srcWrap.appendChild(srcSpan);
-    srcWrap.appendChild(pickBtn);
-    addField('Src', srcWrap);
-
-    // Opacity
-    const opInput = document.createElement('input');
-    opInput.type = 'number'; opInput.min = 0; opInput.max = 1; opInput.step = 0.05;
-    opInput.value = layer.opacity ?? 1;
-    addField('Opacity', opInput);
-    opInput.addEventListener('change', async () => {
-      const newLayers = await window.electronAPI.updateLayer(layer.id, { opacity: parseFloat(opInput.value) || 1 });
-      if (newLayers) sceneState.layers = newLayers;
-    });
-  }
-
-  if (layer.type === 'light') {
-    const colorInput = document.createElement('input');
-    colorInput.type = 'color'; colorInput.value = layer.color ?? '#000033';
-    addField('Color', colorInput);
-    colorInput.addEventListener('input', async () => {
-      const newLayers = await window.electronAPI.updateLayer(layer.id, { color: colorInput.value });
-      if (newLayers) sceneState.layers = newLayers;
-    });
-
-    const opInput = document.createElement('input');
-    opInput.type = 'number'; opInput.min = 0; opInput.max = 1; opInput.step = 0.05;
-    opInput.value = layer.opacity ?? 0.6;
-    addField('Opacity', opInput);
-    opInput.addEventListener('change', async () => {
-      const newLayers = await window.electronAPI.updateLayer(layer.id, { opacity: parseFloat(opInput.value) || 0.6 });
-      if (newLayers) sceneState.layers = newLayers;
-    });
-  }
-
-  if (layer.type === 'weather') {
-    const typeSelect = document.createElement('select');
-    WEATHER_TYPES.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t; opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
-      if (t === (layer.weatherType ?? 'rain')) opt.selected = true;
-      typeSelect.appendChild(opt);
-    });
-    addField('Type', typeSelect);
-    typeSelect.addEventListener('change', async () => {
-      const newLayers = await window.electronAPI.updateLayer(layer.id, { weatherType: typeSelect.value });
-      if (newLayers) sceneState.layers = newLayers;
-    });
-
-    const intInput = document.createElement('input');
-    intInput.type = 'number'; intInput.min = 0.1; intInput.max = 3; intInput.step = 0.1;
-    intInput.value = layer.intensity ?? 1;
-    addField('Intensity', intInput);
-    intInput.addEventListener('change', async () => {
-      const newLayers = await window.electronAPI.updateLayer(layer.id, { intensity: parseFloat(intInput.value) || 1 });
-      if (newLayers) sceneState.layers = newLayers;
-    });
-  }
+  if (reg) reg.renderEditorFields(layer, addField, layerCtx);
 }
 
 // ── Quick asset buttons (left panel, advanced mode) ───────────────────────────
@@ -409,7 +335,9 @@ document.querySelectorAll('.btn-asset').forEach(btn => {
     const type = btn.dataset.asset;
     const label = type.charAt(0).toUpperCase() + type.slice(1);
     const newLayers = await window.electronAPI.addLayer({
-      type: 'weather', weatherType: type, intensity: 1, visible: true, name: label,
+      ...LAYER_REGISTRY.weather.getDefaults(),
+      weatherType: type,
+      name: label,
     });
     if (newLayers) {
       sceneState.layers = newLayers;
@@ -423,22 +351,22 @@ document.querySelectorAll('.btn-asset').forEach(btn => {
 // ── Add layer buttons ─────────────────────────────────────────────────────────
 
 btnAddImageLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer({ type: 'image', visible: true, opacity: 1 });
+  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.image.getDefaults());
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
 btnAddLightLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer({ type: 'light', visible: true, color: '#000033', opacity: 0.6 });
+  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.light.getDefaults());
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
 btnAddFogLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer({ type: 'fog', visible: true, revealed: [] });
+  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.fog.getDefaults());
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
 });
 
 btnAddWeatherLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer({ type: 'weather', visible: true, weatherType: 'rain', intensity: 1 });
+  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.weather.getDefaults());
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
@@ -611,29 +539,7 @@ export function renderLayerOverlay() {
     const b = layerBoundsOnCanvas(layer);
     const isSelected = layer.id === sceneState.selectedLayerId;
 
-    // For image layers: draw the actual image
-    if ((layer.type === 'image' || layer.type === 'gif') && layer.src) {
-      const key = layer.id + '::' + layer.src;
-      if (!gmImageCache.has(key)) {
-        const img = new Image();
-        img.onload = () => { img.loaded = true; renderLayerOverlay(); };
-        img.src = layer.src;
-        gmImageCache.set(key, img);
-      }
-      const img = gmImageCache.get(key);
-      if (img?.loaded) {
-        ctx.save();
-        ctx.globalAlpha = layer.opacity ?? 1;
-        ctx.drawImage(img, b.px, b.py, b.pw, b.ph);
-        ctx.restore();
-      }
-    } else {
-      const TYPE_COLORS = { light: 'rgba(80,120,200,0.25)', fog: 'rgba(20,20,30,0.6)', weather: 'rgba(80,160,220,0.2)', video: 'rgba(80,80,80,0.3)' };
-      ctx.save();
-      ctx.fillStyle = TYPE_COLORS[layer.type] ?? 'rgba(74,144,217,0.15)';
-      ctx.fillRect(b.px, b.py, b.pw, b.ph);
-      ctx.restore();
-    }
+    LAYER_REGISTRY[layer.type]?.drawGMPreview(layer, ctx, b, { imageCache: gmImageCache, onImageLoaded: renderLayerOverlay });
 
     // Outline
     ctx.save();
