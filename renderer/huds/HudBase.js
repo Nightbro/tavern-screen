@@ -1,4 +1,7 @@
-class HudBase extends IHud {
+import { IHud } from './IHud.js';
+import { PF1E_CONDITIONS } from './settings-huds.js';
+
+export class HudBase extends IHud {
   static CORNERS = [
     { id: 'top-left',     label: 'Top Left'     },
     { id: 'top-right',    label: 'Top Right'    },
@@ -261,7 +264,7 @@ class HudBase extends IHud {
 
     const pf1eGrid = document.createElement('div');
     pf1eGrid.className = 'preset-grid';
-    for (const { name, color } of (typeof PF1E_CONDITIONS !== 'undefined' ? PF1E_CONDITIONS : [])) {
+    for (const { name, color } of PF1E_CONDITIONS) {
       const btn = document.createElement('button');
       btn.className = 'preset-btn';
       btn.title     = name;

@@ -1,6 +1,6 @@
 // Abstract interface — every HUD type must implement all methods.
 // Calling any unimplemented method throws so missing overrides surface immediately.
-class IHud {
+export class IHud {
   getType()                                  { throw new Error(`${this.constructor.name} must implement getType()`); }
   getBadge()                                 { throw new Error(`${this.constructor.name} must implement getBadge()`); }
   getDisplayName(hud)                        { throw new Error(`${this.constructor.name} must implement getDisplayName()`); }

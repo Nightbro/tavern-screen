@@ -1,4 +1,6 @@
-class HandoutHud extends HudBase {
+import { HudBase } from './HudBase.js';
+
+export class HandoutHud extends HudBase {
   // ── IHud identity ────────────────────────────────────────────────────────────
 
   getType()           { return 'handout'; }

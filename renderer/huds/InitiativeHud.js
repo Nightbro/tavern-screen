@@ -1,4 +1,7 @@
-class InitiativeHud extends HudBase {
+import { HudBase } from './HudBase.js';
+import { DEFAULT_HUD_FONT_SIZE } from './settings-huds.js';
+
+export class InitiativeHud extends HudBase {
   // ── IHud identity ────────────────────────────────────────────────────────────
 
   getType()           { return 'initiative'; }
@@ -10,7 +13,7 @@ class InitiativeHud extends HudBase {
       type: 'initiative', visible: true, combat: false,
       currentIndex: 0, entries: [],
       sides: [{ corner: 'top-left', facing: 'up' }],
-      fontSize: (typeof DEFAULT_HUD_FONT_SIZE !== 'undefined' ? DEFAULT_HUD_FONT_SIZE : 24),
+      fontSize: DEFAULT_HUD_FONT_SIZE,
     };
   }
 
@@ -133,7 +136,7 @@ class InitiativeHud extends HudBase {
     if (posEl) this.buildPositionsEditor(posEl, hud, '#c9a84c', ctx);
 
     const fontSizeEl  = document.getElementById('initiative-font-size');
-    if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? (typeof DEFAULT_HUD_FONT_SIZE !== 'undefined' ? DEFAULT_HUD_FONT_SIZE : 24);
+    if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? DEFAULT_HUD_FONT_SIZE;
 
     const showLabelsEl = document.getElementById('initiative-show-labels');
     if (showLabelsEl) showLabelsEl.checked = hud.showLabels ?? false;

@@ -1,9 +1,9 @@
 // HUD configuration — conditions list and defaults.
 // Used by HudBase (status picker) and concrete HUD classes (getDefaults).
 
-const DEFAULT_HUD_FONT_SIZE = 24;
+export const DEFAULT_HUD_FONT_SIZE = 24;
 
-const PF1E_CONDITIONS = [
+export const PF1E_CONDITIONS = [
   { name: 'Blinded',        color: '#555555' },
   { name: 'Confused',       color: '#cc44cc' },
   { name: 'Cowering',       color: '#777788' },

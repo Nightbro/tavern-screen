@@ -1,4 +1,7 @@
-class StatusHud extends HudBase {
+import { HudBase } from './HudBase.js';
+import { DEFAULT_HUD_FONT_SIZE } from './settings-huds.js';
+
+export class StatusHud extends HudBase {
   // ── IHud identity ────────────────────────────────────────────────────────────
 
   getType()           { return 'status'; }
@@ -9,7 +12,7 @@ class StatusHud extends HudBase {
     return {
       type: 'status', visible: true, label: 'Status',
       entries: [], sides: [{ corner: 'top-right', facing: 'up' }],
-      fontSize: (typeof DEFAULT_HUD_FONT_SIZE !== 'undefined' ? DEFAULT_HUD_FONT_SIZE : 24),
+      fontSize: DEFAULT_HUD_FONT_SIZE,
       showLabels: false,
     };
   }
@@ -64,7 +67,7 @@ class StatusHud extends HudBase {
     if (labelEl) labelEl.value = hud.label ?? 'Status';
 
     const fontSizeEl = document.getElementById('statuses-font-size');
-    if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? (typeof DEFAULT_HUD_FONT_SIZE !== 'undefined' ? DEFAULT_HUD_FONT_SIZE : 24);
+    if (fontSizeEl) fontSizeEl.value = hud.fontSize ?? DEFAULT_HUD_FONT_SIZE;
 
     const showLabelsEl = document.getElementById('statuses-show-labels');
     if (showLabelsEl) showLabelsEl.checked = hud.showLabels ?? false;
