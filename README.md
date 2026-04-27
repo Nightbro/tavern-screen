@@ -5,7 +5,7 @@ An Electron app for sharing a map on a second screen as a fullscreen display. De
 ## Tech Stack
 
 - **Framework:** Electron (Node.js)
-- **Renderer:** HTML/CSS/JS in Electron windows
+- **Renderer:** HTML/CSS/JS in Electron windows — all renderer files are ES modules (`type="module"`)
 - **Map & Grid:** Canvas API
 
 ## Project Structure
@@ -417,17 +417,17 @@ A dedicated **Tokens** section (separate from but linked to the layer system).
 
 ### Weather & Atmosphere Effects
 
-Canvas particle / overlay effects (already partially implemented as layer types):
+Particle/overlay effects implemented as a `weather` layer type (`WeatherLayer.js`); intensity is configurable per layer and the effect can be spatially clipped to a canvas region:
 
-| Effect | Notes |
-|--------|-------|
-| Rain | light / heavy variants |
-| Snow | light / blizzard variants |
-| Falling embers / ash | for fire scenes |
-| Drifting fog / mist | low-opacity overlay |
-| Fireflies | gentle ambient glow particles |
-| Fire | looping GIF or canvas particle version |
-| Smoke | slow-rising particle layer |
+| Effect | Status |
+|--------|--------|
+| Rain | ✓ implemented |
+| Snow | ✓ implemented |
+| Falling embers / ash | ✓ implemented |
+| Drifting fog / mist | ✓ implemented |
+| Fireflies | ✓ implemented |
+| Fire | looping GIF or canvas particle version — not yet |
+| Smoke | slow-rising particle layer — not yet |
 
 ---
 
