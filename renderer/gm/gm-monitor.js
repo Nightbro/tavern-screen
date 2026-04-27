@@ -114,6 +114,7 @@ function showPreviewPlaceholder() {
 
 window.electronAPI.onScreenPreview((dataUrl) => {
   display.previewUrl = dataUrl;
+  lastScreenPreviewUrl = dataUrl;
   if (!display.advanced) {
     previewImg.src = dataUrl;
     previewImg.style.display = 'block';
