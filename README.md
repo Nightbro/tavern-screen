@@ -18,6 +18,11 @@ tavern-screen/
 ├── library.js                   # File-system map library (projects, copy, move, delete)
 ├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes, scenes, HUD configs)
 ├── config.js                    # Key-value config backed by JSON (settings + folder persistence)
+├── ipc/                         # IPC handler registration — one file per domain
+│   ├── display.js               # Display selection, settings, preview
+│   ├── library.js               # Map library (folder, projects, files)
+│   ├── campaign.js              # Campaigns, sessions, notes, HUDs, HUD configs
+│   └── scene.js                 # Scene state, layers, viewport, ping, file dialogs
 ├── renderer/
 │   ├── layers/                  # Layer type module (mirrors the HUD module structure)
 │   │   ├── ILayer.js            # Abstract interface all layer types must implement
@@ -40,7 +45,13 @@ tavern-screen/
 │   │   └── index.js             # Re-exports everything
 │   ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
 │   │   ├── index.html
-│   │   ├── style.css
+│   │   ├── gm-base.css          # Reset, layout, panels, resize handles, shared labels
+│   │   ├── gm-library.css       # Map library, project sections, map cards, panel tabs
+│   │   ├── gm-campaign.css      # Campaign toolbar, sessions, scenes, notes, drop overlay
+│   │   ├── gm-monitors.css      # Monitor map/cards, preview, HUD simulation, handout cards
+│   │   ├── gm-controls.css      # Settings groups, form fields, all btn-* variants
+│   │   ├── gm-layers.css        # Right panel, layer rows, detail fields, advanced-mode overrides
+│   │   ├── gm-huds.css          # Initiative entries, status chips, preset picker
 │   │   ├── gm-state.js          # Shared DOM refs and mutable state
 │   │   ├── gm-library.js        # Map library UI (folder setup, project/map rendering, drag-drop)
 │   │   ├── gm-campaign.js       # Campaign/session management, notes editor
