@@ -15,7 +15,7 @@ const HUD_TYPE_COLOR = { initiative: '#c9a84c', status: '#4a90d9', handout: '#4c
 const gmCtx = {
   get sceneState()      { return sceneState; },
   get api()             { return window.electronAPI; },
-  scheduleAutosave,
+  scheduleAutosave: () => scheduleAutosave(),
   renderHudList:        () => renderHudList(),
   renderHudPreview:     () => renderHudPreview(),
   genId,
