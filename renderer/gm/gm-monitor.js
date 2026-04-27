@@ -1,5 +1,5 @@
 import {
-  display, ui, sceneState, settings,
+  display, ui, sceneState, settings, viewport,
   monitorMap, monitorList, btnCloseScreen,
   previewImg, previewPlaceholder, btnRefreshPreview,
   elGridVisible, elAdvGridVisible, elCellSize, elGridColor, elGridOpacity, elGridOpacityVal,
@@ -200,35 +200,23 @@ elDpi.addEventListener('change', () => {
 });
 
 function setZoom(value) {
-  const z = Math.max(0.25, Math.min(4, value));
+  const z = Math.max(0.1, Math.min(4, value));
   settings.zoom = z;
   elZoomSlider.value = Math.round(z * 100);
   elZoomVal.textContent = Math.round(z * 100) + '%';
   window.electronAPI.updateSettings({ zoom: z });
+  if (display.advanced) {
+    viewport.zoom = z;
+    window.electronAPI.updateViewport({ zoom: z });
+    window.updateVpZoomUI?.();
+    window.renderLayerOverlay?.();
+    window.scheduleAutosave?.();
+  }
 }
-btnZoomIn.addEventListener('click',    () => setZoom(settings.zoom + 0.1));
-btnZoomOut.addEventListener('click',   () => setZoom(settings.zoom - 0.1));
+btnZoomIn.addEventListener('click',    () => setZoom((display.advanced ? viewport.zoom : settings.zoom) + 0.1));
+btnZoomOut.addEventListener('click',   () => setZoom((display.advanced ? viewport.zoom : settings.zoom) - 0.1));
 btnZoomReset.addEventListener('click', () => setZoom(1.0));
 elZoomSlider.addEventListener('input', () => setZoom(parseInt(elZoomSlider.value) / 100));
-
-// ════════════════════════════════════════════════════════════════════════════
-// RIGHT PANEL TABS
-// ════════════════════════════════════════════════════════════════════════════
-
-const rightTabBtns         = document.querySelectorAll('#right-panel-tabs .panel-tab');
-const rightTabPaneSettings = document.getElementById('right-tab-pane-settings');
-const rightTabPaneLayers   = document.getElementById('right-tab-pane-layers');
-
-rightTabBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    rightTabBtns.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.rightTab;
-    rightTabPaneSettings.style.display = tab === 'settings' ? '' : 'none';
-    rightTabPaneLayers.style.display   = tab === 'layers'   ? '' : 'none';
-    if (tab === 'layers') window.renderSceneList();
-  });
-});
 
 // ── Center preview tabs (Preview / HUD Sim) ───────────────────────────────────
 const centerPreviewTabs  = document.querySelectorAll('#center-preview-tabs .panel-tab');

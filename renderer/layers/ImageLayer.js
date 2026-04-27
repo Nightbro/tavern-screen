@@ -42,12 +42,16 @@ export class ImageLayer extends LayerBase {
       const y = tx.originY + (layer.y ?? 0) * tx.zoom;
       canvasCtx.drawImage(img, x, y, layer.w * tx.zoom, layer.h * tx.zoom);
     } else {
-      const cw = window.innerWidth;
-      const ch = window.innerHeight;
-      const s  = Math.min(cw / img.naturalWidth, ch / img.naturalHeight);
-      const iw = img.naturalWidth  * s;
-      const ih = img.naturalHeight * s;
-      canvasCtx.drawImage(img, (cw - iw) / 2, (ch - ih) / 2, iw, ih);
+      // No explicit bounds: fit to screen and anchor to canvas centre so zoom/pan work.
+      const cw   = window.innerWidth;
+      const ch   = window.innerHeight;
+      const s    = Math.min(cw / img.naturalWidth, ch / img.naturalHeight);
+      const iw   = img.naturalWidth  * s * tx.zoom;
+      const ih   = img.naturalHeight * s * tx.zoom;
+      const half = (deps.CANVAS_SIZE ?? 8192) / 2;
+      const px   = tx.originX + half * tx.zoom - iw / 2;
+      const py   = tx.originY + half * tx.zoom - ih / 2;
+      canvasCtx.drawImage(img, px, py, iw, ih);
     }
     canvasCtx.restore();
   }

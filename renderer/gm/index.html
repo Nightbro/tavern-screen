@@ -136,6 +136,29 @@
       <div id="monitor-section-body">
         <div id="monitor-map"></div>
         <div id="monitor-list"></div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Calibration</div>
+          <label class="field-row">
+            <span>DPI</span>
+            <div class="input-unit">
+              <input type="number" id="dpi" value="96" min="48" max="600" step="1" />
+              <span class="unit">px / inch</span>
+            </div>
+          </label>
+          <p class="hint">Auto-suggested from display scale factor. Adjust until one cell measures 1 inch physically.</p>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-group-title">Zoom</div>
+          <div class="zoom-controls">
+            <button class="btn-icon" id="zoom-out">−</button>
+            <span id="zoom-val">100%</span>
+            <button class="btn-icon" id="zoom-in">+</button>
+            <button class="btn-ghost" id="zoom-reset">Reset</button>
+          </div>
+          <input type="range" id="zoom-slider" min="10" max="400" value="100" step="5" />
+        </div>
       </div>
 
       <!-- Preview tabs -->
@@ -181,42 +204,8 @@
     <!-- ── Right: Settings / Layers ── -->
     <aside class="panel" id="panel-settings">
 
-      <!-- Tab nav -->
-      <nav class="panel-tabs" id="right-panel-tabs">
-        <button class="panel-tab active" data-right-tab="settings">Screen</button>
-        <button class="panel-tab"        data-right-tab="layers">Layers</button>
-      </nav>
-
-      <!-- ══ Tab: Settings ══ -->
-      <div class="tab-pane right-tab-pane" id="right-tab-pane-settings">
-
-        <div class="settings-group">
-          <div class="settings-group-title">Calibration</div>
-          <label class="field-row">
-            <span>DPI</span>
-            <div class="input-unit">
-              <input type="number" id="dpi" value="96" min="48" max="600" step="1" />
-              <span class="unit">px / inch</span>
-            </div>
-          </label>
-          <p class="hint">Auto-suggested from display scale factor. Adjust until one cell measures 1 inch physically.</p>
-        </div>
-
-        <div class="settings-group">
-          <div class="settings-group-title">Zoom</div>
-          <div class="zoom-controls">
-            <button class="btn-icon" id="zoom-out">−</button>
-            <span id="zoom-val">100%</span>
-            <button class="btn-icon" id="zoom-in">+</button>
-            <button class="btn-ghost" id="zoom-reset">Reset</button>
-          </div>
-          <input type="range" id="zoom-slider" min="25" max="400" value="100" step="5" />
-        </div>
-
-      </div><!-- /right-tab-pane-settings -->
-
-      <!-- ══ Tab: Layers ══ -->
-      <div class="tab-pane right-tab-pane" id="right-tab-pane-layers" style="display:none">
+      <!-- ══ Layers ══ -->
+      <div class="right-tab-pane" id="right-tab-pane-layers">
 
         <!-- Grid (collapsible) -->
         <div class="settings-group" id="group-grid">

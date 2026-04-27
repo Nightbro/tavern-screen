@@ -250,8 +250,6 @@ function activateMap(map) {
         if (newLayers) {
           sceneState.layers = newLayers;
           window.renderLayerList();
-          const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
-          if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
         }
         setTimeout(() => window.electronAPI.requestPreview(), 400);
       });
