@@ -18,7 +18,7 @@ tavern-screen/
 ├── library.js                   # File-system map library (projects, copy, move, delete)
 ├── campaignLibrary.js           # File-system campaign library (campaigns, sessions, notes, scenes, HUD configs)
 ├── config.js                    # Key-value config backed by JSON (settings + folder persistence)
-├── ipc/                         # IPC handler registration — one file per domain
+├── ipc/                         # Electron message handlers — main process receives these from the renderer
 │   ├── display.js               # Display selection, settings, preview
 │   ├── library.js               # Map library (folder, projects, files)
 │   ├── campaign.js              # Campaigns, sessions, notes, HUDs, HUD configs
