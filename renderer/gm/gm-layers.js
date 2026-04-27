@@ -5,7 +5,6 @@ import {
   elScreenModeSimple, elAdvGridVisible, elGridVisible, elGridScaleViewport,
   elCanvasBg, btnFitView, elSnapToGrid,
   vpZoomIn, vpZoomOut, vpZoomReset, vpZoomSlider, vpZoomVal,
-  elZoomSlider, elZoomVal,
   btnPingMode, previewImg, canvasCoordsEl,
   layerListEl, layerDetail, layerDetailTitle, layerDetailFields,
   btnAddImageLayer, btnAddLightLayer, btnAddFogLayer, btnAddWeatherLayer,
@@ -122,9 +121,6 @@ export function updateVpZoomUI() {
   const pct = Math.round(viewport.zoom * 100);
   vpZoomVal.textContent = pct + '%';
   vpZoomSlider.value    = pct;
-  // Keep the Cast Screen zoom control in sync when in advanced mode
-  elZoomVal.textContent = pct + '%';
-  elZoomSlider.value    = pct;
 }
 
 function setVpZoom(value) {

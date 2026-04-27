@@ -1,9 +1,9 @@
 import {
-  display, ui, sceneState, settings, viewport,
+  display, ui, sceneState, settings,
   monitorMap, monitorList, btnCloseScreen,
   previewImg, previewPlaceholder, btnRefreshPreview,
   elGridVisible, elAdvGridVisible, elCellSize, elGridColor, elGridOpacity, elGridOpacityVal,
-  elDpi, elZoomSlider, elZoomVal, btnZoomIn, btnZoomOut, btnZoomReset,
+  elDpi,
   elScreenModeSimple, elGridScaleViewport,
 } from './gm-state.js';
 
@@ -158,12 +158,7 @@ export function applySettingsToUI(s) {
     elGridOpacityVal.textContent = Math.round(s.gridOpacity * 100) + '%';
   }
   if (s.dpi  !== undefined) elDpi.value = s.dpi;
-  if (s.zoom !== undefined) {
-    const z = Math.max(0.25, Math.min(4, s.zoom));
-    settings.zoom = z;
-    elZoomSlider.value    = Math.round(z * 100);
-    elZoomVal.textContent = Math.round(z * 100) + '%';
-  }
+  if (s.zoom !== undefined) settings.zoom = Math.max(0.25, Math.min(4, s.zoom));
   if (s.screenMode !== undefined) {
     const isAdv = s.screenMode === 'advanced';
     display.advanced = isAdv;
@@ -199,24 +194,6 @@ elDpi.addEventListener('change', () => {
   sendSettings({ dpi: v });
 });
 
-function setZoom(value) {
-  const z = Math.max(0.1, Math.min(4, value));
-  settings.zoom = z;
-  elZoomSlider.value = Math.round(z * 100);
-  elZoomVal.textContent = Math.round(z * 100) + '%';
-  window.electronAPI.updateSettings({ zoom: z });
-  if (display.advanced) {
-    viewport.zoom = z;
-    window.electronAPI.updateViewport({ zoom: z });
-    window.updateVpZoomUI?.();
-    window.renderLayerOverlay?.();
-    window.scheduleAutosave?.();
-  }
-}
-btnZoomIn.addEventListener('click',    () => setZoom((display.advanced ? viewport.zoom : settings.zoom) + 0.1));
-btnZoomOut.addEventListener('click',   () => setZoom((display.advanced ? viewport.zoom : settings.zoom) - 0.1));
-btnZoomReset.addEventListener('click', () => setZoom(1.0));
-elZoomSlider.addEventListener('input', () => setZoom(parseInt(elZoomSlider.value) / 100));
 
 // ── Center preview tabs (Preview / HUD Sim) ───────────────────────────────────
 const centerPreviewTabs  = document.querySelectorAll('#center-preview-tabs .panel-tab');

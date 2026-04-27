@@ -43,11 +43,6 @@ export const elGridColor     = document.getElementById('grid-color');
 export const elGridOpacity   = document.getElementById('grid-opacity');
 export const elGridOpacityVal= document.getElementById('grid-opacity-val');
 export const elDpi           = document.getElementById('dpi');
-export const elZoomVal       = document.getElementById('zoom-val');
-export const elZoomSlider    = document.getElementById('zoom-slider');
-export const btnZoomIn       = document.getElementById('zoom-in');
-export const btnZoomOut      = document.getElementById('zoom-out');
-export const btnZoomReset    = document.getElementById('zoom-reset');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 export const NOTES_DEBOUNCE_MS = 800;
@@ -184,7 +179,7 @@ Object.assign(window, {
   panelMaps, panelSettings, resizeHandleLeft, resizeHandleRight,
   previewImg, previewPlaceholder, btnRefreshPreview,
   elGridVisible, elCellSize, elGridColor, elGridOpacity, elGridOpacityVal,
-  elDpi, elZoomVal, elZoomSlider, btnZoomIn, btnZoomOut, btnZoomReset,
+  elDpi,
   NOTES_DEBOUNCE_MS, settings, campaign, display, mapLib,
   elScreenModeSimple, elAdvGridVisible, elGridScaleViewport,
   vpZoomVal, vpZoomIn, vpZoomOut, vpZoomReset, vpZoomSlider,
