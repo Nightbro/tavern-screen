@@ -1,3 +1,12 @@
+import {
+  sceneState, display, ui, lastScreenPreviewUrl,
+  hudListEl, hudSimScreen, hudSimWrap, hudSimViewport,
+  btnAddInitiative, btnAddStatusHud, btnAddHandout,
+  genId,
+} from './gm-state.js';
+
+import { InitiativeHud, StatusHud, HandoutHud, HudBase } from '../huds/index.js';
+
 // ════════════════════════════════════════════════════════════════════════════
 // HUD REGISTRY
 // ════════════════════════════════════════════════════════════════════════════
@@ -11,13 +20,13 @@ const HUD_REGISTRY = {
 const HUD_TYPE_COLOR = { initiative: '#c9a84c', status: '#4a90d9', handout: '#4caf7d' };
 
 // Context object passed into every GM editor method.
-// Uses getters so sceneState mutations are always visible.
+// Uses getters so sceneState/api mutations are always visible.
 const gmCtx = {
-  get sceneState()      { return sceneState; },
-  get api()             { return window.electronAPI; },
-  scheduleAutosave: () => scheduleAutosave(),
-  renderHudList:        () => renderHudList(),
-  renderHudPreview:     () => renderHudPreview(),
+  get sceneState()  { return sceneState; },
+  get api()         { return window.electronAPI; },
+  scheduleAutosave: () => window.scheduleAutosave(),
+  renderHudList:    () => renderHudList(),
+  renderHudPreview: () => renderHudPreview(),
   genId,
 };
 
@@ -31,7 +40,7 @@ window._gmSceneState = sceneState;
 // HUD LIST
 // ════════════════════════════════════════════════════════════════════════════
 
-function renderHudList() {
+export function renderHudList() {
   hudListEl.innerHTML = '';
   if (sceneState.huds.length === 0) {
     const empty = document.createElement('div');
@@ -58,7 +67,7 @@ function buildHudRow(hud) {
   eye.addEventListener('click', async (e) => {
     e.stopPropagation();
     const newHuds = await window.electronAPI.updateHud(hud.id, { visible: !(hud.visible !== false) });
-    if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); }
+    if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); }
   });
 
   const badge = document.createElement('span');
@@ -79,7 +88,7 @@ function buildHudRow(hud) {
       _hideAllEditors();
     }
     const newHuds = await window.electronAPI.removeHud(hud.id);
-    if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); }
+    if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); }
   });
 
   row.appendChild(eye); row.appendChild(badge); row.appendChild(name); row.appendChild(delBtn);
@@ -111,17 +120,17 @@ function selectHud(id) {
 
 btnAddInitiative?.addEventListener('click', async () => {
   const newHuds = await window.electronAPI.addHud(HUD_REGISTRY.initiative.getDefaults());
-  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddStatusHud?.addEventListener('click', async () => {
   const newHuds = await window.electronAPI.addHud(HUD_REGISTRY.status.getDefaults());
-  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddHandout?.addEventListener('click', async () => {
   const newHuds = await window.electronAPI.addHud(HUD_REGISTRY.handout.getDefaults());
-  if (newHuds) { sceneState.huds = newHuds; scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
+  if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -130,9 +139,9 @@ btnAddHandout?.addEventListener('click', async () => {
 
 let simScale = 1;
 
-function renderHudPreview() { if (!ui.simDragging) updateHudSimulation(); }
+export function renderHudPreview() { if (!ui.simDragging) updateHudSimulation(); }
 
-function updateHudSimulation() {
+export function updateHudSimulation() {
   if (!hudSimScreen || !hudSimWrap || !hudSimViewport) return;
 
   const sw = display.screenW || 1920;
@@ -261,7 +270,7 @@ function makeSimPanelDraggable(panel, handle, hud, sideIdx, screenW, screenH) {
       const newHuds = await window.electronAPI.updateHud(hud.id, { sides: newSides });
       if (newHuds) {
         sceneState.huds = newHuds;
-        scheduleAutosave();
+        window.scheduleAutosave();
         applyHudSelection(hud.id);
         updateHudSimulation();
       }
@@ -277,3 +286,6 @@ document.getElementById('btn-refresh-hud-sim')?.addEventListener('click', () => 
 if (hudSimWrap) {
   new ResizeObserver(() => { if (!ui.simDragging) updateHudSimulation(); }).observe(hudSimWrap);
 }
+
+// ── Window bridge (for unconverted classic scripts) ───────────────────────────
+Object.assign(window, { renderHudList, renderHudPreview, updateHudSimulation });
