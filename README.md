@@ -121,7 +121,8 @@ Output is in the `dist/` folder:
 | Panel | Contents |
 |-------|----------|
 | **Left — Assets tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
-| **Left — Campaign tab** | Campaign selector, sessions list, scenes list, HUD configs list, notes editor |
+| **Left — Campaign tab** | Campaign selector, sessions list, scenes list, notes editor |
+| **Left — Huds tab** | HUD group list; create new groups, switch the active group, rename, delete |
 | **Center** | Collapsible monitor selector; **Preview** tab (map + layer overlay) and **HUD Sim** tab (pixel-accurate HUD simulation, advanced mode only) |
 | **Right — Screen tab** | DPI calibration, zoom |
 | **Right — Layers tab** | Grid (collapsible), screen mode toggle, viewport zoom, layer stack, layer detail editor, HUD management |
@@ -145,6 +146,27 @@ The **Grid** section at the top of the Layers tab is collapsible — click the t
 ---
 
 ## HUD System
+
+HUDs are overlay panels displayed on the player screen on top of the map — initiative trackers, status boards, and image handouts. They are created and edited in the **Layers tab** (right panel) and positioned visually using the **HUD Simulation** (center panel).
+
+### HUD Groups
+
+A **HUD group** is a named collection of HUD panels (any mix of types and any number of each). The active group is what the player screen shows. Groups are global — they are not tied to any campaign or session, so the same group can be used across multiple sessions or campaigns.
+
+HUD groups are managed in the **Huds tab** (left panel):
+
+| Action | How |
+|--------|-----|
+| **Create** | Click **+ New Group**, type a name, press Enter |
+| **Switch** | Click any group row — the current group is flushed to disk first so no data is lost |
+| **Rename** | Click the ✏ pencil icon on a group row |
+| **Delete** | Click × on a group row (clears the active group if it was the deleted one) |
+
+The most recently activated group is restored automatically when the app starts.
+
+> **HUDs vs Scenes:** Scenes store layers and the viewport. HUD groups are separate — switching scenes keeps the same active HUD group, and switching HUD groups leaves the scene unchanged.
+
+---
 
 All HUD types share the same positioning model: each HUD can be assigned to one or more screen corners via a **Positions** checklist, each with its own **Facing** direction for rotated display. Positions can also be set to exact pixel coordinates by dragging in the **HUD Simulation** (see below).
 
@@ -298,15 +320,13 @@ Campaigns and sessions are stored alongside the map library under the same root 
 ```
 <root>/
 ├── maps/
+├── huds.json                    # all HUD groups (global, shared across all campaigns)
 └── campaigns/
     └── My Campaign/
         ├── notes.md             # campaign-level notes
         └── sessions/
             └── Session 1/
                 ├── notes.md     # session notes
-                ├── huds.json    # active HUD panels for this session (auto-saved on every change)
-                ├── hud-configs/ # named HUD configuration snapshots
-                │   └── <uuid>.json
                 └── scenes/
                     └── <uuid>.json  # auto-saved scenes (layers, viewport — no HUDs)
 ```
@@ -322,14 +342,11 @@ Campaigns and sessions are stored alongside the map library under the same root 
 
 | What | File | Saved when |
 |------|------|-----------|
-| Scene (layers, viewport, background) | `sessions/{s}/scenes/{id}.json` | Any layer or scene change |
-| HUDs (active state) | `sessions/{s}/huds.json` | Any HUD change (add, remove, edit, position) |
-| HUD config snapshot | `sessions/{s}/hud-configs/{id}.json` | Manually via "⬆ Save" in HUD Configs |
+| Scene (layers, viewport, background) | `campaigns/{c}/sessions/{s}/scenes/{id}.json` | Any layer or scene change (800 ms debounce) |
+| HUD groups | `huds.json` (root folder) | Any HUD change or group switch (800 ms debounce) |
 | Settings | `userData/config.json` | Any settings change |
 
-HUDs are **session-scoped**, not scene-scoped. Switching between scenes within a session keeps the same HUD panels active. HUDs are loaded from `huds.json` when a session is opened and saved independently whenever HUD data changes — scene saves never touch HUDs, and HUD saves never touch scene files.
-
-**HUD Configs** are named snapshots of the full HUD state (all panels, entries, positions). They appear in the **HUD Configs** section of the Campaign tab alongside the Scenes list. Click ⬆ Save to snapshot, click a config row to restore it, and use the pencil to rename or × to delete.
+HUDs are **not session-scoped** — the full HUD group library lives at `huds.json` in the root folder and is independent of campaigns and sessions. Scenes never contain HUD data, and HUD changes never touch scene files.
 
 ---
 
@@ -379,7 +396,7 @@ Adding a new layer type: create a class extending `LayerBase` in `renderer/layer
 - **Canvas coordinates** — live pixel readout (bottom-left of preview) as the cursor moves
 - **Viewport zoom & pan** — drag the gold rectangle to pan what the player sees
 - **Background color** — configurable solid fill behind all layers
-- **HUD overlays** — Initiative (with sort-by-initiative), Statuses, and Handout (multi-image card library) panels; pixel-accurate positioning via HUD Simulation with live player-screen background; draggable by title bar on the player screen; multi-corner with per-corner facing direction; all changes auto-saved immediately
+- **HUD overlays** — Initiative (with sort-by-initiative), Statuses, and Handout (multi-image card library) panels; belong to the active HUD group; pixel-accurate positioning via HUD Simulation with live player-screen background; draggable by title bar on the player screen; multi-corner with per-corner facing direction; changes auto-saved to the active HUD group (800 ms debounce)
 - **Ping** — GM clicks preview → pulsing ring + dot appears on the player screen
 - **Scene persistence** — named scenes auto-saved to the active campaign/session; export/import as JSON
 
