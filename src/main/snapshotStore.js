@@ -21,8 +21,9 @@ function listSnapshots(dir) {
     .filter(f => f.endsWith(EXT))
     .map(f => {
       try {
-        const d = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-        return { id: d.id, name: d.name || '(unnamed)', savedAt: d.savedAt ?? '' };
+        const d  = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        const id = f.slice(0, -EXT.length); // filename is the authoritative id
+        return { id, name: d.name || '(unnamed)', savedAt: d.savedAt ?? '' };
       } catch { return null; }
     })
     .filter(Boolean)

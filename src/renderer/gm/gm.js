@@ -196,7 +196,7 @@ function buildHudGroupRow(g) {
   const nameEl = document.createElement('span');
   nameEl.className   = 'scene-row-name';
   nameEl.textContent = g.name || '(unnamed)';
-  row.addEventListener('click', () => applyLoadedHudGroup(g.id));
+  row.addEventListener('click', () => applyLoadedHudGroup(g.id).catch(console.error));
 
   const actions = document.createElement('div');
   actions.className = 'scene-actions';
@@ -260,6 +260,7 @@ function startHudGroupRename(row, nameEl, g) {
 }
 
 async function applyLoadedHudGroup(groupId) {
+  if (!groupId) return;
   // Flush current group before switching so no changes are lost.
   if (sceneState.loadedHudGroupId) {
     try {
@@ -270,10 +271,16 @@ async function applyLoadedHudGroup(groupId) {
       });
     } catch (e) { /* ignore flush errors — proceed with load */ }
   }
-  const group = await window.electronAPI.loadHudGroup(groupId);
+  let group;
+  try {
+    group = await window.electronAPI.loadHudGroup(groupId);
+  } catch (e) {
+    console.error('[HUD] loadHudGroup failed:', e);
+    return;
+  }
   if (!group) return;
   sceneState.huds              = group.huds ?? [];
-  sceneState.loadedHudGroupId   = group.id;
+  sceneState.loadedHudGroupId   = group.id ?? groupId; // file id may be missing
   sceneState.loadedHudGroupName = group.name ?? '';
   if (hudGroupNameInput) hudGroupNameInput.value = group.name ?? '';
   renderHudList();

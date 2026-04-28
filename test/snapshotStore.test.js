@@ -86,6 +86,22 @@ describe('listSnapshots', () => {
     saveSnapshot(dir, { id: 'n1', name: '' });
     expect(listSnapshots(dir)[0].name).toBe('(unnamed)');
   });
+
+  test('uses filename stem as id even when content id is null', () => {
+    const dir = makeTmpDir();
+    // Simulate a file created by broken old code: named "abc.json" but content has id: null
+    fs.writeFileSync(path.join(dir, 'abc.json'), JSON.stringify({ id: null, name: 'Test', savedAt: new Date().toISOString() }));
+    const list = listSnapshots(dir);
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe('abc');
+  });
+
+  test('uses filename stem as id when content id is missing', () => {
+    const dir = makeTmpDir();
+    fs.writeFileSync(path.join(dir, 'xyz.json'), JSON.stringify({ name: 'No ID', savedAt: new Date().toISOString() }));
+    const list = listSnapshots(dir);
+    expect(list[0].id).toBe('xyz');
+  });
 });
 
 // ── loadSnapshot ──────────────────────────────────────────────────────────────
