@@ -12,6 +12,23 @@
 .campaign-select:focus { border-color: #c9a84c; }
 .campaign-toolbar-actions { display: flex; gap: 3px; }
 
+/* Sessions header */
+.sessions-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; flex-shrink: 0;
+  border-bottom: 1px solid #1e1e3a;
+}
+
+/* Session / Campaign badges */
+.session-badge {
+  font-size: 9px; background: #1e1e38; color: #5a5a8e;
+  padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.campaign-badge {
+  background: #2a2010; color: #c9a84c;
+}
+
 /* Sessions list */
 #sessions-content {
   flex: 0 0 auto; overflow-y: auto;
@@ -26,6 +43,8 @@
 }
 .session-row:hover  { background: #1e1e38; }
 .session-row.active { background: #1a2e24; }
+.session-row.campaign-row.active { background: #221e0e; }
+.session-row.campaign-row.active .session-name { color: #c9a84c; }
 .session-name {
   flex: 1; font-size: 12px; font-weight: 600; color: #aaa;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

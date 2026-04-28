@@ -82,16 +82,48 @@ function renderCampaignSelect() {
 function renderSessions() {
   sessionsContent.innerHTML = '';
   const selectedCampaign = campaign.list.find(c => c.id === campaign.selectedId);
-  if (!selectedCampaign || selectedCampaign.sessions.length === 0) {
+  if (!selectedCampaign) return;
+
+  sessionsContent.appendChild(buildCampaignRow(selectedCampaign));
+
+  if (selectedCampaign.sessions.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'sessions-empty';
-    empty.textContent = selectedCampaign ? 'No sessions yet' : '';
+    empty.textContent = 'No sessions yet';
     sessionsContent.appendChild(empty);
     return;
   }
   for (const session of selectedCampaign.sessions) {
     sessionsContent.appendChild(buildSessionRow(session));
   }
+}
+
+function buildCampaignRow(camp) {
+  const row = document.createElement('div');
+  row.className = 'session-row campaign-row' + (campaign.sessionId == null ? ' active' : '');
+
+  const badge = document.createElement('span');
+  badge.className = 'session-badge campaign-badge';
+  badge.textContent = 'CAM';
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'session-name';
+  nameEl.textContent = camp.id;
+
+  row.appendChild(badge);
+  row.appendChild(nameEl);
+
+  row.addEventListener('click', async () => {
+    if (campaign.sessionId == null) return;
+    await flushNotes();
+    campaign.sessionId = null;
+    window.electronAPI.saveLastState({ campaignId: campaign.selectedId, sessionId: null, sceneId: null });
+    renderSessions();
+    await loadCurrentNotes();
+    await window.loadMostRecentScene();
+  });
+
+  return row;
 }
 
 // ── Inline confirmation helper ────────────────────────────────────────────────
@@ -263,9 +295,7 @@ async function selectSession(campaignId, sessionId) {
     campaign.sessionId  = sessionId;
   }
   window.electronAPI.saveLastState({ campaignId: campaign.selectedId, sessionId: campaign.sessionId, sceneId: null });
-  document.querySelectorAll('.session-row').forEach(r => {
-    r.classList.toggle('active', r.dataset.sessionId === campaign.sessionId);
-  });
+  renderSessions();
   await loadCurrentNotes();
   await window.loadMostRecentScene();
 }
