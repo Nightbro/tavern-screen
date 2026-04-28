@@ -30,6 +30,36 @@ function imageBoundsFromSrc(src) {
 let overlayDrag = null;
 let overlayThrottleTimer = null;
 
+// ── Reveal countdown timers — layerId → { remaining, timerId } ────────────────
+const revealTimers = new Map();
+
+function startRevealCountdown(layer) {
+  if (revealTimers.has(layer.id)) {
+    const { timerId } = revealTimers.get(layer.id);
+    clearInterval(timerId);
+    revealTimers.delete(layer.id);
+    renderLayerList();
+    return;
+  }
+
+  let remaining = layer.revealDelay || 3;
+  const timerId = setInterval(async () => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(timerId);
+      revealTimers.delete(layer.id);
+      const newLayers = await window.electronAPI.updateLayer(layer.id, { visible: true });
+      if (newLayers) { sceneState.layers = newLayers; }
+    } else {
+      revealTimers.get(layer.id).remaining = remaining;
+    }
+    renderLayerList();
+  }, 1000);
+
+  revealTimers.set(layer.id, { remaining, timerId });
+  renderLayerList();
+}
+
 // ── Layer visibility mode toggle ──────────────────────────────────────────────
 
 const btnLayerVisMode = document.getElementById('btn-layer-vis-mode');
@@ -125,6 +155,8 @@ elSnapToGrid?.addEventListener('change', () => { viewport.snapToGrid = elSnapToG
 // ── Scene init ────────────────────────────────────────────────────────────────
 
 export async function initScene() {
+  for (const { timerId } of revealTimers.values()) clearInterval(timerId);
+  revealTimers.clear();
   const scene = await window.electronAPI.getScene();
   if (!scene) return;
   sceneState.layers = scene.layers   ?? [];
@@ -325,11 +357,31 @@ function buildLayerRow(layer) {
     if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
   });
 
-  row.appendChild(grip);
-  row.appendChild(eye);
-  row.appendChild(badge);
-  row.appendChild(name);
-  row.appendChild(delBtn);
+  const countdown = revealTimers.get(layer.id);
+  const showTimer = countdown || (layer.revealDelay > 0 && layer.visible === false);
+  if (showTimer) {
+    const timerBtn = document.createElement('button');
+    timerBtn.className = 'btn-icon-xs layer-reveal-timer' + (countdown ? ' counting' : '');
+    timerBtn.textContent = countdown ? countdown.remaining + 's' : '⏱';
+    timerBtn.title = countdown ? 'Cancel countdown' : `Start ${layer.revealDelay}s reveal countdown`;
+    if (countdown) row.classList.add('layer-counting');
+    timerBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startRevealCountdown(layer);
+    });
+    row.appendChild(grip);
+    row.appendChild(eye);
+    row.appendChild(badge);
+    row.appendChild(name);
+    row.appendChild(timerBtn);
+    row.appendChild(delBtn);
+  } else {
+    row.appendChild(grip);
+    row.appendChild(eye);
+    row.appendChild(badge);
+    row.appendChild(name);
+    row.appendChild(delBtn);
+  }
 
   row.addEventListener('dblclick', async (e) => {
     e.stopPropagation();
@@ -389,6 +441,22 @@ function renderLayerDetail(layer) {
   addField('Name', nameInput);
   nameInput.addEventListener('change', async () => {
     await layerCtx.updateLayer(layer.id, { name: nameInput.value });
+  });
+
+  // Reveal delay
+  const delayInput = document.createElement('input');
+  delayInput.type = 'number';
+  delayInput.min = '0';
+  delayInput.max = '3600';
+  delayInput.step = '1';
+  delayInput.value = layer.revealDelay ?? 0;
+  delayInput.placeholder = '0';
+  addField('Reveal (s)', delayInput);
+  delayInput.addEventListener('change', async () => {
+    const val = Math.max(0, Math.min(3600, parseInt(delayInput.value) || 0));
+    delayInput.value = val;
+    const newLayers = await layerCtx.updateLayer(layer.id, { revealDelay: val });
+    if (newLayers) renderLayerList();
   });
 
   if (reg) reg.renderEditorFields(layer, addField, layerCtx);

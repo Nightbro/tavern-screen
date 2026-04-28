@@ -148,6 +148,28 @@ body.advanced-mode .map-card:hover::after {
 }
 .field-select:focus { border-color: #c9a84c; }
 
+/* Reveal countdown button on layer row */
+.layer-reveal-timer {
+  font-size: 10px;
+  color: #c9a84c;
+  border-color: #c9a84c44;
+  min-width: 24px;
+  flex-shrink: 0;
+}
+.layer-reveal-timer.counting {
+  color: #e07030;
+  border-color: #e0703055;
+  animation: reveal-pulse 1s ease-in-out infinite;
+}
+.layer-row.layer-counting {
+  outline: 1px solid #e0703033;
+  border-radius: 4px;
+}
+@keyframes reveal-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
 .session-badge {
   font-size: 9px; color: #3a3a5e; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.5px;
