@@ -2,19 +2,7 @@
 
 // Registers all map library IPC channels on ipcMain.
 function registerLibraryHandlers(ipcMain, { lib, campaignLib, manager, dialog, BrowserWindow }) {
-  ipcMain.handle('get-library-root', () => lib.getRootFolder());
-
-  ipcMain.handle('select-root-folder', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
-      title:      'Select Maps Root Folder',
-      properties: ['openDirectory', 'createDirectory'],
-    });
-    if (canceled) return null;
-    lib.setRootFolder(filePaths[0]);
-    campaignLib.setRootFolder(filePaths[0]);
-    return filePaths[0];
-  });
+  ipcMain.handle('get-library-root', () => campaignLib.getRootFolder());
 
   ipcMain.handle('scan-library',    ()                           => lib.scan());
   ipcMain.handle('create-project',  (_e, name)                  => lib.createProject(name));

@@ -23,7 +23,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Library: folder ───────────────────────────────────────────────────────
   getLibraryRoot:    ()        => ipcRenderer.invoke('get-library-root'),
-  selectRootFolder:  ()        => ipcRenderer.invoke('select-root-folder'),
 
   // ── Library: scan ─────────────────────────────────────────────────────────
   scanLibrary:       ()        => ipcRenderer.invoke('scan-library'),

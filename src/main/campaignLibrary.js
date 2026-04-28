@@ -19,11 +19,7 @@ const PROTECTED_TYPES = new Set(['general']);
 
 // Creates the campaign library backed by config (use createConfig() for file persistence).
 function createCampaignLibrary(config) {
-  let rootFolder = (() => {
-    const r = config.get('rootFolder', null);
-    if (!r || !fs.existsSync(r)) return null;
-    return r;
-  })();
+  let rootFolder = null;
 
   // ── Paths ──────────────────────────────────────────────────────────────────
 
@@ -153,10 +149,9 @@ function createCampaignLibrary(config) {
 
   // ── Root folder ────────────────────────────────────────────────────────────
 
-  // Sets the root folder, persists it, and ensures the campaigns/ directory exists.
+  // Sets the root folder and ensures the campaigns/ directory exists.
   function setRootFolder(folderPath) {
     rootFolder = folderPath;
-    config.set('rootFolder', folderPath);
     ensureCampaignsDir();
   }
 

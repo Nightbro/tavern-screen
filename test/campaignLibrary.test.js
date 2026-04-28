@@ -49,10 +49,10 @@ describe('setRootFolder', () => {
     expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns'))).toBe(true);
   });
 
-  test('persists root folder via config.set', () => {
-    const { lib, tmp, cfg } = setup();
+  test('getRootFolder returns the set path', () => {
+    const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
-    expect(cfg._data.rootFolder).toBe(tmp);
+    expect(lib.getRootFolder()).toBe(tmp);
   });
 });
 

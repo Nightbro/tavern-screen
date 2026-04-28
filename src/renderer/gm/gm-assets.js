@@ -6,16 +6,15 @@ const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg']);
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const assetState = {
-  assets:      [],
-  types:       [],
-  rootFolder:  null,
-  selectedId:  null,
+  assets:     [],
+  types:      [],
+  rootFolder: null,
+  selectedId: null,
 };
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 
 const assetList        = document.getElementById('asset-list');
-const assetNoFolder    = document.getElementById('asset-no-folder');
 const assetPreview     = document.getElementById('asset-preview');
 const assetPreviewImg  = document.getElementById('asset-preview-img');
 const assetPreviewName = document.getElementById('asset-preview-name');
@@ -23,8 +22,6 @@ const btnAssetUse      = document.getElementById('btn-asset-use');
 const btnAddAsset      = document.getElementById('btn-add-asset');
 const btnManageTypes   = document.getElementById('btn-manage-types');
 const btnRefreshAssets = document.getElementById('btn-refresh-assets');
-const btnSelectFolder  = document.getElementById('btn-select-folder');
-const btnSetupFolder   = document.getElementById('btn-setup-folder');
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -38,13 +35,6 @@ export async function initAssets() {
   btnRefreshAssets.addEventListener('click', refreshAssets);
   btnAddAsset.addEventListener('click', startAddAsset);
   btnManageTypes.addEventListener('click', toggleTypesManager);
-
-  async function pickFolder() {
-    const result = await window.electronAPI.selectRootFolder();
-    if (result) { assetState.rootFolder = result; await refreshAssets(); }
-  }
-  btnSelectFolder.addEventListener('click', pickFolder);
-  btnSetupFolder.addEventListener('click',  pickFolder);
 }
 
 export async function onCampaignChange() {
@@ -54,25 +44,10 @@ export async function onCampaignChange() {
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 async function refreshAssets() {
-  if (!assetState.rootFolder) {
-    showNoFolder();
-    return;
-  }
-  hideNoFolder();
   const { types, assets } = await window.electronAPI.listAssets(campaign.selectedId ?? null);
   assetState.types  = types;
   assetState.assets = assets;
   renderAssets();
-}
-
-function showNoFolder() {
-  assetNoFolder.style.display = '';
-  assetList.innerHTML = '';
-  assetPreview.style.display = 'none';
-}
-
-function hideNoFolder() {
-  assetNoFolder.style.display = 'none';
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────

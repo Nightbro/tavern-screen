@@ -18,6 +18,7 @@ const { registerAssetHandlers }    = require('./src/main/ipc/asset');
 const config      = createConfig(path.join(app.getPath('userData'), 'config.json'));
 const lib         = createLibrary(config);
 const campaignLib = createCampaignLibrary(config);
+campaignLib.setRootFolder(__dirname);
 
 const manager = createWindowManager({
   BrowserWindow, screen,
