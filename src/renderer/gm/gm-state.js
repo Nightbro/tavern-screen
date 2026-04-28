@@ -11,10 +11,11 @@ export const btnAddImages    = document.getElementById('btn-add-images');
 export const dropOverlay     = document.getElementById('drop-overlay');
 
 // ── Campaign tab ──────────────────────────────────────────────────────────────
-export const tabBtns           = document.querySelectorAll('#left-panel-tabs .panel-tab');
-export const tabPaneAssets     = document.getElementById('tab-pane-assets');
-export const tabPaneCampaign   = document.getElementById('tab-pane-campaign');
-export const tabPaneHuds       = document.getElementById('tab-pane-huds');
+export const tabBtns              = document.querySelectorAll('#left-panel-tabs .panel-tab');
+export const tabPaneMaps          = document.getElementById('tab-pane-maps');
+export const tabPaneAssetManager  = document.getElementById('tab-pane-asset-manager');
+export const tabPaneCampaign      = document.getElementById('tab-pane-campaign');
+export const tabPaneHuds          = document.getElementById('tab-pane-huds');
 export const campaignSelect    = document.getElementById('campaign-select');
 export const btnNewCampaign    = document.getElementById('btn-new-campaign');
 export const btnRenameCampaign = document.getElementById('btn-rename-campaign');
@@ -175,7 +176,7 @@ export const HANDLE_SIZE        = 8;
 Object.assign(window, {
   libSetup, libRootPath, libContent, libFooter,
   btnRefreshLib, btnSelectFolder, btnSetupFolder, btnNewProject, btnAddImages, dropOverlay,
-  tabBtns, tabPaneAssets, tabPaneCampaign, tabPaneHuds,
+  tabBtns, tabPaneMaps, tabPaneAssetManager, tabPaneCampaign, tabPaneHuds,
   campaignSelect, btnNewCampaign, btnRenameCampaign, btnDeleteCampaign,
   sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
   monitorMap, monitorList, monitorSectionBody, btnToggleMonitors, btnCloseScreen,

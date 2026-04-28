@@ -31,6 +31,20 @@ function registerLibraryHandlers(ipcMain, { lib, campaignLib, manager, dialog, B
     return canceled ? [] : filePaths;
   });
 
+  ipcMain.handle('open-asset-dialog', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title:      'Add Asset',
+      properties: ['openFile', 'multiSelections'],
+      filters:    [
+        { name: 'All supported', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'pdf'] },
+        { name: 'Images',        extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'] },
+        { name: 'Documents',     extensions: ['pdf'] },
+      ],
+    });
+    return canceled ? [] : filePaths;
+  });
+
   ipcMain.handle('copy-files', (_e, filePaths, projectId) => lib.copyFiles(filePaths, projectId ?? null));
   ipcMain.handle('move-map',   (_e, mapId, toProjectId)   => lib.moveMap(mapId, toProjectId ?? null));
 

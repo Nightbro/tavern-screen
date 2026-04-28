@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteProject:  (id)         => ipcRenderer.invoke('delete-project', id),
 
   // ── Library: maps ────────────────────────────────────────────────────────
+  openAssetDialog: ()          => ipcRenderer.invoke('open-asset-dialog'),
   copyFiles:      (paths, pid) => ipcRenderer.invoke('copy-files', paths, pid),
   moveMap:        (id, pid)    => ipcRenderer.invoke('move-map', id, pid),
   deleteMap:      (id)         => ipcRenderer.send('delete-map', id),

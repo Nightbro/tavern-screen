@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="gm-controls.css" />
   <link rel="stylesheet" href="gm-layers.css" />
   <link rel="stylesheet" href="gm-huds.css" />
+  <link rel="stylesheet" href="gm-assets.css" />
 </head>
 <body>
 
@@ -25,13 +26,14 @@
 
       <!-- Tab nav -->
       <nav class="panel-tabs" id="left-panel-tabs">
-        <button class="panel-tab active" data-tab="assets">Assets</button>
+        <button class="panel-tab active" data-tab="maps">Maps</button>
+        <button class="panel-tab"        data-tab="asset-manager">Assets</button>
         <button class="panel-tab"        data-tab="campaign">Campaign</button>
         <button class="panel-tab"        data-tab="huds">Huds</button>
       </nav>
 
-      <!-- ══ Tab: Assets ══ -->
-      <div class="tab-pane" id="tab-pane-assets">
+      <!-- ══ Tab: Maps ══ -->
+      <div class="tab-pane" id="tab-pane-maps">
 
         <div class="lib-toolbar">
           <span class="panel-title">Maps</span>
@@ -70,7 +72,30 @@
           <button id="btn-add-images"  class="btn-primary-sm">+ Add Images</button>
         </div>
 
-      </div><!-- /tab-pane-assets -->
+      </div><!-- /tab-pane-maps -->
+
+      <!-- ══ Tab: Assets ══ -->
+      <div class="tab-pane" id="tab-pane-asset-manager" style="display:none">
+
+        <div class="asset-toolbar">
+          <span class="panel-title">Assets</span>
+          <button id="btn-refresh-assets" class="btn-icon-sm" title="Refresh assets">↺</button>
+        </div>
+
+        <div class="asset-filters">
+          <select id="asset-type-filter" class="asset-filter-select">
+            <option value="">All types</option>
+          </select>
+        </div>
+
+        <div id="asset-list" class="asset-list"></div>
+
+        <div class="asset-footer">
+          <button id="btn-add-asset"     class="btn-primary-sm">+ Add Asset</button>
+          <button id="btn-manage-types"  class="btn-ghost-sm">Types</button>
+        </div>
+
+      </div><!-- /tab-pane-asset-manager -->
 
       <!-- ══ Tab: Campaign ══ -->
       <div class="tab-pane" id="tab-pane-campaign" style="display:none">
@@ -411,6 +436,7 @@
   <script type="module" src="gm-monitor.js"></script>
   <script type="module" src="gm-layers.js"></script>
   <script type="module" src="gm-huds.js"></script>
+  <script type="module" src="gm-assets.js"></script>
   <script type="module" src="gm.js"></script>
 </body>
 </html>

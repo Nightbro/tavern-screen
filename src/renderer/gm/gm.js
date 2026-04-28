@@ -13,6 +13,7 @@ import { initLibrary }                                        from './gm-library
 import { initCampaigns, confirmInline }                       from './gm-campaign.js';
 import { initScene, updateVpZoomUI, renderLayerList }         from './gm-layers.js';
 import { renderHudList, renderHudPreview }                    from './gm-huds.js';
+import { initAssets }                                         from './gm-assets.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SCENE I/O
@@ -424,6 +425,7 @@ btnToggleMonitors.addEventListener('click', () => {
 loadDisplays();
 initLibrary();
 initCampaigns();
+initAssets();
 renderHudGroupList();
 loadMostRecentHudGroup();
 
