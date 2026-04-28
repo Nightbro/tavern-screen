@@ -61,6 +61,78 @@ const WEATHER_CFG = {
       ctx.fill();
     },
   },
+
+  // ── New atmosphere effects ────────────────────────────────────────────────
+
+  fire: {
+    count: 80, speed: -7, spreadX: 1.4, size: [8, 22],
+    color: () => '',
+    init(p) { p.life = 0.6 + Math.random() * 0.4; },
+    tick(p, dt, cw, ch) {
+      p.phase += 0.06 * dt;
+      p.x     += Math.sin(p.phase * 1.4) * 1.6 * dt + p.vx * dt;
+      p.y     += p.vy * dt;
+      p.life   = Math.max(0, p.life - 0.016 * dt);
+      return p.life <= 0 || p.x < -p.size * 4 || p.x > cw + p.size * 4;
+    },
+    draw(ctx, p) {
+      const t = p.life ?? 1;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      g.addColorStop(0,   `rgba(255,${Math.floor(220 + 35 * t)},${Math.floor(80 * t)},${t * 0.9})`);
+      g.addColorStop(0.4, `rgba(255,${Math.floor(110 * t)},0,${t * 0.55})`);
+      g.addColorStop(1,   'rgba(160,10,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  },
+
+  smoke: {
+    count: 22, speed: -0.9, spreadX: 0.28, size: [55, 140],
+    color: () => '',
+    init(p) { p.life = 0.7 + Math.random() * 0.3; },
+    tick(p, dt, cw, ch) {
+      p.phase += 0.007 * dt;
+      p.x     += Math.sin(p.phase) * 0.5 * dt + p.vx * dt;
+      p.y     += p.vy * dt;
+      p.life   = Math.max(0, p.life - 0.004 * dt);
+      return p.life <= 0 || p.y < -p.size * 4;
+    },
+    draw(ctx, p) {
+      const t = p.life ?? 1;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      g.addColorStop(0, `rgba(55,52,50,${t * 0.28})`);
+      g.addColorStop(1, 'rgba(55,52,50,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  },
+
+  mist: {
+    count: 28, speed: -0.35, spreadX: 0.1, size: [110, 270],
+    color: () => '',
+    init(p) { p.life = 0.65 + Math.random() * 0.35; },
+    tick(p, dt, cw, ch) {
+      p.phase += 0.004 * dt;
+      p.x     += Math.sin(p.phase * 0.7) * 0.35 * dt + p.vx * dt;
+      p.y     += p.vy * dt;
+      p.life   = Math.max(0, p.life - 0.0025 * dt);
+      return p.life <= 0 || p.y < -p.size * 4;
+    },
+    draw(ctx, p) {
+      const t = p.life ?? 1;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      g.addColorStop(0, `rgba(210,215,228,${t * 0.18})`);
+      g.addColorStop(1, 'rgba(210,215,228,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  },
 };
 
 function spawnParticle(type, cw, ch, randomY = false) {
@@ -68,7 +140,7 @@ function spawnParticle(type, cw, ch, randomY = false) {
   const vy   = cfg.speed + (Math.random() - 0.5) * Math.abs(cfg.speed) * 0.4;
   const vx   = (Math.random() - 0.5) * cfg.spreadX * Math.abs(vy);
   const size = cfg.size[0] + Math.random() * (cfg.size[1] - cfg.size[0]);
-  return {
+  const p = {
     x:    Math.random() * cw,
     y:    randomY
       ? Math.random() * ch
@@ -78,6 +150,8 @@ function spawnParticle(type, cw, ch, randomY = false) {
     phase: Math.random() * Math.PI * 2,
     px: 0, py: 0,
   };
+  cfg.init?.(p);
+  return p;
 }
 
 export class WeatherLayer extends LayerBase {
@@ -146,7 +220,9 @@ export class WeatherLayer extends LayerBase {
 
     for (let i = 0; i < visible; i++) {
       const p = ps[i];
-      if (type === 'fireflies') {
+      if (cfg.tick) {
+        if (cfg.tick(p, dt, cw, ch)) Object.assign(p, spawnParticle(type, cw, ch, false));
+      } else if (type === 'fireflies') {
         p.phase += 0.025 * dt;
         p.x += Math.sin(p.phase * 1.1) * 0.7 * dt;
         p.y += Math.cos(p.phase * 0.8) * 0.5 * dt;

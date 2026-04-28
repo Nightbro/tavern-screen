@@ -1,6 +1,6 @@
 // Layer configuration — weather types and GM overlay color palette.
 
-export const WEATHER_TYPES = ['rain', 'snow', 'embers', 'fog', 'fireflies'];
+export const WEATHER_TYPES = ['rain', 'snow', 'embers', 'fog', 'fireflies', 'fire', 'smoke', 'mist'];
 
 export const LAYER_GM_COLORS = {
   light:   'rgba(80,120,200,0.25)',
