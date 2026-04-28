@@ -5,11 +5,82 @@ import {
   sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
 } from './gm-state.js';
 
-const notesTabs         = document.getElementById('notes-tabs');
-const btnNotesTabSession  = document.getElementById('btn-notes-tab-session');
-const btnNotesTabCampaign = document.getElementById('btn-notes-tab-campaign');
+const notesTabs             = document.getElementById('notes-tabs');
+const btnNotesTabSession    = document.getElementById('btn-notes-tab-session');
+const btnNotesTabCampaign   = document.getElementById('btn-notes-tab-campaign');
+const btnNotesPreviewToggle = document.getElementById('btn-notes-preview-toggle');
+const notesPreviewEl        = document.getElementById('notes-preview');
 
-let notesActiveTab = 'session';
+let notesActiveTab     = 'session';
+let notesPreviewActive = false;
+
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+
+function renderMarkdown(src) {
+  function inline(t) {
+    return t
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+      .replace(/_([^_\n]+)_/g, '<em>$1</em>');
+  }
+
+  let html = '';
+  let inPara = false, inUl = false, inOl = false, inBq = false;
+
+  const closePara = () => { if (inPara)  { html += '</p>';           inPara = false; } };
+  const closeUl   = () => { if (inUl)    { html += '</ul>';          inUl   = false; } };
+  const closeOl   = () => { if (inOl)    { html += '</ol>';          inOl   = false; } };
+  const closeBq   = () => { if (inBq)    { html += '</blockquote>';  inBq   = false; } };
+  const closeAll  = () => { closePara(); closeUl(); closeOl(); closeBq(); };
+
+  for (const raw of src.split('\n')) {
+    let m;
+    if ((m = raw.match(/^(#{1,3}) (.+)/))) {
+      closeAll();
+      const n = m[1].length;
+      html += `<h${n}>${inline(m[2])}</h${n}>`;
+    } else if (/^---+$/.test(raw.trim())) {
+      closeAll(); html += '<hr>';
+    } else if ((m = raw.match(/^> (.*)/))) {
+      closePara(); closeUl(); closeOl();
+      if (!inBq) { html += '<blockquote>'; inBq = true; } else html += '<br>';
+      html += inline(m[1]);
+    } else if ((m = raw.match(/^[*-] (.*)/))) {
+      closePara(); closeBq(); closeOl();
+      if (!inUl) { html += '<ul>'; inUl = true; }
+      html += `<li>${inline(m[1])}</li>`;
+    } else if ((m = raw.match(/^\d+\. (.*)/))) {
+      closePara(); closeBq(); closeUl();
+      if (!inOl) { html += '<ol>'; inOl = true; }
+      html += `<li>${inline(m[1])}</li>`;
+    } else if (raw.trim() === '') {
+      closeAll();
+    } else {
+      closeBq(); closeUl(); closeOl();
+      if (!inPara) { html += '<p>'; inPara = true; } else html += '<br>';
+      html += inline(raw);
+    }
+  }
+  closeAll();
+  return html;
+}
+
+function applyPreviewMode() {
+  const on = notesPreviewActive;
+  notesTextarea.style.display  = on ? 'none' : '';
+  notesPreviewEl.style.display = on ? ''     : 'none';
+  btnNotesPreviewToggle.classList.toggle('active', on);
+  btnNotesPreviewToggle.textContent = on ? 'Edit' : 'Preview';
+  if (on) notesPreviewEl.innerHTML = renderMarkdown(notesTextarea.value);
+}
+
+btnNotesPreviewToggle.addEventListener('click', () => {
+  notesPreviewActive = !notesPreviewActive;
+  applyPreviewMode();
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 // TABS
@@ -219,6 +290,7 @@ async function loadCurrentNotes() {
     setNotesTabUI();
   }
   setNotesStatus('');
+  if (notesPreviewActive) notesPreviewEl.innerHTML = renderMarkdown(notesTextarea.value);
 }
 
 btnNotesTabSession.addEventListener('click', async () => {
