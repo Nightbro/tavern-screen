@@ -109,6 +109,8 @@ body.advanced-mode .adv-only { display: flex; }
   white-space: nowrap;
 }
 .btn-asset:hover { border-color: #c9a84c55; color: #c9a84c; background: #c9a84c0a; }
+.btn-asset-active { color: #c9a84c; border-color: #c9a84c; background: #c9a84c12; }
+#preview-wrap.region-select-mode { cursor: crosshair; }
 
 /* ── Map cards in advanced mode: indicate "click = add as layer" ── */
 body.advanced-mode .map-card:hover { border-color: #4a90d9; }

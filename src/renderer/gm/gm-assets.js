@@ -213,6 +213,15 @@ function buildAssetCard(asset) {
   card.appendChild(info);
   card.appendChild(actions);
 
+  if (asset.fileName && isImage(asset.fileName)) {
+    card.draggable = true;
+    card.addEventListener('dragstart', (e) => {
+      const url = assetFileUrl(asset);
+      e.dataTransfer.setData('application/tavern-asset', JSON.stringify({ url, name: asset.name }));
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+  }
+
   card.addEventListener('click', () => selectAsset(asset, card));
   return card;
 }
@@ -413,6 +422,8 @@ function toggleEditForm(card, asset, nameEl) {
   form.appendChild(scopeSelect);
   form.appendChild(btnRow);
 
+  form.addEventListener('click', e => e.stopPropagation());
+
   card.appendChild(form);
   nameInput.focus();
   nameInput.select();
@@ -523,24 +534,30 @@ function toggleTypesManager() {
   const typesList = document.createElement('div');
   typesList.className = 'asset-types-list';
 
+  const PROTECTED = new Set(['general']);
+
   function renderTypesList() {
     typesList.innerHTML = '';
     for (const t of assetState.types) {
       const item = document.createElement('div');
       item.className = 'asset-type-item';
       const label = document.createElement('span');
-      label.textContent = t;
-      const btnDel = document.createElement('button');
-      btnDel.className   = 'btn-icon-xs danger';
-      btnDel.title       = 'Remove type';
-      btnDel.textContent = '×';
-      btnDel.addEventListener('click', async () => {
-        await window.electronAPI.removeAssetType(t);
-        await refreshAssets();
-        renderTypesList();
-      });
-      item.appendChild(label);
-      item.appendChild(btnDel);
+      label.textContent = t + (PROTECTED.has(t) ? ' 🔒' : '');
+      if (!PROTECTED.has(t)) {
+        const btnDel = document.createElement('button');
+        btnDel.className   = 'btn-icon-xs danger';
+        btnDel.title       = 'Remove type';
+        btnDel.textContent = '×';
+        btnDel.addEventListener('click', async () => {
+          await window.electronAPI.removeAssetType(t);
+          await refreshAssets();
+          renderTypesList();
+        });
+        item.appendChild(label);
+        item.appendChild(btnDel);
+      } else {
+        item.appendChild(label);
+      }
       typesList.appendChild(item);
     }
   }

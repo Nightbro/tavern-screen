@@ -14,7 +14,8 @@ const HUDS_FILE      = 'huds.json';
 const ASSETS_DIR     = 'assets';
 const ASSETS_INDEX   = 'assets.json';
 const ASSET_META     = 'asset.json';
-const DEFAULT_TYPES  = ['characters', 'maps', 'objects', 'handouts'];
+const DEFAULT_TYPES  = ['general', 'characters', 'maps', 'objects', 'handouts'];
+const PROTECTED_TYPES = new Set(['general']);
 
 // Creates the campaign library backed by config (use createConfig() for file persistence).
 function createCampaignLibrary(config) {
@@ -396,9 +397,10 @@ function createCampaignLibrary(config) {
     return true;
   }
 
-  // Removes an asset type from the global index. Returns false if it does not exist.
+  // Removes an asset type from the global index. Returns false if it does not exist or is protected.
   function removeAssetType(typeName) {
     if (!rootFolder) throw new Error('No root folder set');
+    if (PROTECTED_TYPES.has(typeName)) return false;
     const index = readAssetsIndex(null);
     if (!index.types) return false;
     const i = index.types.indexOf(typeName);

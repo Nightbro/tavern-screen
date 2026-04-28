@@ -46,12 +46,12 @@ function readIndex(tmp, campaignId) {
 describe('listAssetTypes', () => {
   test('returns default types when no index exists', () => {
     const { lib } = setup();
-    expect(lib.listAssetTypes()).toEqual(['characters', 'maps', 'objects', 'handouts']);
+    expect(lib.listAssetTypes()).toEqual(['general', 'characters', 'maps', 'objects', 'handouts']);
   });
 
   test('returns types when no root folder is set', () => {
     const lib = createCampaignLibrary(makeConfig());
-    expect(lib.listAssetTypes()).toEqual(['characters', 'maps', 'objects', 'handouts']);
+    expect(lib.listAssetTypes()).toEqual(['general', 'characters', 'maps', 'objects', 'handouts']);
   });
 });
 
@@ -98,6 +98,12 @@ describe('removeAssetType', () => {
     expect(lib.removeAssetType('ghost')).toBe(false);
   });
 
+  test('returns false for protected type general', () => {
+    const { lib } = setup();
+    expect(lib.removeAssetType('general')).toBe(false);
+    expect(lib.listAssetTypes()).toContain('general');
+  });
+
   test('throws when no root folder is set', () => {
     const lib = createCampaignLibrary(makeConfig());
     expect(() => lib.removeAssetType('maps')).toThrow('No root folder set');
@@ -111,7 +117,7 @@ describe('listAssets', () => {
     const { lib } = setup();
     const { types, assets } = lib.listAssets(null);
     expect(assets).toEqual([]);
-    expect(types).toEqual(['characters', 'maps', 'objects', 'handouts']);
+    expect(types).toEqual(['general', 'characters', 'maps', 'objects', 'handouts']);
   });
 
   test('global assets have scope: global', () => {

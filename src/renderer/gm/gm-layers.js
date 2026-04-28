@@ -342,22 +342,96 @@ function renderLayerDetail(layer) {
 
 // ── Quick asset buttons (left panel, advanced mode) ───────────────────────────
 
-document.querySelectorAll('.btn-asset').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const type = btn.dataset.asset;
-    const label = type.charAt(0).toUpperCase() + type.slice(1);
-    const newLayers = await window.electronAPI.addLayer({
-      ...LAYER_REGISTRY.weather.getDefaults(),
-      weatherType: type,
-      name: label,
-    });
-    if (newLayers) {
-      sceneState.layers = newLayers;
-      renderLayerList();
-      const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
-      if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
-    }
+async function addWeatherLayerFull(type) {
+  const label = type.charAt(0).toUpperCase() + type.slice(1);
+  const newLayers = await window.electronAPI.addLayer({
+    ...LAYER_REGISTRY.weather.getDefaults(),
+    weatherType: type,
+    name: label,
   });
+  if (newLayers) {
+    sceneState.layers = newLayers;
+    renderLayerList();
+    const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+    if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
+  }
+}
+
+function setRegionSelectAsset(type) {
+  ui.regionSelectAsset = type ?? null;
+  const previewWrap = document.getElementById('preview-wrap');
+  previewWrap.classList.toggle('region-select-mode', !!type);
+  document.querySelectorAll('.btn-asset').forEach(b => {
+    b.classList.toggle('btn-asset-active', b.dataset.asset === type);
+  });
+}
+
+document.querySelectorAll('.btn-asset').forEach(btn => {
+  let clickTimer = null;
+
+  btn.addEventListener('click', () => {
+    if (clickTimer !== null) return;
+    clickTimer = setTimeout(() => {
+      clickTimer = null;
+      const type = btn.dataset.asset;
+      setRegionSelectAsset(ui.regionSelectAsset === type ? null : type);
+    }, 220);
+  });
+
+  btn.addEventListener('dblclick', async () => {
+    clearTimeout(clickTimer);
+    clickTimer = null;
+    setRegionSelectAsset(null);
+    await addWeatherLayerFull(btn.dataset.asset);
+  });
+});
+
+// ── Asset drag-and-drop onto the preview canvas ───────────────────────────────
+
+const previewWrapEl = document.getElementById('preview-wrap');
+
+previewWrapEl.addEventListener('dragover', (e) => {
+  if (e.dataTransfer.types.includes('application/tavern-asset')) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }
+});
+
+previewWrapEl.addEventListener('drop', async (e) => {
+  const raw = e.dataTransfer.getData('application/tavern-asset');
+  if (!raw) return;
+  e.preventDefault();
+  const { url, name } = JSON.parse(raw);
+
+  let bounds;
+  if (display.advanced) {
+    const rect = layerOverlay.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const imgBounds = await imageBoundsFromSrc(url);
+    if (imgBounds.w) {
+      const { x: cx, y: cy } = overlayToCanvas(mx, my);
+      bounds = {
+        x: Math.round(cx - imgBounds.w / 2),
+        y: Math.round(cy - imgBounds.h / 2),
+        w: imgBounds.w,
+        h: imgBounds.h,
+      };
+    } else {
+      bounds = imgBounds;
+    }
+  } else {
+    bounds = await imageBoundsFromSrc(url);
+  }
+
+  const newLayers = await window.electronAPI.addLayer({ type: 'image', src: url, name, visible: true, opacity: 1, ...bounds });
+  if (newLayers) {
+    sceneState.layers = newLayers;
+    renderLayerList();
+    const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+    if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
+    setTimeout(() => window.electronAPI.requestPreview(), 400);
+  }
 });
 
 // ── Add layer buttons ─────────────────────────────────────────────────────────
@@ -597,6 +671,21 @@ export function renderLayerOverlay() {
   ctx.shadowBlur = 4;
   ctx.strokeRect(rx + 0.5, ry + 0.5, rw, rh);
   ctx.restore();
+
+  // Region selection rectangle (drawn while dragging for quick-asset region mode)
+  if (overlayDrag?.mode === 'regionDraw') {
+    const { startMx, startMy, endMx, endMy } = overlayDrag;
+    const selX = Math.min(startMx, endMx), selY = Math.min(startMy, endMy);
+    const selW = Math.abs(endMx - startMx),  selH = Math.abs(endMy - startMy);
+    ctx.save();
+    ctx.fillStyle   = 'rgba(100,200,255,0.12)';
+    ctx.strokeStyle = 'rgba(100,200,255,0.85)';
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([5, 3]);
+    ctx.fillRect(selX, selY, selW, selH);
+    ctx.strokeRect(selX + 0.5, selY + 0.5, selW, selH);
+    ctx.restore();
+  }
 }
 
 // ── Throttled IPC update ──────────────────────────────────────────────────────
@@ -646,7 +735,7 @@ layerOverlay.addEventListener('mousemove', (e) => {
   }
 
   if (overlayDrag) return;
-  if (ui.pingMode) { layerOverlay.style.cursor = 'crosshair'; return; }
+  if (ui.pingMode || ui.regionSelectAsset) { layerOverlay.style.cursor = 'crosshair'; return; }
   if (!display.advanced) return;
   const hit = hitTestOverlay(mx, my);
   if (!hit)                      layerOverlay.style.cursor = 'default';
@@ -704,6 +793,13 @@ layerOverlay.addEventListener('mousedown', (e) => {
     return;
   }
 
+  // ── Region select mode (quick asset) ─────────────────────────────────────
+  if (ui.regionSelectAsset && display.advanced && e.button === 0) {
+    e.preventDefault();
+    overlayDrag = { mode: 'regionDraw', startMx: mx, startMy: my, endMx: mx, endMy: my };
+    return;
+  }
+
   if (!display.advanced) return;
 
   const hit = hitTestOverlay(mx, my);
@@ -758,6 +854,14 @@ document.addEventListener('mousemove', (e) => {
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
   const { startMx, startMy } = overlayDrag;
+
+  // ── Region draw ───────────────────────────────────────────────────────────
+  if (overlayDrag.mode === 'regionDraw') {
+    overlayDrag.endMx = mx;
+    overlayDrag.endMy = my;
+    renderLayerOverlay();
+    return;
+  }
 
   // ── Viewport pan ──────────────────────────────────────────────────────────
   if (overlayDrag.mode === 'vpPan') {
@@ -817,6 +921,25 @@ document.addEventListener('mouseup', async () => {
 
   if (drag.mode === 'vpPan') {
     renderLayerOverlay();
+    return;
+  }
+
+  // ── Region draw commit ────────────────────────────────────────────────────
+  if (drag.mode === 'regionDraw' && ui.regionSelectAsset) {
+    const start = overlayToCanvas(drag.startMx, drag.startMy);
+    const end   = overlayToCanvas(drag.endMx,   drag.endMy);
+    const x = Math.round(Math.min(start.x, end.x));
+    const y = Math.round(Math.min(start.y, end.y));
+    const w = Math.max(MIN_LAYER_SIZE, Math.round(Math.abs(end.x - start.x)));
+    const h = Math.max(MIN_LAYER_SIZE, Math.round(Math.abs(end.y - start.y)));
+    const type  = ui.regionSelectAsset;
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    setRegionSelectAsset(null);
+    const newLayers = await window.electronAPI.addLayer({
+      ...LAYER_REGISTRY.weather.getDefaults(),
+      weatherType: type, name: label, x, y, w, h,
+    });
+    if (newLayers) { sceneState.layers = newLayers; renderLayerList(); renderLayerOverlay(); }
     return;
   }
 

@@ -134,8 +134,9 @@ export const viewport = {
 };
 
 export const ui = {
-  pingMode:    false,
-  simDragging: false,
+  pingMode:          false,
+  simDragging:       false,
+  regionSelectAsset: null,
 };
 
 export let autosaveTimer = null;

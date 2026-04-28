@@ -194,6 +194,16 @@
   flex-shrink: 0;
 }
 
+/* ── Draggable cards ────────────────────────────────────────────────────── */
+
+.asset-card[draggable="true"] {
+  cursor: grab;
+}
+
+.asset-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 /* ── Inline edit form (inside card) ────────────────────────────────────── */
 
 .asset-edit-form {
