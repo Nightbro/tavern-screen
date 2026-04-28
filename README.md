@@ -19,13 +19,14 @@ tavern-screen/
 │   │   ├── windowManager.js     # Window lifecycle, active map, preview capture
 │   │   ├── displayManager.js    # Display selection, screen window creation
 │   │   ├── library.js           # File-system map library (projects, copy, move, delete)
-│   │   ├── campaignLibrary.js   # File-system campaign library (campaigns, sessions, notes, scenes, HUD configs)
-│   │   ├── config.js            # Key-value config backed by JSON (settings + folder persistence)
+│   │   ├── campaignLibrary.js   # Campaigns, sessions, notes, scenes, HUD configs, assets
+│   │   ├── config.js            # Key-value config backed by JSON (settings + last state)
 │   │   ├── sceneState.js        # In-memory scene state (layers, HUDs, viewport)
 │   │   ├── snapshotStore.js     # Generic JSON snapshot persistence (used by campaignLibrary)
 │   │   └── ipc/                 # Electron message handlers — main process receives these from the renderer
-│   │       ├── display.js       # Display selection, settings, preview
-│   │       ├── library.js       # Map library (folder, projects, files)
+│   │       ├── display.js       # Display selection, settings, preview, last-state persistence
+│   │       ├── library.js       # Map library (projects, files, file dialogs)
+│   │       ├── asset.js         # Asset CRUD, type management, copy, move
 │   │       ├── campaign.js      # Campaigns, sessions, notes, HUDs, HUD configs
 │   │       └── scene.js         # Scene state, layers, viewport, ping, file dialogs
 │   └── renderer/                    # Renderer process — runs in Chromium, no Node.js access
@@ -33,8 +34,8 @@ tavern-screen/
 │       │   ├── ILayer.js            # Abstract interface all layer types must implement
 │       │   ├── LayerBase.js         # Base class — default GM preview, shared editor helpers
 │       │   ├── ImageLayer.js        # image type
-│       │   ├── GifLayer.js          # gif type (extends ImageLayer)
-│       │   ├── VideoLayer.js        # video type
+│       │   ├── GifLayer.js          # gif type (extends ImageLayer; animated on player screen)
+│       │   ├── VideoLayer.js        # video type (mp4/webm; covers viewport in screen space)
 │       │   ├── LightLayer.js        # light/shadow overlay type
 │       │   ├── FogLayer.js          # fog of war type (with reveal circles)
 │       │   ├── WeatherLayer.js      # weather particles type (rain, snow, embers, fog, fireflies)
@@ -51,14 +52,14 @@ tavern-screen/
 │       ├── gm/                      # GM screen (tabbed left panel + center + settings/layers)
 │       │   ├── index.html
 │       │   ├── gm-base.css          # Reset, layout, panels, resize handles, shared labels
-│       │   ├── gm-library.css       # Map library, project sections, map cards, panel tabs
-│       │   ├── gm-campaign.css      # Campaign toolbar, sessions, scenes, notes, drop overlay
+│       │   ├── gm-assets.css        # Asset manager — cards, thumbnails, preview, drag targets
+│       │   ├── gm-campaign.css      # Campaign toolbar, sessions, scenes, notes
 │       │   ├── gm-monitors.css      # Monitor map/cards, preview, HUD simulation, handout cards
 │       │   ├── gm-controls.css      # Settings groups, form fields, all btn-* variants
 │       │   ├── gm-layers.css        # Right panel, layer rows, detail fields, advanced-mode overrides
 │       │   ├── gm-huds.css          # Initiative entries, status chips, preset picker
 │       │   ├── gm-state.js          # Shared DOM refs and mutable state
-│       │   ├── gm-library.js        # Map library UI (folder setup, project/map rendering, drag-drop)
+│       │   ├── gm-assets.js         # Asset manager UI (browse, add, edit, drag-drop to canvas/folders)
 │       │   ├── gm-campaign.js       # Campaign/session management, notes editor
 │       │   ├── gm-monitor.js        # Monitor selector, preview, settings inputs, tab switching
 │       │   ├── gm-layers.js         # Scene init, viewport, layer list/editor, GM canvas overlay
@@ -77,6 +78,7 @@ tavern-screen/
 │           └── screen-advanced-huds.js   # HUD panel rendering (initiative, statuses, handout, ping)
 ├── test/
 │   ├── config.test.js
+│   ├── assetLibrary.test.js
 │   ├── library.test.js
 │   ├── campaignLibrary.test.js
 │   ├── sceneState.test.js
@@ -120,7 +122,7 @@ Output is in the `dist/` folder:
 
 | Panel | Contents |
 |-------|----------|
-| **Left — Assets tab** | Persistent folder-based image library with projects (subfolders), drag & drop, refresh |
+| **Left — Assets tab** | Global and campaign-scoped asset library; types configurable; drag to canvas or click "+ Add to Scene"; drag from OS file manager to add files; copy, edit type/scope, delete |
 | **Left — Campaign tab** | Campaign selector, sessions list, scenes list, notes editor |
 | **Left — Huds tab** | HUD group list; create new groups, switch the active group, rename, delete |
 | **Center** | Collapsible monitor selector; **Preview** tab (map + layer overlay) and **HUD Sim** tab (pixel-accurate HUD simulation, advanced mode only) |
@@ -138,10 +140,62 @@ The **Grid** section at the top of the Layers tab is collapsible — click the t
 | Section | Controls |
 |---------|----------|
 | **Viewport** | Zoom in/out/reset slider; drag the gold viewport rectangle on the preview to pan; 🎯 Ping button — click then click the preview to send a pulsing marker to the player screen |
-| **Layers** | Add Image / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
+| **Layers** | Add Image / GIF / Video / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
 | **HUDs** | Add **Initiative** (In), **Statuses** (St), or **Handout** (Ho); eye icon to show/hide; click row to expand editor |
 | **Scene** | Named scenes auto-saved to the active campaign/session; scene list with load/delete; ⬆ Export to JSON file; ⬇ Import from JSON file; ↺ New (reset to empty) |
+
+---
+
+## Asset Manager
+
+Assets are persistent media files — character portraits, battle maps, handouts, tokens, videos, etc. — stored under `userdata/` inside the app directory.
+
+### Scopes
+
+| Scope | Storage | Visible when |
+|-------|---------|--------------|
+| **Global** | `userdata/assets/` | Always |
+| **Campaign** | `userdata/campaigns/<id>/assets/` | That campaign is selected |
+
+### Asset Types
+
+Types are user-defined strings. The default set is `general`, `characters`, `maps`, `objects`, `handouts`. `general` is a protected type — it cannot be deleted. New types can be added via the **Types** button.
+
+### Supported File Formats
+
+| Category | Extensions |
+|----------|-----------|
+| Images | `png`, `jpg`, `jpeg`, `webp`, `bmp`, `svg` |
+| Animated GIF | `gif` — plays animated on the player screen |
+| Video | `mp4`, `webm` — looping, muted; covers the player viewport |
+| Documents | `pdf` |
+
+### Adding Assets
+
+- **+ Add Asset** button → file dialog (multi-select)
+- **Drag & Drop** from OS file manager onto any type section
+- File name (without extension) becomes the default asset name
+
+### Using Assets on the Player Screen
+
+- **Click** an asset card to preview it in the panel
+- **+ Add to Scene** (preview panel, advanced mode) — adds as a layer; images/GIFs are centred at natural size, videos fill the viewport
+- **Single-click a Quick Asset button** (bottom of Assets tab) — enter region-select mode; drag on the preview to place the asset in a specific area
+- **Double-click a Quick Asset button** — immediately adds as a full-scene layer
+- **Drag** an asset card onto the GM preview — drops it centred on the cursor position
+
+### Managing Assets
+
+| Action | How |
+|--------|-----|
+| **Edit** | ✏ button on hover — inline form to rename, change type, change scope |
+| **Copy** | ⧉ button on hover — duplicates asset with "(copy)" suffix |
+| **Move scope** | ⇄ button on hover (or drag to a scope header) |
+| **Move type** | Drag card onto a different type section |
+| **Delete** | × button on hover — inline confirmation |
+
+See [assets-readme.md](assets-readme.md) for the full asset system design.
 
 ---
 
@@ -293,44 +347,53 @@ The simulation rescales automatically when the GM panel is resized. The scale fa
 
 ## Persistence
 
-All settings are saved automatically to Electron's `userData` directory (`config.json`):
+All settings are saved automatically to `userdata/config.json` inside the app directory:
 
 | Key | What is saved |
 |-----|--------------|
-| `rootFolder` | Path to the maps root folder |
+| `lastState` | Last selected campaign, session, and scene — restored on next launch |
 | `settings` | Grid visibility, cell size, color, opacity, DPI, zoom |
 
-Settings are restored when the app next starts.
+Settings and last state are restored when the app next starts.
 
 ---
 
-## Map Library
+## Data Storage
 
-- **Select Folder** — pick any folder; `maps/` and `campaigns/` subdirectories are created inside it
-- **Projects** — subfolders inside `maps/`; create, rename, delete (maps moved to Unsorted on delete)
-- **Add Images** — file dialog (multi-select) or drag & drop from the OS
-- **Switch Maps** — click any thumbnail to send it to the player screen instantly
-- **Move between projects** — drag a map card onto another project section
-- **Refresh** — re-scans the folder without restarting
+All persistent data lives under `userdata/` in the app directory (next to `main.js`):
+
+```
+userdata/
+├── config.json                  # settings + last state
+├── assets/                      # global assets (shared across all campaigns)
+│   ├── assets.json
+│   └── <type>/<uuid>/           # one folder per asset
+├── huds.json                    # all HUD groups
+└── campaigns/
+    └── <campaign-id>/
+        ├── notes.md             # campaign-level notes
+        ├── assets/              # campaign-scoped assets
+        │   └── assets.json
+        └── sessions/
+            └── <session-id>/
+                ├── notes.md     # session notes
+                └── scenes/
+                    └── <uuid>.json  # auto-saved scenes
+```
+
+### What is persisted
+
+| What | File | Saved when |
+|------|------|-----------|
+| Scene (layers, viewport, background) | `userdata/campaigns/{c}/sessions/{s}/scenes/{id}.json` | Any layer or scene change (800 ms debounce) |
+| HUD groups | `userdata/huds.json` | Any HUD change or group switch (800 ms debounce) |
+| Settings + last state | `userdata/config.json` | Any settings change or campaign/session/scene switch |
+
+HUDs are **not session-scoped** — the full HUD group library lives at `userdata/huds.json` and is independent of campaigns and sessions. Scenes never contain HUD data, and HUD changes never touch scene files.
+
+---
 
 ## Campaign Library
-
-Campaigns and sessions are stored alongside the map library under the same root folder:
-
-```
-<root>/
-├── maps/
-└── userdata/
-    ├── huds.json                # all HUD groups (global, shared across all campaigns)
-    └── campaigns/
-        └── My Campaign/
-            ├── notes.md             # campaign-level notes
-            └── sessions/
-                └── Session 1/
-                    ├── notes.md     # session notes
-                    └── scenes/
-                        └── <uuid>.json  # auto-saved scenes (layers, viewport — no HUDs)
-```
 
 - **Campaigns** — create, rename, delete (with confirmation); switch via dropdown
 - **Sessions** — create, rename, delete (with confirmation) within a campaign
@@ -338,20 +401,6 @@ Campaigns and sessions are stored alongside the map library under the same root 
   - When no session is selected: editing campaign-level notes
   - When a session is selected: editing that session's notes; click again to deselect
 - Notes are plain `.md` files readable outside the app
-
-### Persistence model
-
-| What | File | Saved when |
-|------|------|-----------|
-| Scene (layers, viewport, background) | `userdata/campaigns/{c}/sessions/{s}/scenes/{id}.json` | Any layer or scene change (800 ms debounce) |
-| HUD groups | `userdata/huds.json` | Any HUD change or group switch (800 ms debounce) |
-| Settings | `userData/config.json` | Any settings change |
-
-HUDs are **not session-scoped** — the full HUD group library lives at `userdata/huds.json` in the root folder and is independent of campaigns and sessions. Scenes never contain HUD data, and HUD changes never touch scene files.
-
-### Assets
-
-See [assets-readme.md](assets-readme.md) for the full asset system design — structure, metadata schema, asset types, and how global and campaign-scoped assets interact.
 
 ---
 
@@ -385,8 +434,8 @@ Layer types are implemented as ES module classes under `renderer/layers/`. Each 
 | Class | Type | GM editor fields | Player rendering |
 |---|---|---|---|
 | `ImageLayer` | `image` | source file, opacity | draws image at canvas position |
-| `GifLayer` | `gif` | source file, opacity | same as ImageLayer |
-| `VideoLayer` | `video` | source file, opacity | draws video element |
+| `GifLayer` | `gif` | source file, opacity | animated GIF at canvas position (native frame rate) |
+| `VideoLayer` | `video` | source file, opacity | looping muted video; covers viewport in screen space (ignores scene zoom/pan) |
 | `LightLayer` | `light` | color, opacity | solid colored rectangle |
 | `FogLayer` | `fog` | *(name only)* | dark fill with destination-out reveal circles |
 | `WeatherLayer` | `weather` | weather type, intensity | animated particle system |
