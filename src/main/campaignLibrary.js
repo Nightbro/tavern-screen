@@ -14,7 +14,10 @@ const HUDS_DIR      = 'Huds';
 function createCampaignLibrary(config) {
   let rootFolder = (() => {
     const r = config.get('rootFolder', null);
-    return (r && fs.existsSync(r)) ? r : null;
+    if (!r || !fs.existsSync(r)) return null;
+    // Ensure Huds/ directory exists for any previously-configured root folder.
+    fs.mkdirSync(path.join(r, HUDS_DIR), { recursive: true });
+    return r;
   })();
 
   // ── Paths ──────────────────────────────────────────────────────────────────
@@ -183,15 +186,15 @@ function createCampaignLibrary(config) {
   // ── HUD Groups (named snapshots, global across all campaigns) ────────────
 
   // Saves a HUD group snapshot (overwrites existing by id).
-  function saveHudGroup(group)              { return saveSnapshot(getHudsDir() ?? '', group); }
+  function saveHudGroup(group)         { const d = getHudsDir(); if (!d) return null;  return saveSnapshot(d, group); }
   // Lists all HUD groups sorted by most recently saved.
-  function listHudGroups()                  { return listSnapshots(getHudsDir() ?? ''); }
+  function listHudGroups()             { const d = getHudsDir(); if (!d) return [];    return listSnapshots(d); }
   // Loads a HUD group by id, returning null if not found.
-  function loadHudGroup(id)                 { return loadSnapshot(getHudsDir() ?? '', id); }
+  function loadHudGroup(id)            { const d = getHudsDir(); if (!d) return null;  return loadSnapshot(d, id); }
   // Deletes a HUD group by id.
-  function deleteHudGroup(id)               { deleteSnapshot(getHudsDir() ?? '', id); }
+  function deleteHudGroup(id)          { const d = getHudsDir(); if (!d) return;       deleteSnapshot(d, id); }
   // Renames a HUD group.
-  function renameHudGroup(id, newName)      { return renameSnapshot(getHudsDir() ?? '', id, newName); }
+  function renameHudGroup(id, newName) { const d = getHudsDir(); if (!d) return false; return renameSnapshot(d, id, newName); }
 
   // ── Scenes ─────────────────────────────────────────────────────────────────
 

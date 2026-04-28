@@ -27,11 +27,13 @@ function setAutosaveBadge(state) {
 }
 
 export function scheduleAutosave() {
-  if (!sceneState.ready) return;
+  const canSaveScene    = sceneState.ready && !!campaign.selectedId;
+  const canSaveHudGroup = !!sceneState.loadedHudGroupId;
+  if (!canSaveScene && !canSaveHudGroup) return;
   clearTimeout(autosaveTimer);
   setAutosaveBadge('saving');
   window.autosaveTimer = setTimeout(async () => {
-    const sceneSave = campaign.selectedId
+    const sceneSave = canSaveScene
       ? window.electronAPI.saveSceneCampaign(campaign.selectedId, campaign.sessionId)
       : Promise.resolve(null);
     const hudGroupSave = sceneState.loadedHudGroupId
@@ -260,11 +262,13 @@ function startHudGroupRename(row, nameEl, g) {
 async function applyLoadedHudGroup(groupId) {
   // Flush current group before switching so no changes are lost.
   if (sceneState.loadedHudGroupId) {
-    await window.electronAPI.saveHudGroup({
-      id:   sceneState.loadedHudGroupId,
-      name: sceneState.loadedHudGroupName,
-      huds: sceneState.huds,
-    });
+    try {
+      await window.electronAPI.saveHudGroup({
+        id:   sceneState.loadedHudGroupId,
+        name: sceneState.loadedHudGroupName,
+        huds: sceneState.huds,
+      });
+    } catch (e) { /* ignore flush errors — proceed with load */ }
   }
   const group = await window.electronAPI.loadHudGroup(groupId);
   if (!group) return;
@@ -420,6 +424,7 @@ btnToggleMonitors.addEventListener('click', () => {
 loadDisplays();
 initLibrary();
 initCampaigns();
+renderHudGroupList();
 loadMostRecentHudGroup();
 
 // ── Window bridge (for other modules that still call via window) ──────────────
