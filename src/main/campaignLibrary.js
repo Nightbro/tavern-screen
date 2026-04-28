@@ -9,7 +9,6 @@ const SESSIONS_DIR  = 'sessions';
 const NOTES_FILE    = 'notes.md';
 const SCENES_DIR    = 'scenes';
 const HUDS_DIR      = 'Huds';
-const HUDS_FILE     = 'huds.json';
 
 // Creates the campaign library backed by config (use createConfig() for file persistence).
 function createCampaignLibrary(config) {
@@ -63,12 +62,6 @@ function createCampaignLibrary(config) {
   // Returns the global Huds/ directory path, or null if no root folder is set.
   function getHudsDir() {
     return rootFolder ? path.join(rootFolder, HUDS_DIR) : null;
-  }
-
-  // Returns the path to the global huds.json file, or null if no root folder is set.
-  function hudsFilePath() {
-    const dir = getHudsDir();
-    return dir ? path.join(dir, HUDS_FILE) : null;
   }
 
   // ── Root folder ────────────────────────────────────────────────────────────
@@ -187,23 +180,18 @@ function createCampaignLibrary(config) {
     fs.writeFileSync(notesPath(campaignId, sessionId), content, 'utf8');
   }
 
-  // ── HUDs (global, shared across all campaigns) ────────────────────────────
+  // ── HUD Groups (named snapshots, global across all campaigns) ────────────
 
-  // Persists the HUDs array to the global Huds/huds.json.
-  function saveHuds(huds) {
-    const dir = getHudsDir();
-    if (!dir) return;
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(hudsFilePath(), JSON.stringify(huds ?? [], null, 2), 'utf8');
-  }
-
-  // Loads the global HUDs array from Huds/huds.json, returning [] if absent.
-  function loadHuds() {
-    const file = hudsFilePath();
-    if (!file || !fs.existsSync(file)) return [];
-    try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
-    catch { return []; }
-  }
+  // Saves a HUD group snapshot (overwrites existing by id).
+  function saveHudGroup(group)              { return saveSnapshot(getHudsDir() ?? '', group); }
+  // Lists all HUD groups sorted by most recently saved.
+  function listHudGroups()                  { return listSnapshots(getHudsDir() ?? ''); }
+  // Loads a HUD group by id, returning null if not found.
+  function loadHudGroup(id)                 { return loadSnapshot(getHudsDir() ?? '', id); }
+  // Deletes a HUD group by id.
+  function deleteHudGroup(id)               { deleteSnapshot(getHudsDir() ?? '', id); }
+  // Renames a HUD group.
+  function renameHudGroup(id, newName)      { return renameSnapshot(getHudsDir() ?? '', id, newName); }
 
   // ── Scenes ─────────────────────────────────────────────────────────────────
 
@@ -239,7 +227,7 @@ function createCampaignLibrary(config) {
     createSession, renameSession, deleteSession,
     readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
-    saveHuds, loadHuds,
+    saveHudGroup, listHudGroups, loadHudGroup, deleteHudGroup, renameHudGroup,
     saveScene, listScenes, loadScene, deleteScene, renameScene,
   };
 }

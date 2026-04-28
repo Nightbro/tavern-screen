@@ -1,6 +1,7 @@
 import {
   sceneState, campaign, viewport, autosaveTimer, genId,
   sceneAutosaveBadge, sceneNameInput, btnRefreshScenes,
+  hudGroupsContent, hudGroupNameInput, btnNewHudGroup, btnRefreshHudGroups, hudGroupAutosaveBadge,
   btnSaveScene, btnLoadScene, btnResetScene,
   layerDetail, initiativeEditor, elCanvasBg,
   monitorSectionBody, btnToggleMonitors,
@@ -18,10 +19,11 @@ import { renderHudList, renderHudPreview }                    from './gm-huds.js
 // ════════════════════════════════════════════════════════════════════════════
 
 function setAutosaveBadge(state) {
-  sceneAutosaveBadge.dataset.state = state;
-  sceneAutosaveBadge.textContent =
-    state === 'saving' ? 'Saving…' :
-    state === 'saved'  ? '✓ Saved' : '';
+  for (const el of [sceneAutosaveBadge, hudGroupAutosaveBadge]) {
+    if (!el) continue;
+    el.dataset.state = state;
+    el.textContent = state === 'saving' ? 'Saving…' : state === 'saved' ? '✓ Saved' : '';
+  }
 }
 
 export function scheduleAutosave() {
@@ -29,12 +31,21 @@ export function scheduleAutosave() {
   clearTimeout(autosaveTimer);
   setAutosaveBadge('saving');
   window.autosaveTimer = setTimeout(async () => {
-    const saves = [window.electronAPI.saveHuds()];
-    if (campaign.selectedId) saves.push(window.electronAPI.saveSceneCampaign(campaign.selectedId, campaign.sessionId));
-    const [, meta] = await Promise.all(saves);
+    const sceneSave = campaign.selectedId
+      ? window.electronAPI.saveSceneCampaign(campaign.selectedId, campaign.sessionId)
+      : Promise.resolve(null);
+    const hudGroupSave = sceneState.loadedHudGroupId
+      ? window.electronAPI.saveHudGroup({
+          id:   sceneState.loadedHudGroupId,
+          name: sceneState.loadedHudGroupName,
+          huds: sceneState.huds,
+        })
+      : Promise.resolve(null);
+    const [meta] = await Promise.all([sceneSave, hudGroupSave]);
     if (meta) sceneState.loadedId = meta.id;
     setAutosaveBadge('saved');
     renderSceneList();
+    renderHudGroupList();
   }, 800);
 }
 
@@ -162,6 +173,150 @@ sceneNameInput.addEventListener('input', () => {
 
 btnRefreshScenes.addEventListener('click', renderSceneList);
 
+// ════════════════════════════════════════════════════════════════════════════
+// HUD GROUPS
+// ════════════════════════════════════════════════════════════════════════════
+
+export async function renderHudGroupList() {
+  if (!hudGroupsContent) return;
+  hudGroupsContent.innerHTML = '';
+  const groups = await window.electronAPI.listHudGroups();
+  if (!groups.length) return;
+  for (const g of groups) hudGroupsContent.appendChild(buildHudGroupRow(g));
+}
+
+function buildHudGroupRow(g) {
+  const row = document.createElement('div');
+  row.className    = 'scene-row' + (g.id === sceneState.loadedHudGroupId ? ' active' : '');
+  row.dataset.groupId = g.id;
+  row.title = g.savedAt ? new Date(g.savedAt).toLocaleString() : '';
+
+  const nameEl = document.createElement('span');
+  nameEl.className   = 'scene-row-name';
+  nameEl.textContent = g.name || '(unnamed)';
+  row.addEventListener('click', () => applyLoadedHudGroup(g.id));
+
+  const actions = document.createElement('div');
+  actions.className = 'scene-actions';
+
+  const btnRename = document.createElement('button');
+  btnRename.className   = 'btn-icon-xs';
+  btnRename.title       = 'Rename group';
+  btnRename.textContent = '✏';
+  btnRename.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startHudGroupRename(row, nameEl, g);
+  });
+
+  const btnDel = document.createElement('button');
+  btnDel.className   = 'btn-icon-xs danger';
+  btnDel.textContent = '×';
+  btnDel.title       = 'Delete group';
+  btnDel.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!confirm(`Delete HUD group "${g.name || '(unnamed)'}"?`)) return;
+    if (sceneState.loadedHudGroupId === g.id) {
+      sceneState.loadedHudGroupId   = null;
+      sceneState.loadedHudGroupName = null;
+      if (hudGroupNameInput) hudGroupNameInput.value = '';
+    }
+    await window.electronAPI.deleteHudGroup(g.id);
+    renderHudGroupList();
+  });
+
+  actions.appendChild(btnRename);
+  actions.appendChild(btnDel);
+  row.appendChild(nameEl);
+  row.appendChild(actions);
+  return row;
+}
+
+function startHudGroupRename(row, nameEl, g) {
+  const input = document.createElement('input');
+  input.className = 'scene-row-name-input';
+  input.value     = g.name || '';
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  async function commit() {
+    const newName = input.value.trim();
+    if (newName && newName !== g.name) {
+      await window.electronAPI.renameHudGroup(g.id, newName);
+      if (sceneState.loadedHudGroupId === g.id) {
+        sceneState.loadedHudGroupName = newName;
+        if (hudGroupNameInput) hudGroupNameInput.value = newName;
+      }
+    }
+    renderHudGroupList();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  input.blur();
+    if (e.key === 'Escape') { input.value = g.name || ''; input.blur(); }
+  });
+}
+
+async function applyLoadedHudGroup(groupId) {
+  // Flush current group before switching so no changes are lost.
+  if (sceneState.loadedHudGroupId) {
+    await window.electronAPI.saveHudGroup({
+      id:   sceneState.loadedHudGroupId,
+      name: sceneState.loadedHudGroupName,
+      huds: sceneState.huds,
+    });
+  }
+  const group = await window.electronAPI.loadHudGroup(groupId);
+  if (!group) return;
+  sceneState.huds              = group.huds ?? [];
+  sceneState.loadedHudGroupId   = group.id;
+  sceneState.loadedHudGroupName = group.name ?? '';
+  if (hudGroupNameInput) hudGroupNameInput.value = group.name ?? '';
+  renderHudList();
+  renderHudPreview();
+  renderHudGroupList();
+}
+
+export async function loadMostRecentHudGroup() {
+  const groups = await window.electronAPI.listHudGroups();
+  if (groups.length) await applyLoadedHudGroup(groups[0].id);
+}
+
+hudGroupNameInput?.addEventListener('input', () => {
+  sceneState.loadedHudGroupName = hudGroupNameInput.value.trim();
+  scheduleAutosave();
+});
+
+btnNewHudGroup?.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.className   = 'scene-row-name-input';
+  input.placeholder = 'Group name…';
+  input.maxLength   = 64;
+  input.style.margin = '2px 8px';
+  hudGroupsContent.appendChild(input);
+  input.focus();
+
+  async function commit() {
+    const name = input.value.trim();
+    input.remove();
+    if (!name) return;
+    const id    = genId();
+    const group = { id, name, huds: sceneState.huds };
+    await window.electronAPI.saveHudGroup(group);
+    sceneState.loadedHudGroupId   = id;
+    sceneState.loadedHudGroupName = name;
+    if (hudGroupNameInput) hudGroupNameInput.value = name;
+    renderHudGroupList();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  input.blur();
+    if (e.key === 'Escape') { input.value = ''; input.blur(); }
+  });
+});
+
+btnRefreshHudGroups?.addEventListener('click', renderHudGroupList);
+
 // Export to file
 btnSaveScene.addEventListener('click', async () => {
   const scene = await window.electronAPI.getScene();
@@ -265,21 +420,14 @@ btnToggleMonitors.addEventListener('click', () => {
 loadDisplays();
 initLibrary();
 initCampaigns();
-
-// HUDs are global and loaded independently of which campaign is active.
-(async () => {
-  const huds = await window.electronAPI.loadHuds();
-  if (huds?.length) {
-    sceneState.huds = huds;
-    renderHudList();
-    renderHudPreview();
-  }
-})();
+loadMostRecentHudGroup();
 
 // ── Window bridge (for other modules that still call via window) ──────────────
 Object.assign(window, {
   scheduleAutosave,
   renderSceneList,
   loadMostRecentScene,
+  renderHudGroupList,
+  loadMostRecentHudGroup,
   setMonitorSectionCollapsed,
 });

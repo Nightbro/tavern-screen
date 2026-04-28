@@ -17,17 +17,17 @@ function registerCampaignHandlers(ipcMain, { campaignLib, manager }) {
 
   ipcMain.on('set-active-map', (_e, map) => manager.setActiveMap(map ?? null));
 
-  // ── HUD live state (global, shared across all campaigns) ──────────────────
+  // ── HUD Groups (named snapshots, global across all campaigns) ────────────
 
-  ipcMain.handle('save-huds', () => {
-    campaignLib.saveHuds(manager.getHuds());
+  ipcMain.handle('save-hud-group',   (_e, group)        => campaignLib.saveHudGroup(group));
+  ipcMain.handle('list-hud-groups',  ()                 => campaignLib.listHudGroups());
+  ipcMain.handle('load-hud-group',   (_e, id)           => {
+    const group = campaignLib.loadHudGroup(id);
+    if (group?.huds) manager.setHuds(group.huds);
+    return group;
   });
-
-  ipcMain.handle('load-huds', () => {
-    const huds = campaignLib.loadHuds();
-    manager.setHuds(huds);
-    return huds;
-  });
+  ipcMain.handle('delete-hud-group', (_e, id)           => { campaignLib.deleteHudGroup(id); });
+  ipcMain.handle('rename-hud-group', (_e, id, newName)  => campaignLib.renameHudGroup(id, newName));
 }
 
 module.exports = { registerCampaignHandlers };

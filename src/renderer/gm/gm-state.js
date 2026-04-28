@@ -112,6 +112,11 @@ export const sceneNameInput       = document.getElementById('scene-name-input');
 export const sceneAutosaveBadge   = document.getElementById('scene-autosave-badge');
 export const scenesContent        = document.getElementById('scenes-content');
 export const btnRefreshScenes     = document.getElementById('btn-refresh-scenes');
+export const hudGroupsContent     = document.getElementById('hud-groups-content');
+export const hudGroupNameInput    = document.getElementById('hud-group-name-input');
+export const btnNewHudGroup       = document.getElementById('btn-new-hud-group');
+export const btnRefreshHudGroups  = document.getElementById('btn-refresh-hud-groups');
+export const hudGroupAutosaveBadge = document.getElementById('hud-group-autosave-badge');
 export const elCanvasBg           = document.getElementById('canvas-bg');
 export const btnFitView           = document.getElementById('btn-fit-view');
 export const elSnapToGrid         = document.getElementById('snap-to-grid');
@@ -122,14 +127,16 @@ export const MIN_LAYER_SIZE = 20;
 
 // ── Advanced state ────────────────────────────────────────────────────────────
 export const sceneState = {
-  layers:          [],
-  huds:            [],
-  loadedId:        null,
-  selectedLayerId: null,
-  selectedHudId:   null,
-  dragSrcLayerId:  null,
-  ready:           false,
-  bg:              '#1a1a2e',
+  layers:              [],
+  huds:                [],
+  loadedId:            null,
+  loadedHudGroupId:    null,
+  loadedHudGroupName:  null,
+  selectedLayerId:     null,
+  selectedHudId:       null,
+  dragSrcLayerId:      null,
+  ready:               false,
+  bg:                  '#1a1a2e',
 };
 
 export const viewport = {
@@ -189,6 +196,7 @@ Object.assign(window, {
   btnAddImageLayer, btnAddLightLayer, btnAddFogLayer, btnAddWeatherLayer,
   btnSaveScene, btnLoadScene, btnResetScene, sceneNameInput, sceneAutosaveBadge,
   scenesContent, btnRefreshScenes,
+  hudGroupsContent, hudGroupNameInput, btnNewHudGroup, btnRefreshHudGroups, hudGroupAutosaveBadge,
   elCanvasBg, btnFitView, elSnapToGrid, canvasCoordsEl,
   CANVAS_SIZE, MIN_LAYER_SIZE,
   sceneState, viewport, ui, gmImageCache,

@@ -122,14 +122,17 @@
       <div class="tab-pane" id="tab-pane-huds" style="display:none">
 
         <div class="scenes-toolbar">
-          <span class="panel-title">HUDs</span>
-          <div class="huds-add-btns">
-            <button class="btn-icon-xs" id="btn-add-initiative" title="Add Initiative Tracker">In</button>
-            <button class="btn-icon-xs" id="btn-add-status-hud" title="Add Statuses Panel">St</button>
-            <button class="btn-icon-xs" id="btn-add-handout"    title="Add Handout Image">Ho</button>
-          </div>
+          <span class="panel-title">HUD Groups</span>
+          <span id="hud-group-autosave-badge" class="scene-autosave-badge"></span>
+          <button id="btn-refresh-hud-groups" class="btn-icon-sm" title="Refresh HUD groups">↺</button>
         </div>
-        <div id="hud-list" class="scenes-list"></div>
+        <div class="scene-name-row">
+          <input type="text" id="hud-group-name-input" class="scene-name-input" placeholder="Group name…" />
+        </div>
+        <div id="hud-groups-content" class="scenes-list"></div>
+        <div class="scenes-actions">
+          <button class="btn-ghost-sm" id="btn-new-hud-group">+ New Group</button>
+        </div>
 
       </div><!-- /tab-pane-huds -->
 
@@ -298,6 +301,17 @@
         <div class="settings-group adv-only" id="layer-detail" style="display:none">
           <div class="settings-group-title" id="layer-detail-title">Layer</div>
           <div id="layer-detail-fields"></div>
+        </div>
+
+        <!-- HUDs -->
+        <div class="settings-group adv-only" id="group-huds">
+          <div class="layer-group-header">
+            <div class="settings-group-title">HUDs</div>
+            <button class="btn-icon-xs" id="btn-add-initiative" title="Add Initiative Tracker">In</button>
+            <button class="btn-icon-xs" id="btn-add-status-hud" title="Add Statuses Panel">St</button>
+            <button class="btn-icon-xs" id="btn-add-handout"    title="Add Handout Image">Ho</button>
+          </div>
+          <div id="hud-list"></div>
         </div>
 
         <!-- Initiative tracker editor -->

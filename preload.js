@@ -77,8 +77,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onPing:          (cb)           => ipcRenderer.on('ping',        (_e, x, y) => cb(x, y)),
 
   updateSceneMeta:      (patch)                       => ipcRenderer.send('update-scene-meta', patch),
-  saveHuds:             ()                             => ipcRenderer.invoke('save-huds'),
-  loadHuds:             ()                             => ipcRenderer.invoke('load-huds'),
+  saveHudGroup:         (group)                        => ipcRenderer.invoke('save-hud-group',   group),
+  listHudGroups:        ()                             => ipcRenderer.invoke('list-hud-groups'),
+  loadHudGroup:         (id)                           => ipcRenderer.invoke('load-hud-group',   id),
+  deleteHudGroup:       (id)                           => ipcRenderer.invoke('delete-hud-group', id),
+  renameHudGroup:       (id, newName)                  => ipcRenderer.invoke('rename-hud-group', id, newName),
   saveSceneCampaign:    (campaignId, sessionId)        => ipcRenderer.invoke('save-scene-campaign', campaignId, sessionId),
   listScenesCampaign:   (campaignId, sessionId)        => ipcRenderer.invoke('list-scenes-campaign', campaignId, sessionId),
   loadSceneCampaign:    (campaignId, sessionId, id)    => ipcRenderer.invoke('load-scene-campaign', campaignId, sessionId, id),
