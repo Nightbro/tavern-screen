@@ -17,9 +17,12 @@ export class VideoLayer extends LayerBase {
     const key = layer.id + '::' + layer.src;
     if (!imageCache.has(key)) {
       const vid = document.createElement('video');
-      vid.muted  = true;
-      vid.src    = layer.src;
-      vid.loaded = false;
+      vid.muted    = true;
+      vid.preload  = 'auto';
+      vid.src      = layer.src;
+      vid.loaded   = false;
+      vid.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:-1;width:0;height:0;';
+      document.body.appendChild(vid);
       vid.addEventListener('loadeddata', () => { vid.loaded = true; onImageLoaded?.(); });
       imageCache.set(key, vid);
     }

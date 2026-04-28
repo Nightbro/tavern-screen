@@ -585,6 +585,12 @@ export function renderLayerOverlay() {
   ctx.clearRect(0, 0, ow, oh);
   if (!display.advanced) return;
 
+  // Evict GM image cache entries for removed layers and clean up any DOM-attached elements
+  const layerIds = new Set(sceneState.layers.map(l => l.id));
+  for (const [k, el] of gmImageCache) {
+    if (!layerIds.has(k.split('::')[0])) { el.remove?.(); gmImageCache.delete(k); }
+  }
+
   // Background fill
   ctx.fillStyle = sceneState.bg;
   ctx.fillRect(0, 0, ow, oh);
