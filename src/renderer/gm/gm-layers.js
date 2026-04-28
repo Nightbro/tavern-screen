@@ -11,8 +11,20 @@ import {
   sceneNameInput,
 } from './gm-state.js';
 
-import { imageBoundsFromSrc } from './gm-library.js';
-import { LAYER_REGISTRY }    from '../layers/index.js';
+import { LAYER_REGISTRY } from '../layers/index.js';
+
+function imageBoundsFromSrc(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) { resolve({}); return; }
+      const w = img.naturalWidth, h = img.naturalHeight;
+      resolve({ x: Math.round((CANVAS_SIZE - w) / 2), y: Math.round((CANVAS_SIZE - h) / 2), w, h });
+    };
+    img.onerror = () => resolve({});
+    img.src = src;
+  });
+}
 
 // ── Local drag state (only ever used within this module) ──────────────────────
 let overlayDrag = null;

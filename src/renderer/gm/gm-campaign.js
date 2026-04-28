@@ -1,6 +1,6 @@
 import {
   campaign, NOTES_DEBOUNCE_MS,
-  tabBtns, tabPaneMaps, tabPaneAssetManager, tabPaneCampaign, tabPaneHuds,
+  tabBtns, tabPaneAssetManager, tabPaneCampaign, tabPaneHuds,
   campaignSelect, btnNewCampaign, btnRenameCampaign, btnDeleteCampaign,
   sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
 } from './gm-state.js';
@@ -14,7 +14,6 @@ tabBtns.forEach(btn => {
     tabBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const tab = btn.dataset.tab;
-    tabPaneMaps.style.display         = tab === 'maps'          ? '' : 'none';
     tabPaneAssetManager.style.display = tab === 'asset-manager' ? '' : 'none';
     tabPaneCampaign.style.display     = tab === 'campaign'      ? '' : 'none';
     tabPaneHuds.style.display         = tab === 'huds'          ? '' : 'none';

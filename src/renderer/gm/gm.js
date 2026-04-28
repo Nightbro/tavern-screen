@@ -9,7 +9,6 @@ import {
 } from './gm-state.js';
 
 import { loadDisplays, applySettingsToUI, renderMonitorMap } from './gm-monitor.js';
-import { initLibrary }                                        from './gm-library.js';
 import { initCampaigns, confirmInline }                       from './gm-campaign.js';
 import { initScene, updateVpZoomUI, renderLayerList }         from './gm-layers.js';
 import { renderHudList, renderHudPreview }                    from './gm-huds.js';
@@ -423,7 +422,6 @@ btnToggleMonitors.addEventListener('click', () => {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadDisplays();
-initLibrary();
 initCampaigns();
 initAssets();
 renderHudGroupList();

@@ -1,18 +1,7 @@
 // ── DOM refs ──────────────────────────────────────────────────────────────────
-export const libSetup        = document.getElementById('lib-setup');
-export const libRootPath     = document.getElementById('lib-root-path');
-export const libContent      = document.getElementById('lib-content');
-export const libFooter       = document.querySelector('.lib-footer');
-export const btnRefreshLib   = document.getElementById('btn-refresh-lib');
-export const btnSelectFolder = document.getElementById('btn-select-folder');
-export const btnSetupFolder  = document.getElementById('btn-setup-folder');
-export const btnNewProject   = document.getElementById('btn-new-project');
-export const btnAddImages    = document.getElementById('btn-add-images');
-export const dropOverlay     = document.getElementById('drop-overlay');
 
 // ── Campaign tab ──────────────────────────────────────────────────────────────
 export const tabBtns              = document.querySelectorAll('#left-panel-tabs .panel-tab');
-export const tabPaneMaps          = document.getElementById('tab-pane-maps');
 export const tabPaneAssetManager  = document.getElementById('tab-pane-asset-manager');
 export const tabPaneCampaign      = document.getElementById('tab-pane-campaign');
 export const tabPaneHuds          = document.getElementById('tab-pane-huds');
@@ -64,12 +53,6 @@ export const display = {
   screenH:    1080,
   previewUrl: null,
   advanced:   false,
-};
-
-export const mapLib = {
-  activeId:    null,
-  dragId:      null,
-  dropCounter: 0,
 };
 
 // ── Advanced DOM refs ─────────────────────────────────────────────────────────
@@ -174,9 +157,7 @@ export const HANDLE_SIZE        = 8;
 
 // ── Window bridge (for unconverted classic scripts) ───────────────────────────
 Object.assign(window, {
-  libSetup, libRootPath, libContent, libFooter,
-  btnRefreshLib, btnSelectFolder, btnSetupFolder, btnNewProject, btnAddImages, dropOverlay,
-  tabBtns, tabPaneMaps, tabPaneAssetManager, tabPaneCampaign, tabPaneHuds,
+  tabBtns, tabPaneAssetManager, tabPaneCampaign, tabPaneHuds,
   campaignSelect, btnNewCampaign, btnRenameCampaign, btnDeleteCampaign,
   sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
   monitorMap, monitorList, monitorSectionBody, btnToggleMonitors, btnCloseScreen,
@@ -184,7 +165,7 @@ Object.assign(window, {
   previewImg, previewPlaceholder, btnRefreshPreview,
   elGridVisible, elCellSize, elGridColor, elGridOpacity, elGridOpacityVal,
   elDpi,
-  NOTES_DEBOUNCE_MS, settings, campaign, display, mapLib,
+  NOTES_DEBOUNCE_MS, settings, campaign, display,
   elScreenModeSimple, elAdvGridVisible, elGridScaleViewport,
   vpZoomVal, vpZoomIn, vpZoomOut, vpZoomReset, vpZoomSlider,
   btnPingMode, layerListEl, layerDetail, layerDetailTitle, layerDetailFields,

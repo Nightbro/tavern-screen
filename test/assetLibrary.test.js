@@ -159,8 +159,16 @@ describe('createAsset', () => {
     const { lib, tmp } = setup();
     const src = makeSrcFile(tmp, 'hero.png');
     const asset = lib.createAsset('Hero', 'characters', src, null);
-    expect(asset).toMatchObject({ name: 'Hero', type: 'characters', scope: 'global', fileName: 'hero.png' });
+    expect(asset).toMatchObject({ name: 'Hero', type: 'characters', scope: 'global' });
     expect(asset.id).toBeTruthy();
+  });
+
+  test('persists fileName in assets.json index', () => {
+    const { lib, tmp } = setup();
+    const src = makeSrcFile(tmp, 'hero.png');
+    lib.createAsset('Hero', 'characters', src, null);
+    const index = readIndex(tmp, null);
+    expect(index.assets[0].fileName).toBe('hero.png');
   });
 
   test('creates the asset folder on disk', () => {

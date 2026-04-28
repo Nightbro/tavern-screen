@@ -434,7 +434,7 @@ function createCampaignLibrary(config) {
     fs.mkdirSync(assetDir, { recursive: true });
     fs.copyFileSync(srcFilePath, path.join(assetDir, fileName));
 
-    const meta = { id, name, type };
+    const meta = { id, name, type, fileName };
     fs.writeFileSync(path.join(assetDir, ASSET_META), JSON.stringify(meta, null, 2), 'utf8');
 
     const index = readAssetsIndex(campaignId);
@@ -442,7 +442,7 @@ function createCampaignLibrary(config) {
     index.assets.push(meta);
     writeAssetsIndex(index, campaignId);
 
-    return { ...meta, scope: campaignId ? 'campaign' : 'global', fileName };
+    return { ...meta, scope: campaignId ? 'campaign' : 'global' };
   }
 
   // Updates metadata fields on an existing asset. Returns false if not found.
