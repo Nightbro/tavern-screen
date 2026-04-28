@@ -123,7 +123,7 @@ Output is in the `dist/` folder:
 | Panel | Contents |
 |-------|----------|
 | **Left — Assets tab** | Global and campaign-scoped asset library; types configurable; drag to canvas or click "+ Add to Scene"; drag from OS file manager to add files; copy, edit type/scope, delete |
-| **Left — Campaign tab** | Campaign selector, sessions list, scenes list, notes editor |
+| **Left — Campaign tab** | Campaign selector; sessions list (CAM row always visible); scenes list; notes editor with markdown preview |
 | **Left — Huds tab** | HUD group list; create new groups, switch the active group, rename, delete |
 | **Center** | Collapsible monitor selector; **Preview** tab (map + layer overlay) and **HUD Sim** tab (pixel-accurate HUD simulation, advanced mode only) |
 | **Right — Screen tab** | DPI calibration, zoom |
@@ -143,7 +143,7 @@ The **Grid** section at the top of the Layers tab is collapsible — click the t
 | **Layers** | Add Image / GIF / Video / Light / Fog / Weather layers; eye icon to show/hide; ⠿ grip to drag-and-drop reorder; click row to expand detail editor; × to delete (with confirmation) |
 | **Layer detail** | Type-specific fields: source file (image/gif/video), color + opacity (light), weather type + intensity |
 | **HUDs** | Add **Initiative** (In), **Statuses** (St), or **Handout** (Ho); eye icon to show/hide; click row to expand editor |
-| **Scene** | Named scenes auto-saved to the active campaign/session; scene list with load/delete; ⬆ Export to JSON file; ⬇ Import from JSON file; ↺ New (reset to empty) |
+| **Scene** | Named scenes auto-saved to the active campaign/session; click **+ Scene** to create a new named scene inline; scene list with rename/delete; ⬆ Export to JSON file; ⬇ Import from JSON file; ↺ New (reset to empty) |
 
 ---
 
@@ -396,11 +396,14 @@ HUDs are **not session-scoped** — the full HUD group library lives at `userdat
 ## Campaign Library
 
 - **Campaigns** — create, rename, delete (with confirmation); switch via dropdown
-- **Sessions** — create, rename, delete (with confirmation) within a campaign
-- **Notes** — freeform text editor; auto-saves 800 ms after the last keystroke
-  - When no session is selected: editing campaign-level notes
-  - When a session is selected: editing that session's notes; click again to deselect
-- Notes are plain `.md` files readable outside the app
+- **Sessions** — create via **+ Session** button above the list; rename (✏), delete (×); the **CAM** row at the top of the list is always present and represents campaign-level context (active when no session is selected; click to deselect the current session)
+- **Scenes** — create via **+ Scene** button in the Scenes toolbar; type a name and press Enter; scenes are auto-saved to the active campaign/session
+- **Notes** — markdown-aware text editor; auto-saves 800 ms after the last keystroke
+  - When no session is selected: campaign-level notes
+  - When a session is selected: two tabs appear — **Session notes** and **Campaign notes** — click to switch between them without deselecting the session
+  - Click **Preview** in the notes toolbar to render the markdown; click **Edit** to return to the textarea
+  - Supported markdown: `# H1` / `## H2` / `### H3`, `**bold**`, `*italic*`, `` `code` ``, `- list`, `1. ordered list`, `> blockquote`, `---` horizontal rule
+- Notes are stored as plain `.md` files readable outside the app
 
 ---
 
@@ -464,6 +467,7 @@ Adding a new layer type: create a class extending `LayerBase` in `renderer/layer
 - **Per-layer delayed reveal** — countdown shown on the player screen before an object appears
 - **Fog of War reveal tool** — GM draws on the preview to erase fog; currently fog is a static full-screen layer
 - **Default assets** — bundled quick-insert objects (fire GIF, fireflies, etc.)
+
 
 ---
 
@@ -530,7 +534,6 @@ Particle/overlay effects implemented as a `weather` layer type (`WeatherLayer.js
 
 ### Campaign & Notes Enhancements
 
-- **Rich-text notes** — markdown formatting (bold, italic, headings, lists)
 - **NPC / Location / Item cards** — reusable across sessions; NPC cards feed the initiative tracker
 - **Party roster** — persistent player characters shared across sessions
 - **Detachable panels** — float left/right panels as separate windows
