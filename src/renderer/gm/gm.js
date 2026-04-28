@@ -308,14 +308,9 @@ btnNewHudGroup?.addEventListener('click', () => {
     const name = input.value.trim();
     input.remove();
     if (!name) return;
-    const id    = genId();
-    const group = { id, name, huds: [] };
-    await window.electronAPI.saveHudGroup(group);
-    sceneState.loadedHudGroupId   = id;
-    sceneState.loadedHudGroupName = name;
-    sceneState.huds = [];
-    renderHudList();
-    renderHudGroupList();
+    const id = genId();
+    await window.electronAPI.saveHudGroup({ id, name, huds: [] });
+    await applyLoadedHudGroup(id);
   }
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', (e) => {
