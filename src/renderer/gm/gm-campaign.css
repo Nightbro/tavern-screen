@@ -100,6 +100,19 @@
 .scene-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.12s; }
 .scene-row:hover .scene-actions { opacity: 1; }
 
+/* Notes tabs */
+.notes-tabs { display: flex; flex: 1; gap: 0; }
+.notes-tab {
+  font-size: 11px; padding: 2px 9px;
+  background: transparent; cursor: pointer;
+  border: 1px solid #2e2e4e; color: #5a5a8e;
+  border-radius: 0; transition: color 0.12s, background 0.12s;
+}
+.notes-tab:first-child { border-radius: 4px 0 0 4px; }
+.notes-tab:last-child  { border-radius: 0 4px 4px 0; border-left: none; }
+.notes-tab.active { background: #1e1e38; color: #c9a84c; border-color: #c9a84c55; }
+.notes-tab:not(.active):hover { background: #1a1a30; color: #888; }
+
 /* Notes area */
 .notes-area {
   flex: 1; display: flex; flex-direction: column; gap: 6px;

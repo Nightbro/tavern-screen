@@ -5,6 +5,12 @@ import {
   sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
 } from './gm-state.js';
 
+const notesTabs         = document.getElementById('notes-tabs');
+const btnNotesTabSession  = document.getElementById('btn-notes-tab-session');
+const btnNotesTabCampaign = document.getElementById('btn-notes-tab-campaign');
+
+let notesActiveTab = 'session';
+
 // ════════════════════════════════════════════════════════════════════════════
 // TABS
 // ════════════════════════════════════════════════════════════════════════════
@@ -164,10 +170,20 @@ function setNotesStatus(state) {
   if (!state)              { notesStatus.textContent = ''; }
 }
 
+function setNotesTabUI() {
+  const hasTabs = !!campaign.sessionId;
+  notesTabs.style.display  = hasTabs ? '' : 'none';
+  notesTitle.style.display = hasTabs ? 'none' : '';
+  if (hasTabs) {
+    btnNotesTabSession.classList.toggle('active',  notesActiveTab === 'session');
+    btnNotesTabCampaign.classList.toggle('active', notesActiveTab === 'campaign');
+  }
+}
+
 async function flushNotes() {
   clearTimeout(campaign.notesTimer);
   if (!notesStatus.classList.contains('unsaved')) return;
-  if (campaign.sessionId) {
+  if (campaign.sessionId && notesActiveTab === 'session') {
     await window.electronAPI.writeNotes(campaign.selectedId, campaign.sessionId, notesTextarea.value);
   } else if (campaign.selectedId) {
     await window.electronAPI.writeCampaignNotes(campaign.selectedId, notesTextarea.value);
@@ -181,27 +197,49 @@ async function loadCurrentNotes() {
     notesTextarea.value = '';
     notesTextarea.placeholder = 'Select a campaign to edit notes…';
     notesTitle.textContent = 'Notes';
+    setNotesTabUI();
     setNotesStatus('');
     return;
   }
   notesTextarea.disabled = false;
   if (campaign.sessionId) {
-    notesTitle.textContent = campaign.sessionId;
-    notesTextarea.placeholder = 'Session notes…';
-    notesTextarea.value = await window.electronAPI.readNotes(campaign.selectedId, campaign.sessionId);
+    setNotesTabUI();
+    if (notesActiveTab === 'session') {
+      notesTextarea.placeholder = 'Session notes…';
+      notesTextarea.value = await window.electronAPI.readNotes(campaign.selectedId, campaign.sessionId);
+    } else {
+      notesTextarea.placeholder = 'Campaign notes…';
+      notesTextarea.value = await window.electronAPI.readCampaignNotes(campaign.selectedId);
+    }
   } else {
+    notesActiveTab = 'session';
     notesTitle.textContent = 'Campaign Notes';
     notesTextarea.placeholder = 'Campaign notes…';
     notesTextarea.value = await window.electronAPI.readCampaignNotes(campaign.selectedId);
+    setNotesTabUI();
   }
   setNotesStatus('');
 }
+
+btnNotesTabSession.addEventListener('click', async () => {
+  if (notesActiveTab === 'session') return;
+  await flushNotes();
+  notesActiveTab = 'session';
+  await loadCurrentNotes();
+});
+
+btnNotesTabCampaign.addEventListener('click', async () => {
+  if (notesActiveTab === 'campaign') return;
+  await flushNotes();
+  notesActiveTab = 'campaign';
+  await loadCurrentNotes();
+});
 
 notesTextarea.addEventListener('input', () => {
   setNotesStatus('unsaved');
   clearTimeout(campaign.notesTimer);
   campaign.notesTimer = setTimeout(async () => {
-    if (campaign.sessionId) {
+    if (campaign.sessionId && notesActiveTab === 'session') {
       await window.electronAPI.writeNotes(campaign.selectedId, campaign.sessionId, notesTextarea.value);
     } else if (campaign.selectedId) {
       await window.electronAPI.writeCampaignNotes(campaign.selectedId, notesTextarea.value);
