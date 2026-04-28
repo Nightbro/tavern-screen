@@ -135,10 +135,12 @@ export const viewport = {
 };
 
 export const ui = {
-  pingMode:          false,
-  simDragging:       false,
-  regionSelectAsset: null,
-  addLayerHidden:    false,
+  pingMode:                  false,
+  simDragging:               false,
+  regionSelectAsset:         null,
+  regionSelectAssetLayerType: null,
+  addLayerHidden:            false,
+  layerView:                 'stack',
 };
 
 export let autosaveTimer = null;

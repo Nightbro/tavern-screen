@@ -148,6 +148,20 @@ body.advanced-mode .map-card:hover::after {
 }
 .field-select:focus { border-color: #c9a84c; }
 
+/* Stack / Groups view toggle button */
+.layer-view-toggle {
+  color: #444;
+  border-color: transparent;
+  font-size: 13px;
+  margin-right: auto;
+  padding: 0 3px;
+}
+.layer-view-toggle:hover { color: #aaa; }
+.layer-view-toggle.layer-view-active {
+  color: #c9a84c;
+  border-color: #c9a84c44;
+}
+
 /* Content / Effects section dividers in layer list */
 .layer-section-divider {
   font-size: 9px;

@@ -60,6 +60,23 @@ function startRevealCountdown(layer) {
   renderLayerList();
 }
 
+// ── Layer view toggle (stack ↔ groups) ────────────────────────────────────────
+
+const btnLayerView = document.getElementById('btn-layer-view');
+
+function updateLayerViewToggle() {
+  const isStack = ui.layerView === 'stack';
+  btnLayerView.textContent = isStack ? '⠿' : '⊞';
+  btnLayerView.title = isStack ? 'Stack view — showing z-order' : 'Groups view — Content & Effects';
+  btnLayerView.classList.toggle('layer-view-active', !isStack);
+}
+
+btnLayerView?.addEventListener('click', () => {
+  ui.layerView = ui.layerView === 'stack' ? 'groups' : 'stack';
+  updateLayerViewToggle();
+  renderLayerList();
+});
+
 // ── Layer visibility mode toggle ──────────────────────────────────────────────
 
 const btnLayerVisMode = document.getElementById('btn-layer-vis-mode');
@@ -269,22 +286,26 @@ export function renderLayerList() {
     return;
   }
 
-  // Split into content vs effects, preserving relative stack order (top first)
-  const allReversed    = [...sceneState.layers].reverse();
-  const contentLayers  = allReversed.filter(l =>  CONTENT_TYPES.has(l.type));
-  const effectLayers   = allReversed.filter(l => !CONTENT_TYPES.has(l.type));
+  const allReversed = [...sceneState.layers].reverse(); // top of stack first
 
-  function appendSection(label, layers) {
-    if (!layers.length) return;
-    const header = document.createElement('div');
-    header.className = 'layer-section-divider';
-    header.textContent = label;
-    layerListEl.appendChild(header);
-    layers.forEach(l => layerListEl.appendChild(buildLayerRow(l)));
+  if (ui.layerView === 'groups') {
+    const contentLayers = allReversed.filter(l =>  CONTENT_TYPES.has(l.type));
+    const effectLayers  = allReversed.filter(l => !CONTENT_TYPES.has(l.type));
+
+    function appendSection(label, layers) {
+      if (!layers.length) return;
+      const header = document.createElement('div');
+      header.className = 'layer-section-divider';
+      header.textContent = label;
+      layerListEl.appendChild(header);
+      layers.forEach(l => layerListEl.appendChild(buildLayerRow(l)));
+    }
+
+    appendSection('Content', contentLayers);
+    appendSection('Effects', effectLayers);
+  } else {
+    allReversed.forEach(l => layerListEl.appendChild(buildLayerRow(l)));
   }
-
-  appendSection('Content', contentLayers);
-  appendSection('Effects', effectLayers);
 
   renderLayerOverlay();
   window.scheduleAutosave();
