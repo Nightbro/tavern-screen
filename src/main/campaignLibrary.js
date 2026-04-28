@@ -21,12 +21,12 @@ function createCampaignLibrary(config) {
 
   // ── Paths ──────────────────────────────────────────────────────────────────
 
-  // Returns the campaigns/ directory path, or null if no root folder is set.
+  // Returns the save/campaigns/ directory path, or null if no root folder is set.
   function getCampaignsDir() {
-    return rootFolder ? path.join(rootFolder, CAMPAIGNS_DIR) : null;
+    return rootFolder ? path.join(rootFolder, SAVE_DIR, CAMPAIGNS_DIR) : null;
   }
 
-  // Creates the campaigns/ directory if needed and returns its path.
+  // Creates the save/campaigns/ directory if needed and returns its path.
   function ensureCampaignsDir() {
     const dir = getCampaignsDir();
     if (!dir) throw new Error('No root folder set');
