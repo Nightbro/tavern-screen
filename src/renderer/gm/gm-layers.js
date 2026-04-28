@@ -656,7 +656,7 @@ export function renderLayerOverlay() {
         : { px: ca.cx, py: ca.cy, pw: ca.cw, ph: ca.ch };
       ctx.save();
       ctx.globalAlpha = 0.25;
-      LAYER_REGISTRY[layer.type]?.drawGMPreview(layer, ctx, b, { imageCache: gmImageCache, onImageLoaded: renderLayerOverlay });
+      LAYER_REGISTRY[layer.type]?.drawGMPreview(layer, ctx, b, { imageCache: gmImageCache, onImageLoaded: renderLayerOverlay, ghostAlpha: 0.25 });
       ctx.strokeStyle = 'rgba(74,144,217,0.8)';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
@@ -719,7 +719,7 @@ export function renderLayerOverlay() {
     ctx.save();
     if (isHidden) ctx.globalAlpha = 0.25;
 
-    LAYER_REGISTRY[layer.type]?.drawGMPreview(layer, ctx, b, { imageCache: gmImageCache, onImageLoaded: renderLayerOverlay });
+    LAYER_REGISTRY[layer.type]?.drawGMPreview(layer, ctx, b, { imageCache: gmImageCache, onImageLoaded: renderLayerOverlay, ghostAlpha: isHidden ? 0.25 : 1 });
 
     ctx.strokeStyle = isSelected ? '#c9a84c' : 'rgba(74,144,217,0.45)';
     ctx.lineWidth   = isSelected ? 1.5 : 1;

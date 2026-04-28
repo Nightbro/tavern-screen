@@ -24,7 +24,7 @@ export class ImageLayer extends LayerBase {
     const img = imageCache.get(key);
     if (img?.loaded) {
       overlayCtx.save();
-      overlayCtx.globalAlpha = layer.opacity ?? 1;
+      overlayCtx.globalAlpha = (layer.opacity ?? 1) * (gmCtx.ghostAlpha ?? 1);
       overlayCtx.drawImage(img, px, py, pw, ph);
       overlayCtx.restore();
     } else {

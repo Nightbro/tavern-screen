@@ -29,7 +29,7 @@ export class VideoLayer extends LayerBase {
     const vid = imageCache.get(key);
     if (vid?.loaded) {
       overlayCtx.save();
-      overlayCtx.globalAlpha = layer.opacity ?? 1;
+      overlayCtx.globalAlpha = (layer.opacity ?? 1) * (gmCtx.ghostAlpha ?? 1);
       overlayCtx.drawImage(vid, px, py, pw, ph);
       overlayCtx.restore();
     } else {
