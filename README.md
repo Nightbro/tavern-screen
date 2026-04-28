@@ -320,7 +320,8 @@ Campaigns and sessions are stored alongside the map library under the same root 
 ```
 <root>/
 ├── maps/
-├── huds.json                    # all HUD groups (global, shared across all campaigns)
+├── save/
+│   └── huds.json                # all HUD groups (global, shared across all campaigns)
 └── campaigns/
     └── My Campaign/
         ├── notes.md             # campaign-level notes
@@ -343,10 +344,10 @@ Campaigns and sessions are stored alongside the map library under the same root 
 | What | File | Saved when |
 |------|------|-----------|
 | Scene (layers, viewport, background) | `campaigns/{c}/sessions/{s}/scenes/{id}.json` | Any layer or scene change (800 ms debounce) |
-| HUD groups | `huds.json` (root folder) | Any HUD change or group switch (800 ms debounce) |
+| HUD groups | `save/huds.json` | Any HUD change or group switch (800 ms debounce) |
 | Settings | `userData/config.json` | Any settings change |
 
-HUDs are **not session-scoped** — the full HUD group library lives at `huds.json` in the root folder and is independent of campaigns and sessions. Scenes never contain HUD data, and HUD changes never touch scene files.
+HUDs are **not session-scoped** — the full HUD group library lives at `save/huds.json` in the root folder and is independent of campaigns and sessions. Scenes never contain HUD data, and HUD changes never touch scene files.
 
 ---
 

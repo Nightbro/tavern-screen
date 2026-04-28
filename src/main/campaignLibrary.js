@@ -8,6 +8,7 @@ const CAMPAIGNS_DIR = 'campaigns';
 const SESSIONS_DIR  = 'sessions';
 const NOTES_FILE    = 'notes.md';
 const SCENES_DIR    = 'scenes';
+const SAVE_DIR      = 'save';
 const HUDS_FILE     = 'huds.json';
 
 // Creates the campaign library backed by config (use createConfig() for file persistence).
@@ -60,9 +61,9 @@ function createCampaignLibrary(config) {
       : path.join(campaignPath(campaignId), SCENES_DIR);
   }
 
-  // Returns the huds.json file path, or null if no root folder is set.
+  // Returns the save/huds.json file path, or null if no root folder is set.
   function getHudsFile() {
-    return rootFolder ? path.join(rootFolder, HUDS_FILE) : null;
+    return rootFolder ? path.join(rootFolder, SAVE_DIR, HUDS_FILE) : null;
   }
 
   // Reads huds.json and returns { lastActiveId, groups }.
@@ -94,6 +95,29 @@ function createCampaignLibrary(config) {
       } catch { /* fall through to migration */ }
     }
 
+    // Migrate from old root-level huds.json
+    if (rootFolder) {
+      const rootHudsFile = path.join(rootFolder, HUDS_FILE);
+      if (fs.existsSync(rootHudsFile)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(rootHudsFile, 'utf8'));
+          let result = null;
+          if (data && !Array.isArray(data) && Array.isArray(data.groups)) {
+            result = { lastActiveId: data.lastActiveId ?? null, groups: data.groups };
+          } else if (Array.isArray(data)) {
+            result = { lastActiveId: null, groups: data };
+          } else if (data && Array.isArray(data.huds)) {
+            const group = { id: data.id || ('g-' + Date.now()), name: data.name || 'HUD Group', huds: data.huds };
+            result = { lastActiveId: group.id, groups: [group] };
+          }
+          if (result) {
+            writeHudsFile(result);
+            return result;
+          }
+        } catch { /* fall through */ }
+      }
+    }
+
     // Migrate from old Huds/huds.json single-object format
     if (rootFolder) {
       const oldFile = path.join(rootFolder, 'Huds', 'huds.json');
@@ -113,10 +137,11 @@ function createCampaignLibrary(config) {
     return { lastActiveId: null, groups: [] };
   }
 
-  // Writes { lastActiveId, groups } to huds.json.
+  // Writes { lastActiveId, groups } to save/huds.json.
   function writeHudsFile({ lastActiveId, groups }) {
     const file = getHudsFile();
     if (!file) return;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify({ lastActiveId, groups }, null, 2), 'utf8');
   }
 
