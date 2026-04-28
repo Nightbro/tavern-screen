@@ -68,6 +68,8 @@ body.advanced-mode .adv-only { display: flex; }
 .layer-row.active .layer-name { color: #81e0ab; }
 .layer-row.dragging  { opacity: 0.4; }
 .layer-row.drag-over { background: #1e2e3e; outline: 1px dashed #4a90d9; }
+.layer-row.hidden-layer { opacity: 0.25; }
+.layer-row.hidden-layer:hover { opacity: 0.8; }
 
 .layer-drag-grip {
   font-size: 14px; color: #333; cursor: grab; flex-shrink: 0;

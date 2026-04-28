@@ -246,7 +246,9 @@ export function renderLayerList() {
 
 function buildLayerRow(layer) {
   const row = document.createElement('div');
-  row.className = 'layer-row' + (layer.id === sceneState.selectedLayerId ? ' active' : '');
+  row.className = 'layer-row'
+    + (layer.id === sceneState.selectedLayerId ? ' active' : '')
+    + (layer.visible === false ? ' hidden-layer' : '');
   row.dataset.layerId = layer.id;
 
   const eye = document.createElement('button');
@@ -611,10 +613,10 @@ function hitTestOverlay(mx, my) {
     }
   }
 
-  // 2. Passive layer scan (fog/weather excluded)
+  // 2. Passive layer scan (fog/weather excluded; hidden layers included as ghost targets)
   for (let i = sceneState.layers.length - 1; i >= 0; i--) {
     const layer = sceneState.layers[i];
-    if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
+    if (!POSITIONABLE_TYPES.has(layer.type)) continue;
     if (layer.type === 'fog' || layer.type === 'weather') continue;
     const b = layerBoundsOnCanvas(layer);
     if (mx >= b.px && mx <= b.px + b.pw && my >= b.py && my <= b.py + b.ph)
@@ -683,32 +685,35 @@ export function renderLayerOverlay() {
     }
   }
 
-  // Layer outlines + images
+  // Layer outlines + images (hidden layers rendered at 0.25 opacity as ghost)
   for (const layer of sceneState.layers) {
-    if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible === false) continue;
-    const b = layerBoundsOnCanvas(layer);
+    if (!POSITIONABLE_TYPES.has(layer.type)) continue;
+    const isHidden  = layer.visible === false;
+    const b         = layerBoundsOnCanvas(layer);
     const isSelected = layer.id === sceneState.selectedLayerId;
+
+    ctx.save();
+    if (isHidden) ctx.globalAlpha = 0.25;
 
     LAYER_REGISTRY[layer.type]?.drawGMPreview(layer, ctx, b, { imageCache: gmImageCache, onImageLoaded: renderLayerOverlay });
 
-    // Outline
-    ctx.save();
     ctx.strokeStyle = isSelected ? '#c9a84c' : 'rgba(74,144,217,0.45)';
-    ctx.lineWidth = isSelected ? 1.5 : 1;
+    ctx.lineWidth   = isSelected ? 1.5 : 1;
     if (!isSelected) ctx.setLineDash([4, 4]);
     ctx.strokeRect(b.px + 0.5, b.py + 0.5, b.pw, b.ph);
-    ctx.restore();
 
     if (isSelected) {
       const handles = getHandlePositions(b.px, b.py, b.pw, b.ph);
       for (const pos of Object.values(handles)) {
-        ctx.fillStyle = '#c9a84c';
+        ctx.fillStyle   = '#c9a84c';
         ctx.fillRect(pos.x, pos.y, HANDLE_SIZE, HANDLE_SIZE);
         ctx.strokeStyle = '#1a1a2e';
-        ctx.lineWidth = 1;
+        ctx.lineWidth   = 1;
         ctx.strokeRect(pos.x + 0.5, pos.y + 0.5, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
       }
     }
+
+    ctx.restore();
   }
 
   // Player viewport rectangle
@@ -1001,7 +1006,7 @@ document.addEventListener('mouseup', async () => {
     setRegionSelectAsset(null);
     const newLayers = await window.electronAPI.addLayer({
       ...LAYER_REGISTRY.weather.getDefaults(),
-      weatherType: type, name: label, x, y, w, h,
+      weatherType: type, name: label, x, y, w, h, visible: layerVisible(),
     });
     if (newLayers) { sceneState.layers = newLayers; renderLayerList(); renderLayerOverlay(); }
     return;
@@ -1013,6 +1018,26 @@ document.addEventListener('mouseup', async () => {
     const { x, y, w, h } = layer;
     const newLayers = await window.electronAPI.updateLayer(drag.layerId, { x, y, w, h });
     if (newLayers) { sceneState.layers = newLayers; renderLayerOverlay(); }
+  }
+});
+
+// ── Double-click on overlay canvas: toggle layer visibility ──────────────────
+
+layerOverlay.addEventListener('dblclick', async (e) => {
+  if (!display.advanced) return;
+  const rect = layerOverlay.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const hit = hitTestOverlay(mx, my);
+  if (!hit?.layerId) return;
+  const layer = sceneState.layers.find(l => l.id === hit.layerId);
+  if (!layer) return;
+  const newVisible = layer.visible === false;
+  const newLayers = await window.electronAPI.updateLayer(layer.id, { visible: newVisible });
+  if (newLayers) {
+    sceneState.layers = newLayers;
+    sceneState.selectedLayerId = layer.id;
+    renderLayerList();
   }
 });
 
