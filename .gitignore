@@ -1,6 +1,6 @@
 
 node_modules/
 maps/
-save/campaigns/
-save/huds.json
+userdata/campaigns/
+userdata/huds.json
 CLAUDE.md

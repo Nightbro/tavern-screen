@@ -36,7 +36,7 @@ describe('getCampaignsDir', () => {
   test('returns rootFolder/campaigns when root is set', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
-    expect(lib.getCampaignsDir()).toBe(path.join(tmp, 'save', 'campaigns'));
+    expect(lib.getCampaignsDir()).toBe(path.join(tmp, 'userdata', 'campaigns'));
   });
 });
 
@@ -46,7 +46,7 @@ describe('setRootFolder', () => {
   test('creates campaigns/ subdirectory', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns'))).toBe(true);
   });
 
   test('persists root folder via config.set', () => {
@@ -85,7 +85,7 @@ describe('scan', () => {
   test('ignores non-directory entries in campaigns/', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
-    fs.writeFileSync(path.join(tmp, 'save', 'campaigns', 'notafolder.txt'), '');
+    fs.writeFileSync(path.join(tmp, 'userdata', 'campaigns', 'notafolder.txt'), '');
     const { campaigns } = lib.scan();
     expect(campaigns).toHaveLength(0);
   });
@@ -94,7 +94,7 @@ describe('scan', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
     // Create campaign dir without sessions subdir
-    fs.mkdirSync(path.join(tmp, 'save', 'campaigns', 'Empty'));
+    fs.mkdirSync(path.join(tmp, 'userdata', 'campaigns', 'Empty'));
     const { campaigns } = lib.scan();
     expect(campaigns[0].sessions).toEqual([]);
   });
@@ -116,7 +116,7 @@ describe('createCampaign', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
     lib.createCampaign('The Lost Mines');
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'The Lost Mines', 'sessions'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'The Lost Mines', 'sessions'))).toBe(true);
   });
 
   test('returns the new campaign object', () => {
@@ -140,8 +140,8 @@ describe('renameCampaign', () => {
     lib.setRootFolder(tmp);
     lib.createCampaign('OldName');
     lib.renameCampaign('OldName', 'NewName');
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'OldName'))).toBe(false);
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'NewName'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'OldName'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'NewName'))).toBe(true);
   });
 
   test('returns the new id', () => {
@@ -162,7 +162,7 @@ describe('deleteCampaign', () => {
     lib.createSession('ToDelete', 'S1');
     lib.writeNotes('ToDelete', 'S1', 'some notes');
     lib.deleteCampaign('ToDelete');
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'ToDelete'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'ToDelete'))).toBe(false);
   });
 
   test('does not throw if campaign does not exist', () => {
@@ -185,7 +185,7 @@ describe('createSession', () => {
     lib.setRootFolder(tmp);
     lib.createCampaign('C');
     lib.createSession('C', 'Session 1');
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'C', 'sessions', 'Session 1'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'C', 'sessions', 'Session 1'))).toBe(true);
   });
 
   test('returns the new session object', () => {
@@ -211,8 +211,8 @@ describe('renameSession', () => {
     lib.createCampaign('C');
     lib.createSession('C', 'Old');
     lib.renameSession('C', 'Old', 'New');
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'C', 'sessions', 'Old'))).toBe(false);
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'C', 'sessions', 'New'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'C', 'sessions', 'Old'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'C', 'sessions', 'New'))).toBe(true);
   });
 
   test('returns the new name', () => {
@@ -233,7 +233,7 @@ describe('deleteSession', () => {
     lib.createCampaign('C');
     lib.createSession('C', 'S1');
     lib.deleteSession('C', 'S1');
-    expect(fs.existsSync(path.join(tmp, 'save', 'campaigns', 'C', 'sessions', 'S1'))).toBe(false);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'campaigns', 'C', 'sessions', 'S1'))).toBe(false);
   });
 
   test('does not throw if session does not exist', () => {
@@ -267,7 +267,7 @@ describe('readCampaignNotes / writeCampaignNotes', () => {
     lib.setRootFolder(tmp);
     lib.createCampaign('C');
     lib.writeCampaignNotes('C', 'top level');
-    const file = path.join(tmp, 'save', 'campaigns', 'C', 'notes.md');
+    const file = path.join(tmp, 'userdata', 'campaigns', 'C', 'notes.md');
     expect(fs.existsSync(file)).toBe(true);
   });
 
@@ -307,7 +307,7 @@ describe('writeNotes', () => {
     lib.createCampaign('C');
     lib.createSession('C', 'S1');
     lib.writeNotes('C', 'S1', 'My notes');
-    const file = path.join(tmp, 'save', 'campaigns', 'C', 'sessions', 'S1', 'notes.md');
+    const file = path.join(tmp, 'userdata', 'campaigns', 'C', 'sessions', 'S1', 'notes.md');
     expect(fs.existsSync(file)).toBe(true);
     expect(fs.readFileSync(file, 'utf8')).toBe('My notes');
   });
@@ -334,7 +334,7 @@ describe('writeNotes', () => {
 
 // ── HUD Groups ────────────────────────────────────────────────────────────────
 
-function hudsFilePath(tmp) { return path.join(tmp, 'save', 'huds.json'); }
+function hudsFilePath(tmp) { return path.join(tmp, 'userdata', 'huds.json'); }
 // Read raw file content (new format: { lastActiveId, groups })
 function readHudsRaw(tmp) { return JSON.parse(fs.readFileSync(hudsFilePath(tmp), 'utf8')); }
 // Convenience: just the groups array from disk
@@ -661,7 +661,7 @@ describe('HUD groups — legacy format migration', () => {
       'utf8',
     );
     lib.listHudGroups(); // triggers migration + write
-    expect(fs.existsSync(path.join(tmp, 'save', 'huds.json'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'userdata', 'huds.json'))).toBe(true);
     const raw = readHudsRaw(tmp);
     expect(raw.groups[0].name).toBe('Legacy');
   });

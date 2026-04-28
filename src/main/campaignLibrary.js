@@ -8,7 +8,7 @@ const CAMPAIGNS_DIR = 'campaigns';
 const SESSIONS_DIR  = 'sessions';
 const NOTES_FILE    = 'notes.md';
 const SCENES_DIR    = 'scenes';
-const SAVE_DIR      = 'save';
+const SAVE_DIR      = 'userdata';
 const HUDS_FILE     = 'huds.json';
 
 // Creates the campaign library backed by config (use createConfig() for file persistence).
@@ -21,12 +21,12 @@ function createCampaignLibrary(config) {
 
   // ── Paths ──────────────────────────────────────────────────────────────────
 
-  // Returns the save/campaigns/ directory path, or null if no root folder is set.
+  // Returns the userdata/campaigns/ directory path, or null if no root folder is set.
   function getCampaignsDir() {
     return rootFolder ? path.join(rootFolder, SAVE_DIR, CAMPAIGNS_DIR) : null;
   }
 
-  // Creates the save/campaigns/ directory if needed and returns its path.
+  // Creates the userdata/campaigns/ directory if needed and returns its path.
   function ensureCampaignsDir() {
     const dir = getCampaignsDir();
     if (!dir) throw new Error('No root folder set');
@@ -61,7 +61,7 @@ function createCampaignLibrary(config) {
       : path.join(campaignPath(campaignId), SCENES_DIR);
   }
 
-  // Returns the save/huds.json file path, or null if no root folder is set.
+  // Returns the userdata/huds.json file path, or null if no root folder is set.
   function getHudsFile() {
     return rootFolder ? path.join(rootFolder, SAVE_DIR, HUDS_FILE) : null;
   }
@@ -137,7 +137,7 @@ function createCampaignLibrary(config) {
     return { lastActiveId: null, groups: [] };
   }
 
-  // Writes { lastActiveId, groups } to save/huds.json.
+  // Writes { lastActiveId, groups } to userdata/huds.json.
   function writeHudsFile({ lastActiveId, groups }) {
     const file = getHudsFile();
     if (!file) return;
