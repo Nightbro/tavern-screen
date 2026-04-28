@@ -1,12 +1,16 @@
+// File-system map library: manages the root folder, projects, and map image files.
+
 const fs   = require('fs');
 const path = require('path');
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp']);
 
+// Returns true if filename has a recognised image extension.
 function isImage(filename) {
   return IMAGE_EXTS.has(path.extname(filename).toLowerCase());
 }
 
+// Returns a non-colliding destination path, appending _1, _2, … as needed.
 function uniqueDest(dir, filename) {
   const ext  = path.extname(filename);
   const base = path.basename(filename, ext);
@@ -19,6 +23,7 @@ function uniqueDest(dir, filename) {
   return dest;
 }
 
+// Reads all image files in dir and returns them as map descriptors.
 function scanMaps(dir, projectId, mapsDir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true })
@@ -31,11 +36,7 @@ function scanMaps(dir, projectId, mapsDir) {
     }));
 }
 
-/**
- * @param {object} config  Object with get(key, default) / set(key, value) methods.
- *                         Use createConfig() from config.js for file-backed persistence,
- *                         or pass an in-memory object for tests.
- */
+// Creates the library backed by config (use createConfig() for file persistence, or an in-memory object for tests).
 function createLibrary(config) {
   // Restore persisted root folder, but only if it still exists on disk
   const stored = config.get('rootFolder', null);
@@ -43,16 +44,19 @@ function createLibrary(config) {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
+  // Returns the maps/ subdirectory under the current root folder, or null.
   function getMapsDir() {
     return rootFolder ? path.join(rootFolder, 'maps') : null;
   }
 
+  // Creates the maps/ directory if needed and returns its path.
   function ensureMapsDir() {
     const d = getMapsDir();
     if (d) fs.mkdirSync(d, { recursive: true });
     return d;
   }
 
+  // Converts a map ID (relative path) to an absolute file-system path.
   function resolveMapPath(mapId) {
     const mapsDir = getMapsDir();
     if (!mapsDir) return null;
@@ -61,14 +65,17 @@ function createLibrary(config) {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
+  // Sets the root folder, persists it, and ensures the maps/ directory exists.
   function setRootFolder(folderPath) {
     rootFolder = folderPath;
     config.set('rootFolder', folderPath);
     ensureMapsDir();
   }
 
+  // Returns the current root folder path, or null if unset.
   function getRootFolder() { return rootFolder; }
 
+  // Walks the maps/ directory and returns all projects and root-level maps.
   function scan() {
     const mapsDir = getMapsDir();
     if (!mapsDir || !fs.existsSync(mapsDir)) {
@@ -96,6 +103,7 @@ function createLibrary(config) {
     return { rootFolder, mapsDir, projects, rootMaps };
   }
 
+  // Creates a new named subdirectory under maps/ and returns its descriptor.
   function createProject(name) {
     const mapsDir = ensureMapsDir();
     const projectPath = path.join(mapsDir, name);
@@ -103,6 +111,7 @@ function createLibrary(config) {
     return { id: name, name, path: projectPath, maps: [] };
   }
 
+  // Renames a project directory on disk.
   function renameProject(oldId, newName) {
     const mapsDir = getMapsDir();
     if (!mapsDir) throw new Error('No root folder set');
@@ -110,6 +119,7 @@ function createLibrary(config) {
     return newName;
   }
 
+  // Deletes a project, moving its images to the root maps/ directory first.
   function deleteProject(projectId) {
     const mapsDir = getMapsDir();
     if (!mapsDir) throw new Error('No root folder set');
@@ -127,6 +137,7 @@ function createLibrary(config) {
     fs.rmdirSync(projectPath);
   }
 
+  // Copies image files into the library, optionally under a project.
   function copyFiles(filePaths, projectId = null) {
     const mapsDir = ensureMapsDir();
     const destDir = projectId ? path.join(mapsDir, projectId) : mapsDir;
@@ -149,6 +160,7 @@ function createLibrary(config) {
     return result;
   }
 
+  // Moves a map to a different project (or to the root maps/ directory).
   function moveMap(mapId, toProjectId) {
     const mapsDir = getMapsDir();
     if (!mapsDir) throw new Error('No root folder set');
@@ -165,6 +177,7 @@ function createLibrary(config) {
     };
   }
 
+  // Permanently deletes a map file from disk.
   function deleteMap(mapId) {
     const filePath = resolveMapPath(mapId);
     if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);

@@ -1,3 +1,6 @@
+// IPC handlers for the map library: root folder selection, projects, and map file operations.
+
+// Registers all map library IPC channels on ipcMain.
 function registerLibraryHandlers(ipcMain, { lib, campaignLib, manager, dialog, BrowserWindow }) {
   ipcMain.handle('get-library-root', () => lib.getRootFolder());
 

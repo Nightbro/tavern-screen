@@ -1,3 +1,6 @@
+// IPC handlers for campaigns, sessions, notes, HUDs, HUD configs, and active map.
+
+// Registers all campaign-related IPC channels on ipcMain.
 function registerCampaignHandlers(ipcMain, { campaignLib, manager }) {
   ipcMain.handle('scan-campaigns',   ()                                  => campaignLib.scan());
   ipcMain.handle('create-campaign',  (_e, name)                         => campaignLib.createCampaign(name));

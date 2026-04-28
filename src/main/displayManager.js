@@ -1,3 +1,6 @@
+// Manages the GM window and the cast screen window, including display selection and preview capture.
+
+// Creates the display manager; getState is called each time a new screen window loads to push initial state.
 function createDisplayManager({
   BrowserWindow, screen,
   preloadPath, gmRendererPath, screenRendererPath, screenAdvancedRendererPath,
@@ -10,12 +13,14 @@ function createDisplayManager({
 
   // ── IPC helpers ────────────────────────────────────────────────────────────
 
+  // Sends an IPC message to the GM window if it is open.
   function notifyGM(channel, ...args) {
     if (gmWindow && !gmWindow.isDestroyed()) {
       gmWindow.webContents.send(channel, ...args);
     }
   }
 
+  // Sends an IPC message to the screen window if it is open.
   function notifyScreen(channel, ...args) {
     if (screenWindow && !screenWindow.isDestroyed()) {
       screenWindow.webContents.send(channel, ...args);
@@ -24,6 +29,7 @@ function createDisplayManager({
 
   // ── Preview capture ────────────────────────────────────────────────────────
 
+  // Captures a 640px-wide screenshot of the screen window and sends it to the GM.
   async function capturePreview() {
     if (!screenWindow || screenWindow.isDestroyed()) return;
     try {
@@ -32,6 +38,7 @@ function createDisplayManager({
     } catch (_) { /* window may have closed between check and capture */ }
   }
 
+  // Debounces preview capture by 350 ms to avoid excess captures on rapid updates.
   function schedulePreview() {
     clearTimeout(previewTimer);
     previewTimer = setTimeout(capturePreview, 350);
@@ -39,6 +46,7 @@ function createDisplayManager({
 
   // ── GM window ──────────────────────────────────────────────────────────────
 
+  // Creates and shows the GM control window, destroying the screen window when it closes.
   function createGMWindow() {
     gmWindow = new BrowserWindow({
       width: 1200, height: 760,
@@ -72,6 +80,7 @@ function createDisplayManager({
 
   // ── Screen window ──────────────────────────────────────────────────────────
 
+  // Opens a fullscreen cast window on the given display, replacing any existing screen window.
   function selectDisplay(displayId) {
     const displays = screen.getAllDisplays();
     const display  = displays.find((d) => d.id === displayId);
@@ -124,6 +133,7 @@ function createDisplayManager({
     return { suggestedDpi };
   }
 
+  // Closes the screen window if one is open, returning true on success.
   function closeScreen() {
     if (!screenWindow) return false;
     screenWindow.close();
@@ -132,6 +142,7 @@ function createDisplayManager({
 
   // ── Display enumeration ────────────────────────────────────────────────────
 
+  // Returns all connected displays with their bounds, scale factor, and active/primary flags.
   function getDisplays() {
     const primary = screen.getPrimaryDisplay();
     return screen.getAllDisplays().map((d) => ({
@@ -143,6 +154,7 @@ function createDisplayManager({
     }));
   }
 
+  // Returns the id of the display currently showing the screen window, or null.
   function getActiveDisplayId() { return activeDisplayId; }
 
   return {

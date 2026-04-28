@@ -1,5 +1,8 @@
+// IPC handlers for scene state, layers, HUDs, campaign scene persistence, and file dialogs.
+
 const fs = require('fs');
 
+// Registers all scene-related IPC channels on ipcMain.
 function registerSceneHandlers(ipcMain, { manager, campaignLib, dialog, BrowserWindow }) {
   // ── In-memory scene state ──────────────────────────────────────────────────
 

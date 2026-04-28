@@ -1,8 +1,11 @@
+// Generic JSON snapshot store: save, list, load, delete, and rename named snapshots on disk.
+
 const fs   = require('fs');
 const path = require('path');
 
 const EXT = '.json';
 
+// Writes item to dir/<item.id>.json, stripping any listed keys, and returns its summary.
 function saveSnapshot(dir, item, { strip = [] } = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const data = { ...item, savedAt: new Date().toISOString() };
@@ -11,6 +14,7 @@ function saveSnapshot(dir, item, { strip = [] } = {}) {
   return { id: item.id, name: item.name || '', savedAt: data.savedAt };
 }
 
+// Returns all snapshots in dir sorted by savedAt descending.
 function listSnapshots(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
@@ -25,17 +29,20 @@ function listSnapshots(dir) {
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
+// Loads and returns a single snapshot by id, or null if not found.
 function loadSnapshot(dir, id) {
   const file = path.join(dir, id + EXT);
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
+// Deletes the snapshot file for id if it exists.
 function deleteSnapshot(dir, id) {
   const file = path.join(dir, id + EXT);
   if (fs.existsSync(file)) fs.unlinkSync(file);
 }
 
+// Updates the name field inside the snapshot file.
 function renameSnapshot(dir, id, newName) {
   const file = path.join(dir, id + EXT);
   if (!fs.existsSync(file)) return false;
