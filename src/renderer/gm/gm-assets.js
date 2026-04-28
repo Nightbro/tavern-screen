@@ -1,7 +1,8 @@
 import { campaign } from './gm-state.js';
 import { confirmInline } from './gm-campaign.js';
 
-const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg']);
+const IMAGE_EXTS     = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg']);
+const SUPPORTED_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'pdf']);
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -103,9 +104,11 @@ function renderAssets() {
 
 function makeDropTarget(el, targetScope, targetType) {
   el.addEventListener('dragover', (e) => {
-    if (!e.dataTransfer.types.includes('application/tavern-reorder')) return;
+    const hasReorder = e.dataTransfer.types.includes('application/tavern-reorder');
+    const hasFiles   = targetType && e.dataTransfer.types.includes('Files');
+    if (!hasReorder && !hasFiles) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = hasReorder ? 'move' : 'copy';
     el.classList.add('drag-over');
   });
   el.addEventListener('dragleave', (e) => {
@@ -114,6 +117,21 @@ function makeDropTarget(el, targetScope, targetType) {
   el.addEventListener('drop', async (e) => {
     e.preventDefault();
     el.classList.remove('drag-over');
+
+    // ── External file drop ────────────────────────────────────────────────
+    if (e.dataTransfer.files.length > 0 && targetType) {
+      const campaignId = targetScope === 'campaign' ? campaign.selectedId : null;
+      for (const file of e.dataTransfer.files) {
+        const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+        if (!SUPPORTED_EXTS.has(ext)) continue;
+        const name = file.name.replace(/\.[^.]+$/, '');
+        await window.electronAPI.createAsset(name, targetType, file.path, campaignId);
+      }
+      await refreshAssets();
+      return;
+    }
+
+    // ── Internal reorder ──────────────────────────────────────────────────
     const raw = e.dataTransfer.getData('application/tavern-reorder');
     if (!raw) return;
     const { assetId, fromScope, fromType } = JSON.parse(raw);
