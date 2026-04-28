@@ -80,67 +80,87 @@ function hideNoFolder() {
 function renderAssets() {
   assetList.innerHTML = '';
 
-  // Group: scope → type
   const scopes = [
     { key: 'global',   label: 'Global' },
     { key: 'campaign', label: campaign.selectedId ? `Campaign: ${campaign.selectedId}` : null },
   ];
 
-  let anyAsset = false;
-
   for (const scope of scopes) {
     if (!scope.label) continue;
-    const scopeAssets = assetState.assets.filter(a => a.scope === scope.key);
-    if (scopeAssets.length === 0) continue;
-    anyAsset = true;
 
-    // Scope header
     const scopeHeader = document.createElement('div');
     scopeHeader.className = `asset-scope-header asset-scope-header-${scope.key}`;
     scopeHeader.textContent = scope.label;
+    makeDropTarget(scopeHeader, scope.key, null);
     assetList.appendChild(scopeHeader);
 
-    // Group within scope by type (preserve types order)
-    const typeOrder = assetState.types.length
-      ? assetState.types
-      : [...new Set(scopeAssets.map(a => a.type))];
+    const scopeAssets = assetState.assets.filter(a => a.scope === scope.key);
 
-    const byType = new Map();
-    for (const asset of scopeAssets) {
-      if (!byType.has(asset.type)) byType.set(asset.type, []);
-      byType.get(asset.type).push(asset);
-    }
-    // Also catch any type not in the types list
-    for (const asset of scopeAssets) {
-      if (!byType.has(asset.type)) byType.set(asset.type, [asset]);
-    }
-
-    const orderedTypes = [
-      ...typeOrder.filter(t => byType.has(t)),
-      ...[...byType.keys()].filter(t => !typeOrder.includes(t)),
-    ];
+    // Configured types first, then any orphaned types from existing assets
+    const extraTypes = [...new Set(scopeAssets.map(a => a.type).filter(t => !assetState.types.includes(t)))];
+    const orderedTypes = [...assetState.types, ...extraTypes];
 
     for (const type of orderedTypes) {
-      const typeAssets = byType.get(type);
-      if (!typeAssets?.length) continue;
+      const typeAssets = scopeAssets.filter(a => a.type === type);
 
       const typeHeader = document.createElement('div');
       typeHeader.className = 'asset-type-header';
       typeHeader.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+      makeDropTarget(typeHeader, scope.key, type);
       assetList.appendChild(typeHeader);
 
-      for (const asset of typeAssets) {
-        assetList.appendChild(buildAssetCard(asset));
+      if (typeAssets.length === 0) {
+        const emptySlot = document.createElement('div');
+        emptySlot.className = 'asset-type-empty';
+        emptySlot.textContent = 'Drop here';
+        makeDropTarget(emptySlot, scope.key, type);
+        assetList.appendChild(emptySlot);
+      } else {
+        for (const asset of typeAssets) {
+          assetList.appendChild(buildAssetCard(asset));
+        }
       }
     }
   }
+}
 
-  if (!anyAsset) {
-    const empty = document.createElement('div');
-    empty.className   = 'asset-empty';
-    empty.textContent = 'No assets yet';
-    assetList.appendChild(empty);
-  }
+// ── Drag-and-drop between folders ─────────────────────────────────────────────
+
+function makeDropTarget(el, targetScope, targetType) {
+  el.addEventListener('dragover', (e) => {
+    if (!e.dataTransfer.types.includes('application/tavern-reorder')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', (e) => {
+    if (!el.contains(e.relatedTarget)) el.classList.remove('drag-over');
+  });
+  el.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    const raw = e.dataTransfer.getData('application/tavern-reorder');
+    if (!raw) return;
+    const { assetId, fromScope, fromType } = JSON.parse(raw);
+
+    const toScope = targetScope;
+    const toType  = targetType ?? fromType;
+    if (toScope === fromScope && toType === fromType) return;
+
+    const fromCampaignId = fromScope === 'campaign' ? campaign.selectedId : null;
+    const toCampaignId   = toScope   === 'campaign' ? campaign.selectedId : null;
+
+    if (toScope !== fromScope) {
+      if (assetState.selectedId === assetId) clearPreview();
+      await window.electronAPI.moveAsset(assetId, fromCampaignId, toCampaignId);
+    }
+
+    if (toType !== fromType) {
+      await window.electronAPI.updateAsset(assetId, { type: toType }, toCampaignId);
+    }
+
+    await refreshAssets();
+  });
 }
 
 // ── Asset card ────────────────────────────────────────────────────────────────
@@ -213,14 +233,18 @@ function buildAssetCard(asset) {
   card.appendChild(info);
   card.appendChild(actions);
 
-  if (asset.fileName && isImage(asset.fileName)) {
-    card.draggable = true;
-    card.addEventListener('dragstart', (e) => {
-      const url = assetFileUrl(asset);
-      e.dataTransfer.setData('application/tavern-asset', JSON.stringify({ url, name: asset.name }));
-      e.dataTransfer.effectAllowed = 'copy';
-    });
-  }
+  card.draggable = true;
+  card.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('application/tavern-reorder', JSON.stringify({
+      assetId: asset.id, fromScope: asset.scope, fromType: asset.type,
+    }));
+    if (asset.fileName && isImage(asset.fileName)) {
+      e.dataTransfer.setData('application/tavern-asset', JSON.stringify({ url: assetFileUrl(asset), name: asset.name }));
+    }
+    e.dataTransfer.effectAllowed = 'all';
+    card.classList.add('dragging');
+  });
+  card.addEventListener('dragend', () => card.classList.remove('dragging'));
 
   card.addEventListener('click', () => selectAsset(asset, card));
   return card;

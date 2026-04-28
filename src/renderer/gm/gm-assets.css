@@ -117,6 +117,28 @@
   letter-spacing: 0.5px;
   border-bottom: 1px solid #1e1e3a;
   margin-top: 2px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.asset-type-header.drag-over,
+.asset-scope-header.drag-over {
+  background: #1a2a4a;
+  color: #88aadd;
+  outline: 1px dashed #4477aa88;
+}
+
+.asset-type-empty {
+  padding: 5px 10px 5px 26px;
+  font-size: 10px;
+  color: #3a3a5e;
+  font-style: italic;
+  transition: background 0.1s, color 0.1s;
+}
+
+.asset-type-empty.drag-over {
+  background: #1a2a4a;
+  color: #88aadd;
+  outline: 1px dashed #4477aa88;
 }
 
 /* ── Asset card ─────────────────────────────────────────────────────────── */
@@ -202,6 +224,10 @@
 
 .asset-card[draggable="true"]:active {
   cursor: grabbing;
+}
+
+.asset-card.dragging {
+  opacity: 0.4;
 }
 
 /* ── Inline edit form (inside card) ────────────────────────────────────── */
