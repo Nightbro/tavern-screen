@@ -1,0 +1,55 @@
+{
+  "id": "huds",
+  "name": "test 2",
+  "huds": [
+    {
+      "id": "b012c0f2-3f92-489e-be22-d889aded722b",
+      "type": "initiative",
+      "visible": true,
+      "combat": false,
+      "currentIndex": 0,
+      "entries": [],
+      "sides": [
+        {
+          "corner": "top-left",
+          "facing": "up"
+        }
+      ],
+      "fontSize": 24,
+      "name": "Initiative"
+    },
+    {
+      "id": "5f8b3d2b-7a3a-43f6-93bc-b4b97df95b02",
+      "type": "initiative",
+      "visible": true,
+      "combat": false,
+      "currentIndex": 0,
+      "entries": [],
+      "sides": [
+        {
+          "corner": "top-left",
+          "facing": "up"
+        }
+      ],
+      "fontSize": 24,
+      "name": "Initiative"
+    },
+    {
+      "id": "cf02e85b-eb7b-49a0-a80c-ac238e1b5eb0",
+      "type": "initiative",
+      "visible": true,
+      "combat": false,
+      "currentIndex": 0,
+      "entries": [],
+      "sides": [
+        {
+          "corner": "top-left",
+          "facing": "up"
+        }
+      ],
+      "fontSize": 24,
+      "name": "Initiative"
+    }
+  ],
+  "savedAt": "2026-04-28T09:49:30.512Z"
+}

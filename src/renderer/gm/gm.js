@@ -1,7 +1,7 @@
 import {
   sceneState, campaign, viewport, autosaveTimer, genId,
   sceneAutosaveBadge, sceneNameInput, btnRefreshScenes,
-  hudGroupsContent, hudGroupNameInput, btnNewHudGroup, btnRefreshHudGroups, hudGroupAutosaveBadge,
+  hudGroupsContent, btnNewHudGroup, btnRefreshHudGroups, hudGroupAutosaveBadge,
   btnSaveScene, btnLoadScene, btnResetScene,
   layerDetail, initiativeEditor, elCanvasBg,
   monitorSectionBody, btnToggleMonitors,
@@ -191,7 +191,6 @@ function buildHudGroupRow(g) {
   const row = document.createElement('div');
   row.className    = 'scene-row' + (g.id === sceneState.loadedHudGroupId ? ' active' : '');
   row.dataset.groupId = g.id;
-  row.title = g.savedAt ? new Date(g.savedAt).toLocaleString() : '';
 
   const nameEl = document.createElement('span');
   nameEl.className   = 'scene-row-name';
@@ -220,7 +219,8 @@ function buildHudGroupRow(g) {
     if (sceneState.loadedHudGroupId === g.id) {
       sceneState.loadedHudGroupId   = null;
       sceneState.loadedHudGroupName = null;
-      if (hudGroupNameInput) hudGroupNameInput.value = '';
+      sceneState.huds = [];
+      renderHudList();
     }
     await window.electronAPI.deleteHudGroup(g.id);
     renderHudGroupList();
@@ -247,7 +247,6 @@ function startHudGroupRename(row, nameEl, g) {
       await window.electronAPI.renameHudGroup(g.id, newName);
       if (sceneState.loadedHudGroupId === g.id) {
         sceneState.loadedHudGroupName = newName;
-        if (hudGroupNameInput) hudGroupNameInput.value = newName;
       }
     }
     renderHudGroupList();
@@ -280,9 +279,8 @@ async function applyLoadedHudGroup(groupId) {
   }
   if (!group) return;
   sceneState.huds              = group.huds ?? [];
-  sceneState.loadedHudGroupId   = group.id ?? groupId; // file id may be missing
+  sceneState.loadedHudGroupId   = group.id ?? groupId;
   sceneState.loadedHudGroupName = group.name ?? '';
-  if (hudGroupNameInput) hudGroupNameInput.value = group.name ?? '';
   renderHudList();
   renderHudPreview();
   renderHudGroupList();
@@ -293,18 +291,13 @@ export async function loadMostRecentHudGroup() {
   if (groups.length) await applyLoadedHudGroup(groups[0].id);
 }
 
-hudGroupNameInput?.addEventListener('input', () => {
-  sceneState.loadedHudGroupName = hudGroupNameInput.value.trim();
-  scheduleAutosave();
-});
-
 btnNewHudGroup?.addEventListener('click', () => {
   const input = document.createElement('input');
-  input.className   = 'scene-row-name-input';
-  input.placeholder = 'Group name…';
-  input.maxLength   = 64;
+  input.className    = 'scene-row-name-input';
+  input.placeholder  = 'Group name…';
+  input.maxLength    = 64;
   input.style.margin = '2px 8px';
-  hudGroupsContent.appendChild(input);
+  hudGroupsContent.prepend(input);
   input.focus();
 
   async function commit() {
@@ -312,11 +305,12 @@ btnNewHudGroup?.addEventListener('click', () => {
     input.remove();
     if (!name) return;
     const id    = genId();
-    const group = { id, name, huds: sceneState.huds };
+    const group = { id, name, huds: [] };
     await window.electronAPI.saveHudGroup(group);
     sceneState.loadedHudGroupId   = id;
     sceneState.loadedHudGroupName = name;
-    if (hudGroupNameInput) hudGroupNameInput.value = name;
+    sceneState.huds = [];
+    renderHudList();
     renderHudGroupList();
   }
   input.addEventListener('blur', commit);
