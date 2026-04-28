@@ -14,6 +14,7 @@ export const dropOverlay     = document.getElementById('drop-overlay');
 export const tabBtns           = document.querySelectorAll('#left-panel-tabs .panel-tab');
 export const tabPaneAssets     = document.getElementById('tab-pane-assets');
 export const tabPaneCampaign   = document.getElementById('tab-pane-campaign');
+export const tabPaneHuds       = document.getElementById('tab-pane-huds');
 export const campaignSelect    = document.getElementById('campaign-select');
 export const btnNewCampaign    = document.getElementById('btn-new-campaign');
 export const btnRenameCampaign = document.getElementById('btn-rename-campaign');
@@ -111,9 +112,6 @@ export const sceneNameInput       = document.getElementById('scene-name-input');
 export const sceneAutosaveBadge   = document.getElementById('scene-autosave-badge');
 export const scenesContent        = document.getElementById('scenes-content');
 export const btnRefreshScenes     = document.getElementById('btn-refresh-scenes');
-export const hudConfigsContent    = document.getElementById('hud-configs-content');
-export const btnSaveHudConfig     = document.getElementById('btn-save-hud-config');
-export const btnRefreshHudConfigs = document.getElementById('btn-refresh-hud-configs');
 export const elCanvasBg           = document.getElementById('canvas-bg');
 export const btnFitView           = document.getElementById('btn-fit-view');
 export const elSnapToGrid         = document.getElementById('snap-to-grid');
@@ -124,15 +122,14 @@ export const MIN_LAYER_SIZE = 20;
 
 // ── Advanced state ────────────────────────────────────────────────────────────
 export const sceneState = {
-  layers:           [],
-  huds:             [],
-  loadedId:         null,
-  loadedHudConfigId: null,
-  selectedLayerId:  null,
-  selectedHudId:    null,
-  dragSrcLayerId:   null,
-  ready:            false,
-  bg:               '#1a1a2e',
+  layers:          [],
+  huds:            [],
+  loadedId:        null,
+  selectedLayerId: null,
+  selectedHudId:   null,
+  dragSrcLayerId:  null,
+  ready:           false,
+  bg:              '#1a1a2e',
 };
 
 export const viewport = {
@@ -172,7 +169,7 @@ export const HANDLE_SIZE        = 8;
 Object.assign(window, {
   libSetup, libRootPath, libContent, libFooter,
   btnRefreshLib, btnSelectFolder, btnSetupFolder, btnNewProject, btnAddImages, dropOverlay,
-  tabBtns, tabPaneAssets, tabPaneCampaign,
+  tabBtns, tabPaneAssets, tabPaneCampaign, tabPaneHuds,
   campaignSelect, btnNewCampaign, btnRenameCampaign, btnDeleteCampaign,
   sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
   monitorMap, monitorList, monitorSectionBody, btnToggleMonitors, btnCloseScreen,
@@ -191,7 +188,7 @@ Object.assign(window, {
   hudSimWrap, hudSimViewport, hudSimScreen,
   btnAddImageLayer, btnAddLightLayer, btnAddFogLayer, btnAddWeatherLayer,
   btnSaveScene, btnLoadScene, btnResetScene, sceneNameInput, sceneAutosaveBadge,
-  scenesContent, btnRefreshScenes, hudConfigsContent, btnSaveHudConfig, btnRefreshHudConfigs,
+  scenesContent, btnRefreshScenes,
   elCanvasBg, btnFitView, elSnapToGrid, canvasCoordsEl,
   CANVAS_SIZE, MIN_LAYER_SIZE,
   sceneState, viewport, ui, gmImageCache,

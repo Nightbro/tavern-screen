@@ -1,15 +1,15 @@
-// File-system campaign library: manages campaigns, sessions, notes, HUDs, HUD configs, and scenes.
+// File-system campaign library: manages campaigns, sessions, notes, HUDs, and scenes.
 
 const fs   = require('fs');
 const path = require('path');
 const { saveSnapshot, listSnapshots, loadSnapshot, deleteSnapshot, renameSnapshot } = require('./snapshotStore');
 
-const CAMPAIGNS_DIR   = 'campaigns';
-const SESSIONS_DIR    = 'sessions';
-const NOTES_FILE      = 'notes.md';
-const SCENES_DIR      = 'scenes';
-const HUDS_FILE       = 'huds.json';
-const HUD_CONFIGS_DIR = 'hud-configs';
+const CAMPAIGNS_DIR = 'campaigns';
+const SESSIONS_DIR  = 'sessions';
+const NOTES_FILE    = 'notes.md';
+const SCENES_DIR    = 'scenes';
+const HUDS_DIR      = 'Huds';
+const HUDS_FILE     = 'huds.json';
 
 // Creates the campaign library backed by config (use createConfig() for file persistence).
 function createCampaignLibrary(config) {
@@ -60,23 +60,25 @@ function createCampaignLibrary(config) {
       : path.join(campaignPath(campaignId), SCENES_DIR);
   }
 
-  // Returns the huds.json file path for a session.
-  function hudsFilePath(campaignId, sessionId) {
-    return path.join(sessionPath(campaignId, sessionId), HUDS_FILE);
+  // Returns the global Huds/ directory path, or null if no root folder is set.
+  function getHudsDir() {
+    return rootFolder ? path.join(rootFolder, HUDS_DIR) : null;
   }
 
-  // Returns the hud-configs/ directory path for a session.
-  function hudConfigsDir(campaignId, sessionId) {
-    return path.join(sessionPath(campaignId, sessionId), HUD_CONFIGS_DIR);
+  // Returns the path to the global huds.json file, or null if no root folder is set.
+  function hudsFilePath() {
+    const dir = getHudsDir();
+    return dir ? path.join(dir, HUDS_FILE) : null;
   }
 
   // ── Root folder ────────────────────────────────────────────────────────────
 
-  // Sets the root folder, persists it, and ensures the campaigns/ directory exists.
+  // Sets the root folder, persists it, and ensures the campaigns/ and Huds/ directories exist.
   function setRootFolder(folderPath) {
     rootFolder = folderPath;
     config.set('rootFolder', folderPath);
     ensureCampaignsDir();
+    fs.mkdirSync(path.join(folderPath, HUDS_DIR), { recursive: true });
   }
 
   // Returns the current root folder path, or null if unset.
@@ -185,55 +187,22 @@ function createCampaignLibrary(config) {
     fs.writeFileSync(notesPath(campaignId, sessionId), content, 'utf8');
   }
 
-  // ── HUDs (session-scoped live state) ──────────────────────────────────────
+  // ── HUDs (global, shared across all campaigns) ────────────────────────────
 
-  // Persists the current HUDs array to the session's huds.json.
-  function saveHuds(campaignId, sessionId, huds) {
-    if (!sessionId) return;
-    const dir = sessionPath(campaignId, sessionId);
+  // Persists the HUDs array to the global Huds/huds.json.
+  function saveHuds(huds) {
+    const dir = getHudsDir();
+    if (!dir) return;
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(hudsFilePath(campaignId, sessionId), JSON.stringify(huds ?? [], null, 2), 'utf8');
+    fs.writeFileSync(hudsFilePath(), JSON.stringify(huds ?? [], null, 2), 'utf8');
   }
 
-  // Loads the HUDs array from the session's huds.json, returning [] if absent.
-  function loadHuds(campaignId, sessionId) {
-    if (!sessionId) return [];
-    const file = hudsFilePath(campaignId, sessionId);
-    if (!fs.existsSync(file)) return [];
+  // Loads the global HUDs array from Huds/huds.json, returning [] if absent.
+  function loadHuds() {
+    const file = hudsFilePath();
+    if (!file || !fs.existsSync(file)) return [];
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
     catch { return []; }
-  }
-
-  // ── HUD Configs (named snapshots) ─────────────────────────────────────────
-
-  // Saves a named HUD configuration snapshot for the session.
-  function saveHudConfig(campaignId, sessionId, config) {
-    if (!sessionId) return null;
-    return saveSnapshot(hudConfigsDir(campaignId, sessionId), config);
-  }
-
-  // Lists all saved HUD configuration snapshots for the session.
-  function listHudConfigs(campaignId, sessionId) {
-    if (!sessionId) return [];
-    return listSnapshots(hudConfigsDir(campaignId, sessionId));
-  }
-
-  // Loads a specific HUD configuration snapshot by id.
-  function loadHudConfig(campaignId, sessionId, configId) {
-    if (!sessionId) return null;
-    return loadSnapshot(hudConfigsDir(campaignId, sessionId), configId);
-  }
-
-  // Deletes a HUD configuration snapshot by id.
-  function deleteHudConfig(campaignId, sessionId, configId) {
-    if (!sessionId) return;
-    deleteSnapshot(hudConfigsDir(campaignId, sessionId), configId);
-  }
-
-  // Renames a HUD configuration snapshot.
-  function renameHudConfig(campaignId, sessionId, configId, newName) {
-    if (!sessionId) return false;
-    return renameSnapshot(hudConfigsDir(campaignId, sessionId), configId, newName);
   }
 
   // ── Scenes ─────────────────────────────────────────────────────────────────
@@ -271,7 +240,6 @@ function createCampaignLibrary(config) {
     readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
     saveHuds, loadHuds,
-    saveHudConfig, listHudConfigs, loadHudConfig, deleteHudConfig, renameHudConfig,
     saveScene, listScenes, loadScene, deleteScene, renameScene,
   };
 }

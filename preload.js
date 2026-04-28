@@ -77,19 +77,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onPing:          (cb)           => ipcRenderer.on('ping',        (_e, x, y) => cb(x, y)),
 
   updateSceneMeta:      (patch)                       => ipcRenderer.send('update-scene-meta', patch),
-  saveHudsCampaign:     (campaignId, sessionId)        => ipcRenderer.invoke('save-huds-campaign',  campaignId, sessionId),
-  loadHudsCampaign:     (campaignId, sessionId)        => ipcRenderer.invoke('load-huds-campaign',  campaignId, sessionId),
+  saveHuds:             ()                             => ipcRenderer.invoke('save-huds'),
+  loadHuds:             ()                             => ipcRenderer.invoke('load-huds'),
   saveSceneCampaign:    (campaignId, sessionId)        => ipcRenderer.invoke('save-scene-campaign', campaignId, sessionId),
   listScenesCampaign:   (campaignId, sessionId)        => ipcRenderer.invoke('list-scenes-campaign', campaignId, sessionId),
   loadSceneCampaign:    (campaignId, sessionId, id)    => ipcRenderer.invoke('load-scene-campaign', campaignId, sessionId, id),
   deleteSceneCampaign:  (campaignId, sessionId, id)    => ipcRenderer.invoke('delete-scene-campaign', campaignId, sessionId, id),
   renameSceneCampaign:  (campaignId, sessionId, id, n) => ipcRenderer.invoke('rename-scene-campaign', campaignId, sessionId, id, n),
-
-  saveHudConfig:        (campaignId, sessionId, config) => ipcRenderer.invoke('save-hud-config', campaignId, sessionId, config),
-  listHudConfigs:       (campaignId, sessionId)         => ipcRenderer.invoke('list-hud-configs', campaignId, sessionId),
-  loadHudConfig:        (campaignId, sessionId, id)     => ipcRenderer.invoke('load-hud-config', campaignId, sessionId, id),
-  deleteHudConfig:      (campaignId, sessionId, id)     => ipcRenderer.invoke('delete-hud-config', campaignId, sessionId, id),
-  renameHudConfig:      (campaignId, sessionId, id, n)  => ipcRenderer.invoke('rename-hud-config', campaignId, sessionId, id, n),
 
   saveSceneDialog: (scene)        => ipcRenderer.invoke('save-scene-dialog', scene),
   loadSceneDialog: ()             => ipcRenderer.invoke('load-scene-dialog'),

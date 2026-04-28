@@ -1,4 +1,4 @@
-// IPC handlers for campaigns, sessions, notes, HUDs, HUD configs, and active map.
+// IPC handlers for campaigns, sessions, notes, HUDs, and active map.
 
 // Registers all campaign-related IPC channels on ipcMain.
 function registerCampaignHandlers(ipcMain, { campaignLib, manager }) {
@@ -17,40 +17,17 @@ function registerCampaignHandlers(ipcMain, { campaignLib, manager }) {
 
   ipcMain.on('set-active-map', (_e, map) => manager.setActiveMap(map ?? null));
 
-  // ── HUD live state ─────────────────────────────────────────────────────────
+  // ── HUD live state (global, shared across all campaigns) ──────────────────
 
-  ipcMain.handle('save-huds-campaign', (_e, campaignId, sessionId) => {
-    campaignLib.saveHuds(campaignId, sessionId, manager.getHuds());
+  ipcMain.handle('save-huds', () => {
+    campaignLib.saveHuds(manager.getHuds());
   });
 
-  ipcMain.handle('load-huds-campaign', (_e, campaignId, sessionId) => {
-    const huds = campaignLib.loadHuds(campaignId, sessionId);
+  ipcMain.handle('load-huds', () => {
+    const huds = campaignLib.loadHuds();
     manager.setHuds(huds);
     return huds;
   });
-
-  // ── HUD configs (named snapshots) ─────────────────────────────────────────
-
-  ipcMain.handle('save-hud-config',   (_e, campaignId, sessionId, config) =>
-    campaignLib.saveHudConfig(campaignId, sessionId, config)
-  );
-  ipcMain.handle('list-hud-configs',  (_e, campaignId, sessionId) =>
-    campaignLib.listHudConfigs(campaignId, sessionId)
-  );
-  ipcMain.handle('load-hud-config',   (_e, campaignId, sessionId, configId) => {
-    const config = campaignLib.loadHudConfig(campaignId, sessionId, configId);
-    if (config?.huds) {
-      manager.setHuds(config.huds);
-      campaignLib.saveHuds(campaignId, sessionId, config.huds);
-    }
-    return config;
-  });
-  ipcMain.handle('delete-hud-config', (_e, campaignId, sessionId, configId) => {
-    campaignLib.deleteHudConfig(campaignId, sessionId, configId);
-  });
-  ipcMain.handle('rename-hud-config', (_e, campaignId, sessionId, configId, newName) =>
-    campaignLib.renameHudConfig(campaignId, sessionId, configId, newName)
-  );
 }
 
 module.exports = { registerCampaignHandlers };

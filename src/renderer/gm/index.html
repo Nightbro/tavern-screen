@@ -27,6 +27,7 @@
       <nav class="panel-tabs" id="left-panel-tabs">
         <button class="panel-tab active" data-tab="assets">Assets</button>
         <button class="panel-tab"        data-tab="campaign">Campaign</button>
+        <button class="panel-tab"        data-tab="huds">Huds</button>
       </nav>
 
       <!-- ══ Tab: Assets ══ -->
@@ -105,16 +106,6 @@
           </div>
         </div>
 
-        <!-- HUD Configs area -->
-        <div id="hud-configs-area">
-          <div class="scenes-toolbar">
-            <span class="panel-title">HUD Configs</span>
-            <button id="btn-refresh-hud-configs" class="btn-icon-sm" title="Refresh HUD configs">↺</button>
-            <button id="btn-save-hud-config" class="btn-ghost-sm">⬆ Save</button>
-          </div>
-          <div id="hud-configs-content" class="scenes-list"></div>
-        </div>
-
         <!-- Notes editor -->
         <div class="notes-area">
           <div class="notes-toolbar">
@@ -126,6 +117,21 @@
         </div>
 
       </div><!-- /tab-pane-campaign -->
+
+      <!-- ══ Tab: Huds ══ -->
+      <div class="tab-pane" id="tab-pane-huds" style="display:none">
+
+        <div class="scenes-toolbar">
+          <span class="panel-title">HUDs</span>
+          <div class="huds-add-btns">
+            <button class="btn-icon-xs" id="btn-add-initiative" title="Add Initiative Tracker">In</button>
+            <button class="btn-icon-xs" id="btn-add-status-hud" title="Add Statuses Panel">St</button>
+            <button class="btn-icon-xs" id="btn-add-handout"    title="Add Handout Image">Ho</button>
+          </div>
+        </div>
+        <div id="hud-list" class="scenes-list"></div>
+
+      </div><!-- /tab-pane-huds -->
 
     </aside>
 
@@ -292,17 +298,6 @@
         <div class="settings-group adv-only" id="layer-detail" style="display:none">
           <div class="settings-group-title" id="layer-detail-title">Layer</div>
           <div id="layer-detail-fields"></div>
-        </div>
-
-        <!-- HUDs -->
-        <div class="settings-group adv-only" id="group-huds">
-          <div class="layer-group-header">
-            <div class="settings-group-title">HUDs</div>
-            <button class="btn-icon-xs" id="btn-add-initiative" title="Add Initiative Tracker">In</button>
-            <button class="btn-icon-xs" id="btn-add-status-hud" title="Add Statuses Panel">St</button>
-            <button class="btn-icon-xs" id="btn-add-handout" title="Add Handout Image">Ho</button>
-          </div>
-          <div id="hud-list"></div>
         </div>
 
         <!-- Initiative tracker editor -->

@@ -74,9 +74,18 @@ function buildHudRow(hud) {
   badge.className   = 'layer-type-badge';
   badge.textContent = reg?.getBadge() ?? hud.type.slice(0, 2).toUpperCase();
 
-  const name = document.createElement('span');
-  name.className   = 'layer-name';
-  name.textContent = reg?.getDisplayName(hud) ?? hud.type;
+  const nameEl = document.createElement('span');
+  nameEl.className   = 'layer-name';
+  nameEl.textContent = hud.name || reg?.getDisplayName(hud) || hud.type;
+
+  const renameBtn = document.createElement('button');
+  renameBtn.className   = 'btn-icon-xs';
+  renameBtn.textContent = '✏';
+  renameBtn.title       = 'Rename HUD';
+  renameBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startHudRename(row, nameEl, hud);
+  });
 
   const delBtn = document.createElement('button');
   delBtn.className   = 'btn-icon-xs danger';
@@ -91,9 +100,34 @@ function buildHudRow(hud) {
     if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); }
   });
 
-  row.appendChild(eye); row.appendChild(badge); row.appendChild(name); row.appendChild(delBtn);
+  row.appendChild(eye); row.appendChild(badge); row.appendChild(nameEl);
+  row.appendChild(renameBtn); row.appendChild(delBtn);
   row.addEventListener('click', () => selectHud(hud.id));
   return row;
+}
+
+function startHudRename(row, nameEl, hud) {
+  const input = document.createElement('input');
+  input.className = 'scene-row-name-input';
+  input.value     = hud.name || '';
+  input.style.cssText = 'flex:1;min-width:0;';
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  async function commit() {
+    const newName = input.value.trim();
+    if (newName && newName !== hud.name) {
+      const newHuds = await window.electronAPI.updateHud(hud.id, { name: newName });
+      if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); }
+    }
+    renderHudList();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  input.blur();
+    if (e.key === 'Escape') { input.value = hud.name || ''; input.blur(); }
+  });
 }
 
 function _hideAllEditors() {
@@ -119,17 +153,17 @@ function selectHud(id) {
 // ── Add buttons ──────────────────────────────────────────────────────────────
 
 btnAddInitiative?.addEventListener('click', async () => {
-  const newHuds = await window.electronAPI.addHud(HUD_REGISTRY.initiative.getDefaults());
+  const newHuds = await window.electronAPI.addHud({ ...HUD_REGISTRY.initiative.getDefaults(), name: 'Initiative' });
   if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddStatusHud?.addEventListener('click', async () => {
-  const newHuds = await window.electronAPI.addHud(HUD_REGISTRY.status.getDefaults());
+  const newHuds = await window.electronAPI.addHud({ ...HUD_REGISTRY.status.getDefaults(), name: 'Statuses' });
   if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 
 btnAddHandout?.addEventListener('click', async () => {
-  const newHuds = await window.electronAPI.addHud(HUD_REGISTRY.handout.getDefaults());
+  const newHuds = await window.electronAPI.addHud({ ...HUD_REGISTRY.handout.getDefaults(), name: 'Handout' });
   if (newHuds) { sceneState.huds = newHuds; window.scheduleAutosave(); renderHudList(); selectHud(newHuds.at(-1)?.id); }
 });
 

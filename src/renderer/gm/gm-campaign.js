@@ -1,6 +1,6 @@
 import {
   campaign, NOTES_DEBOUNCE_MS,
-  tabBtns, tabPaneAssets, tabPaneCampaign,
+  tabBtns, tabPaneAssets, tabPaneCampaign, tabPaneHuds,
   campaignSelect, btnNewCampaign, btnRenameCampaign, btnDeleteCampaign,
   sessionsContent, notesTextarea, notesStatus, notesTitle, btnNewSession,
 } from './gm-state.js';
@@ -16,6 +16,7 @@ tabBtns.forEach(btn => {
     const tab = btn.dataset.tab;
     tabPaneAssets.style.display   = tab === 'assets'   ? '' : 'none';
     tabPaneCampaign.style.display = tab === 'campaign' ? '' : 'none';
+    tabPaneHuds.style.display     = tab === 'huds'     ? '' : 'none';
   });
 });
 
@@ -33,7 +34,6 @@ export async function initCampaigns() {
     renderSessions();
   }
   await loadCurrentNotes();
-  window.renderHudConfigList();
 }
 
 async function refreshCampaigns() {
@@ -255,7 +255,6 @@ async function selectSession(campaignId, sessionId) {
   });
   await loadCurrentNotes();
   await window.loadMostRecentScene();
-  window.renderHudConfigList();
 }
 
 // ── Campaign toolbar ──────────────────────────────────────────────────────────
@@ -267,7 +266,6 @@ campaignSelect.addEventListener('change', async () => {
   renderSessions();
   await loadCurrentNotes();
   await window.loadMostRecentScene();
-  window.renderHudConfigList();
 });
 
 btnNewCampaign.addEventListener('click', () => {
