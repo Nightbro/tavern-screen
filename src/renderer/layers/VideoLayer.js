@@ -10,6 +10,30 @@ export class VideoLayer extends LayerBase {
     this._buildOpacityField(layer, addField, ctx, 1);
   }
 
+  drawGMPreview(layer, overlayCtx, bounds, gmCtx) {
+    if (!layer.src) { super.drawGMPreview(layer, overlayCtx, bounds, gmCtx); return; }
+    const { px, py, pw, ph } = bounds;
+    const { imageCache, onImageLoaded } = gmCtx;
+    const key = layer.id + '::' + layer.src;
+    if (!imageCache.has(key)) {
+      const vid = document.createElement('video');
+      vid.muted  = true;
+      vid.src    = layer.src;
+      vid.loaded = false;
+      vid.addEventListener('loadeddata', () => { vid.loaded = true; onImageLoaded?.(); });
+      imageCache.set(key, vid);
+    }
+    const vid = imageCache.get(key);
+    if (vid?.loaded) {
+      overlayCtx.save();
+      overlayCtx.globalAlpha = layer.opacity ?? 1;
+      overlayCtx.drawImage(vid, px, py, pw, ph);
+      overlayCtx.restore();
+    } else {
+      super.drawGMPreview(layer, overlayCtx, bounds, gmCtx);
+    }
+  }
+
   drawPlayerLayer(layer, canvasCtx, tx, deps) {
     const vid = deps.getMedia(layer);
     if (!vid?.loaded) return;

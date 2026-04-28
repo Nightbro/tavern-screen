@@ -2,7 +2,8 @@ import { campaign } from './gm-state.js';
 import { confirmInline } from './gm-campaign.js';
 
 const IMAGE_EXTS     = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg']);
-const SUPPORTED_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'pdf']);
+const VIDEO_EXTS     = new Set(['mp4', 'webm']);
+const SUPPORTED_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'pdf', 'mp4', 'webm']);
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -15,11 +16,12 @@ const assetState = {
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 
-const assetList        = document.getElementById('asset-list');
-const assetPreview     = document.getElementById('asset-preview');
-const assetPreviewImg  = document.getElementById('asset-preview-img');
-const assetPreviewName = document.getElementById('asset-preview-name');
-const btnAssetUse      = document.getElementById('btn-asset-use');
+const assetList          = document.getElementById('asset-list');
+const assetPreview       = document.getElementById('asset-preview');
+const assetPreviewImg    = document.getElementById('asset-preview-img');
+const assetPreviewVideo  = document.getElementById('asset-preview-video');
+const assetPreviewName   = document.getElementById('asset-preview-name');
+const btnAssetUse        = document.getElementById('btn-asset-use');
 const btnAddAsset      = document.getElementById('btn-add-asset');
 const btnManageTypes   = document.getElementById('btn-manage-types');
 const btnRefreshAssets = document.getElementById('btn-refresh-assets');
@@ -172,6 +174,13 @@ function buildAssetCard(asset) {
     img.alt = asset.name;
     img.draggable = false;
     thumb.appendChild(img);
+  } else if (asset.fileName && isVideo(asset.fileName)) {
+    const vid = document.createElement('video');
+    vid.src      = assetFileUrl(asset);
+    vid.muted    = true;
+    vid.preload  = 'metadata';
+    vid.draggable = false;
+    thumb.appendChild(vid);
   } else {
     thumb.classList.add('asset-thumb-placeholder');
     thumb.textContent = fileIcon(asset.fileName);
@@ -243,8 +252,10 @@ function buildAssetCard(asset) {
     e.dataTransfer.setData('application/tavern-reorder', JSON.stringify({
       assetId: asset.id, fromScope: asset.scope, fromType: asset.type,
     }));
-    if (asset.fileName && isImage(asset.fileName)) {
-      e.dataTransfer.setData('application/tavern-asset', JSON.stringify({ url: assetFileUrl(asset), name: asset.name }));
+    if (asset.fileName && (isImage(asset.fileName) || isVideo(asset.fileName))) {
+      e.dataTransfer.setData('application/tavern-asset', JSON.stringify({
+        url: assetFileUrl(asset), name: asset.name, layerType: layerTypeForFile(asset.fileName),
+      }));
     }
     e.dataTransfer.effectAllowed = 'all';
     card.classList.add('dragging');
@@ -275,33 +286,46 @@ function selectAsset(asset, card) {
 
 function showPreview(asset) {
   assetPreviewName.textContent = asset.name;
-  const url = asset.fileName && isImage(asset.fileName) ? assetFileUrl(asset) : null;
-  if (url) {
-    assetPreviewImg.src = url;
-    assetPreviewImg.style.display = '';
+  const url  = asset.fileName ? assetFileUrl(asset) : null;
+  const type = asset.fileName ? layerTypeForFile(asset.fileName) : null;
+  if (type === 'video' && url) {
+    assetPreviewVideo.src          = url;
+    assetPreviewVideo.style.display = '';
+    assetPreviewImg.style.display   = 'none';
+  } else if (url && type) {
+    assetPreviewImg.src            = url;
+    assetPreviewImg.style.display  = '';
+    assetPreviewVideo.style.display = 'none';
   } else {
-    assetPreviewImg.style.display = 'none';
+    assetPreviewImg.style.display   = 'none';
+    assetPreviewVideo.style.display = 'none';
   }
-  assetPreview.style.display = '';
-  assetPreview.dataset.assetUrl  = url ?? '';
-  assetPreview.dataset.assetName = asset.name;
+  assetPreview.style.display      = '';
+  assetPreview.dataset.assetUrl   = url ?? '';
+  assetPreview.dataset.assetName  = asset.name;
+  assetPreview.dataset.assetType  = type ?? '';
 }
 
 function clearPreview() {
   assetState.selectedId = null;
-  assetPreview.style.display = 'none';
-  assetPreviewImg.src = '';
+  assetPreview.style.display      = 'none';
+  assetPreviewImg.src             = '';
+  assetPreviewVideo.src           = '';
+  assetPreviewVideo.style.display = 'none';
   delete assetPreview.dataset.assetUrl;
   delete assetPreview.dataset.assetName;
+  delete assetPreview.dataset.assetType;
 }
 
 btnAssetUse?.addEventListener('click', async () => {
-  const src  = assetPreview.dataset.assetUrl;
-  const name = assetPreview.dataset.assetName;
+  const src      = assetPreview.dataset.assetUrl;
+  const name     = assetPreview.dataset.assetName;
+  const assetType = assetPreview.dataset.assetType;
   if (!src) return;
 
-  function imageBounds(src) {
-    return new Promise(resolve => {
+  let bounds = {};
+  if (assetType !== 'video') {
+    bounds = await new Promise(resolve => {
       const img = new Image();
       img.onload  = () => {
         const w = img.naturalWidth, h = img.naturalHeight;
@@ -313,8 +337,7 @@ btnAssetUse?.addEventListener('click', async () => {
     });
   }
 
-  const bounds    = await imageBounds(src);
-  const newLayers = await window.electronAPI.addLayer({ type: 'image', src, name, visible: true, opacity: 1, ...bounds });
+  const newLayers = await window.electronAPI.addLayer({ type: assetType || 'image', src, name, visible: true, opacity: 1, ...bounds });
   if (newLayers) {
     window.sceneState.layers = newLayers;
     window.renderLayerList();
@@ -336,14 +359,27 @@ function assetFileUrl(asset) {
 }
 
 function isImage(fileName) {
-  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const ext = (fileName ?? '').split('.').pop()?.toLowerCase() ?? '';
   return IMAGE_EXTS.has(ext);
+}
+
+function isVideo(fileName) {
+  const ext = (fileName ?? '').split('.').pop()?.toLowerCase() ?? '';
+  return VIDEO_EXTS.has(ext);
+}
+
+function layerTypeForFile(fileName) {
+  const ext = (fileName ?? '').split('.').pop()?.toLowerCase() ?? '';
+  if (VIDEO_EXTS.has(ext)) return 'video';
+  if (ext === 'gif')       return 'gif';
+  return 'image';
 }
 
 function fileIcon(fileName) {
   const ext = (fileName ?? '').split('.').pop()?.toLowerCase() ?? '';
-  if (ext === 'pdf') return '📄';
-  if (ext === 'svg') return '🖼';
+  if (ext === 'pdf')              return '📄';
+  if (ext === 'svg')              return '🖼';
+  if (VIDEO_EXTS.has(ext))       return '🎬';
   return '📁';
 }
 

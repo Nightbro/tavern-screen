@@ -12,9 +12,13 @@ function registerLibraryHandlers(ipcMain, { lib, campaignLib, manager, dialog, B
   ipcMain.handle('open-map-dialog', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
-      title:      'Add Images',
+      title:      'Add Images or Video',
       properties: ['openFile', 'multiSelections'],
-      filters:    [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }],
+      filters:    [
+        { name: 'All media', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'mp4', 'webm'] },
+        { name: 'Images',    extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] },
+        { name: 'Video',     extensions: ['mp4', 'webm'] },
+      ],
     });
     return canceled ? [] : filePaths;
   });
@@ -25,8 +29,9 @@ function registerLibraryHandlers(ipcMain, { lib, campaignLib, manager, dialog, B
       title:      'Add Asset',
       properties: ['openFile', 'multiSelections'],
       filters:    [
-        { name: 'All supported', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'pdf'] },
+        { name: 'All supported', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'pdf', 'mp4', 'webm'] },
         { name: 'Images',        extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'] },
+        { name: 'Video',         extensions: ['mp4', 'webm'] },
         { name: 'Documents',     extensions: ['pdf'] },
       ],
     });

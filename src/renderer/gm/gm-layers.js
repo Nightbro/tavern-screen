@@ -401,30 +401,33 @@ previewWrapEl.addEventListener('drop', async (e) => {
   const raw = e.dataTransfer.getData('application/tavern-asset');
   if (!raw) return;
   e.preventDefault();
-  const { url, name } = JSON.parse(raw);
+  const { url, name, layerType } = JSON.parse(raw);
+  const type = layerType ?? 'image';
 
-  let bounds;
-  if (display.advanced) {
-    const rect = layerOverlay.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const imgBounds = await imageBoundsFromSrc(url);
-    if (imgBounds.w) {
-      const { x: cx, y: cy } = overlayToCanvas(mx, my);
-      bounds = {
-        x: Math.round(cx - imgBounds.w / 2),
-        y: Math.round(cy - imgBounds.h / 2),
-        w: imgBounds.w,
-        h: imgBounds.h,
-      };
+  let bounds = {};
+  if (type !== 'video') {
+    if (display.advanced) {
+      const rect = layerOverlay.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const imgBounds = await imageBoundsFromSrc(url);
+      if (imgBounds.w) {
+        const { x: cx, y: cy } = overlayToCanvas(mx, my);
+        bounds = {
+          x: Math.round(cx - imgBounds.w / 2),
+          y: Math.round(cy - imgBounds.h / 2),
+          w: imgBounds.w,
+          h: imgBounds.h,
+        };
+      } else {
+        bounds = imgBounds;
+      }
     } else {
-      bounds = imgBounds;
+      bounds = await imageBoundsFromSrc(url);
     }
-  } else {
-    bounds = await imageBoundsFromSrc(url);
   }
 
-  const newLayers = await window.electronAPI.addLayer({ type: 'image', src: url, name, visible: true, opacity: 1, ...bounds });
+  const newLayers = await window.electronAPI.addLayer({ type, src: url, name, visible: true, opacity: 1, ...bounds });
   if (newLayers) {
     sceneState.layers = newLayers;
     renderLayerList();
