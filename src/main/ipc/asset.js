@@ -11,6 +11,7 @@ function registerAssetHandlers(ipcMain, { campaignLib }) {
   ipcMain.handle('update-asset',  (_e, id, patch, campaignId)                 => campaignLib.updateAsset(id, patch, campaignId ?? null));
   ipcMain.handle('delete-asset',  (_e, id, campaignId)                        => { campaignLib.deleteAsset(id, campaignId ?? null); });
   ipcMain.handle('move-asset',    (_e, id, fromCampaignId, toCampaignId)      => campaignLib.moveAsset(id, fromCampaignId ?? null, toCampaignId ?? null));
+  ipcMain.handle('copy-asset',    (_e, id, campaignId)                        => campaignLib.copyAsset(id, campaignId ?? null));
 }
 
 module.exports = { registerAssetHandlers };

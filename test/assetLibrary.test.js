@@ -360,3 +360,47 @@ describe('moveAsset', () => {
     expect(lib.moveAsset('id', null, 'C')).toBe(false);
   });
 });
+
+// ── copyAsset ─────────────────────────────────────────────────────────────────
+
+describe('copyAsset', () => {
+  test('returns a new asset with a different id and "(copy)" name', () => {
+    const { lib, tmp } = setup();
+    const src = makeSrcFile(tmp, 'hero.png');
+    const original = lib.createAsset('Hero', 'characters', src, null);
+    const copy = lib.copyAsset(original.id, null);
+    expect(copy).not.toBeNull();
+    expect(copy.id).not.toBe(original.id);
+    expect(copy.name).toBe('Hero (copy)');
+    expect(copy.type).toBe('characters');
+    expect(copy.scope).toBe('global');
+  });
+
+  test('copies the file to a new folder on disk', () => {
+    const { lib, tmp } = setup();
+    const src = makeSrcFile(tmp, 'hero.png', 'imgdata');
+    const original = lib.createAsset('Hero', 'characters', src, null);
+    const copy = lib.copyAsset(original.id, null);
+    const copyFile = path.join(tmp, 'userdata', 'assets', 'characters', copy.id, 'hero.png');
+    expect(fs.existsSync(copyFile)).toBe(true);
+    expect(fs.readFileSync(copyFile, 'utf8')).toBe('imgdata');
+  });
+
+  test('adds the copy to the assets.json index', () => {
+    const { lib, tmp } = setup();
+    const src = makeSrcFile(tmp, 'hero.png');
+    const original = lib.createAsset('Hero', 'characters', src, null);
+    lib.copyAsset(original.id, null);
+    expect(lib.listAssets(null).assets).toHaveLength(2);
+  });
+
+  test('returns null when original does not exist', () => {
+    const { lib } = setup();
+    expect(lib.copyAsset('ghost', null)).toBeNull();
+  });
+
+  test('returns null when no root folder is set', () => {
+    const lib = createCampaignLibrary(makeConfig());
+    expect(lib.copyAsset('id', null)).toBeNull();
+  });
+});

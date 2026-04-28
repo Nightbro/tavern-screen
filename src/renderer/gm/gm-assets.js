@@ -207,6 +207,18 @@ function buildAssetCard(asset) {
     actions.appendChild(btnMove);
   }
 
+  const btnCopy = document.createElement('button');
+  btnCopy.className   = 'btn-icon-xs';
+  btnCopy.title       = 'Duplicate';
+  btnCopy.textContent = '⧉';
+  btnCopy.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+    await window.electronAPI.copyAsset(asset.id, campaignId);
+    await refreshAssets();
+  });
+  actions.appendChild(btnCopy);
+
   const btnEdit = document.createElement('button');
   btnEdit.className   = 'btn-icon-xs';
   btnEdit.title       = 'Edit';

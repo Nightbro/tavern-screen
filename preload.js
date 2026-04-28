@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateAsset:     (id, patch, campaignId)               => ipcRenderer.invoke('update-asset',      id, patch, campaignId),
   deleteAsset:     (id, campaignId)                      => ipcRenderer.invoke('delete-asset',      id, campaignId),
   moveAsset:       (id, fromCampaignId, toCampaignId)    => ipcRenderer.invoke('move-asset',        id, fromCampaignId, toCampaignId),
+  copyAsset:       (id, campaignId)                      => ipcRenderer.invoke('copy-asset',        id, campaignId),
 
   // ── Campaigns ─────────────────────────────────────────────────────────────
   scanCampaigns:   ()                                    => ipcRenderer.invoke('scan-campaigns'),

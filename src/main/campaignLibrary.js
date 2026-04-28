@@ -497,6 +497,34 @@ function createCampaignLibrary(config) {
     writeAssetsIndex(index, campaignId);
   }
 
+  // Duplicates an asset within the same scope. Returns the new asset entry or null.
+  function copyAsset(id, campaignId) {
+    const assetsDir = getAssetsDir(campaignId);
+    if (!assetsDir) return null;
+
+    const index = readAssetsIndex(campaignId);
+    const entry = (index.assets ?? []).find(a => a.id === id);
+    if (!entry) return null;
+
+    const newId     = randomUUID();
+    const srcDir    = path.join(assetsDir, entry.type, id);
+    const destDir   = path.join(assetsDir, entry.type, newId);
+
+    fs.mkdirSync(destDir, { recursive: true });
+    for (const file of fs.readdirSync(srcDir)) {
+      fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+    }
+
+    const newMeta = { ...entry, id: newId, name: `${entry.name} (copy)` };
+    fs.writeFileSync(path.join(destDir, ASSET_META), JSON.stringify(newMeta, null, 2), 'utf8');
+
+    if (!index.assets) index.assets = [];
+    index.assets.push(newMeta);
+    writeAssetsIndex(index, campaignId);
+
+    return { ...newMeta, scope: campaignId ? 'campaign' : 'global' };
+  }
+
   // Moves an asset between scopes (null = global). Returns false if not found.
   function moveAsset(id, fromCampaignId, toCampaignId) {
     const fromDir = getAssetsDir(fromCampaignId);
@@ -532,7 +560,7 @@ function createCampaignLibrary(config) {
     saveHudGroup, listHudGroups, loadHudGroup, deleteHudGroup, renameHudGroup, setLastActiveHudGroupId,
     saveScene, listScenes, loadScene, deleteScene, renameScene,
     listAssetTypes, addAssetType, removeAssetType,
-    listAssets, createAsset, updateAsset, deleteAsset, moveAsset,
+    listAssets, createAsset, updateAsset, deleteAsset, moveAsset, copyAsset,
   };
 }
 
