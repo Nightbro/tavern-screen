@@ -148,6 +148,20 @@ body.advanced-mode .map-card:hover::after {
 }
 .field-select:focus { border-color: #c9a84c; }
 
+/* Content / Effects section dividers in layer list */
+.layer-section-divider {
+  font-size: 9px;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 8px 2px 3px;
+  border-bottom: 1px solid #1e1e38;
+  margin-bottom: 2px;
+  user-select: none;
+  pointer-events: none;
+}
+.layer-section-divider:first-child { padding-top: 2px; }
+
 /* Reveal countdown button on layer row */
 .layer-reveal-timer {
   font-size: 10px;

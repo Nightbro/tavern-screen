@@ -255,6 +255,8 @@ previewImg.addEventListener('click', (e) => {
 // ════════════════════════════════════════════════════════════════════════════
 
 
+const CONTENT_TYPES = new Set(['image', 'gif', 'video']);
+
 export function renderLayerList() {
   layerListEl.innerHTML = '';
   if (sceneState.layers.length === 0) {
@@ -266,10 +268,24 @@ export function renderLayerList() {
     window.scheduleAutosave();
     return;
   }
-  // Render in reverse (top of stack first visually)
-  for (let i = sceneState.layers.length - 1; i >= 0; i--) {
-    layerListEl.appendChild(buildLayerRow(sceneState.layers[i]));
+
+  // Split into content vs effects, preserving relative stack order (top first)
+  const allReversed    = [...sceneState.layers].reverse();
+  const contentLayers  = allReversed.filter(l =>  CONTENT_TYPES.has(l.type));
+  const effectLayers   = allReversed.filter(l => !CONTENT_TYPES.has(l.type));
+
+  function appendSection(label, layers) {
+    if (!layers.length) return;
+    const header = document.createElement('div');
+    header.className = 'layer-section-divider';
+    header.textContent = label;
+    layerListEl.appendChild(header);
+    layers.forEach(l => layerListEl.appendChild(buildLayerRow(l)));
   }
+
+  appendSection('Content', contentLayers);
+  appendSection('Effects', effectLayers);
+
   renderLayerOverlay();
   window.scheduleAutosave();
 }
@@ -480,24 +496,40 @@ async function addWeatherLayerFull(type) {
   }
 }
 
-function setRegionSelectAsset(type) {
-  ui.regionSelectAsset = type ?? null;
+async function addFogLayerFull() {
+  const newLayers = await window.electronAPI.addLayer({
+    ...LAYER_REGISTRY.fog.getDefaults(),
+    name: 'Fog of War',
+    visible: layerVisible(),
+  });
+  if (newLayers) {
+    sceneState.layers = newLayers;
+    renderLayerList();
+    const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+    if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
+  }
+}
+
+function setRegionSelectAsset(assetKey, layerType = null) {
+  ui.regionSelectAsset = assetKey ?? null;
+  ui.regionSelectAssetLayerType = assetKey ? layerType : null;
   const previewWrap = document.getElementById('preview-wrap');
-  previewWrap.classList.toggle('region-select-mode', !!type);
+  previewWrap.classList.toggle('region-select-mode', !!assetKey);
   document.querySelectorAll('.btn-asset').forEach(b => {
-    b.classList.toggle('btn-asset-active', b.dataset.asset === type);
+    b.classList.toggle('btn-asset-active', b.dataset.asset === assetKey);
   });
 }
 
 document.querySelectorAll('.btn-asset').forEach(btn => {
   let clickTimer = null;
+  const layerType = btn.dataset.layerType ?? 'weather';
 
   btn.addEventListener('click', () => {
     if (clickTimer !== null) return;
     clickTimer = setTimeout(() => {
       clickTimer = null;
       const type = btn.dataset.asset;
-      setRegionSelectAsset(ui.regionSelectAsset === type ? null : type);
+      setRegionSelectAsset(ui.regionSelectAsset === type ? null : type, layerType);
     }, 220);
   });
 
@@ -505,7 +537,11 @@ document.querySelectorAll('.btn-asset').forEach(btn => {
     clearTimeout(clickTimer);
     clickTimer = null;
     setRegionSelectAsset(null);
-    await addWeatherLayerFull(btn.dataset.asset);
+    if (layerType === 'fog') {
+      await addFogLayerFull();
+    } else {
+      await addWeatherLayerFull(btn.dataset.asset);
+    }
   });
 });
 
@@ -1091,13 +1127,17 @@ document.addEventListener('mouseup', async () => {
     const y = Math.round(Math.min(start.y, end.y));
     const w = Math.max(MIN_LAYER_SIZE, Math.round(Math.abs(end.x - start.x)));
     const h = Math.max(MIN_LAYER_SIZE, Math.round(Math.abs(end.y - start.y)));
-    const type  = ui.regionSelectAsset;
-    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    const assetKey       = ui.regionSelectAsset;
+    const assetLayerType = ui.regionSelectAssetLayerType;
     setRegionSelectAsset(null);
-    const newLayers = await window.electronAPI.addLayer({
-      ...LAYER_REGISTRY.weather.getDefaults(),
-      weatherType: type, name: label, x, y, w, h, visible: layerVisible(),
-    });
+    let layerDef;
+    if (assetLayerType === 'fog') {
+      layerDef = { ...LAYER_REGISTRY.fog.getDefaults(), name: 'Fog of War', x, y, w, h, visible: layerVisible() };
+    } else {
+      const label = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
+      layerDef = { ...LAYER_REGISTRY.weather.getDefaults(), weatherType: assetKey, name: label, x, y, w, h, visible: layerVisible() };
+    }
+    const newLayers = await window.electronAPI.addLayer(layerDef);
     if (newLayers) { sceneState.layers = newLayers; renderLayerList(); renderLayerOverlay(); }
     return;
   }

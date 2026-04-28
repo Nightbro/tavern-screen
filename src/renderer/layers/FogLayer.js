@@ -6,7 +6,14 @@ export class FogLayer extends LayerBase {
   getDefaults() { return { type: 'fog', visible: true, revealed: [] }; }
 
   renderEditorFields(layer, addField, ctx) {
-    // Fog has no additional editor fields beyond the shared Name field.
+    const colorInput = document.createElement('input');
+    colorInput.type  = 'color'; colorInput.value = layer.color ?? '#050508';
+    addField('Color', colorInput);
+    colorInput.addEventListener('input', async () => {
+      await ctx.updateLayer(layer.id, { color: colorInput.value });
+    });
+
+    this._buildOpacityField(layer, addField, ctx, 0.9);
   }
 
   drawPlayerLayer(layer, canvasCtx, tx, deps) {
@@ -18,7 +25,7 @@ export class FogLayer extends LayerBase {
 
     canvasCtx.save();
     canvasCtx.globalAlpha = layer.opacity ?? 0.9;
-    canvasCtx.fillStyle   = '#050508';
+    canvasCtx.fillStyle   = layer.color ?? '#050508';
     canvasCtx.fillRect(fx, fy, fw, fh);
 
     if (layer.revealed?.length) {
