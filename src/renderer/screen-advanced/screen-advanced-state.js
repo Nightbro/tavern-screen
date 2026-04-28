@@ -40,6 +40,7 @@ export function getMedia(layer) {
       el.onload = () => { el.loaded = true; };
       el.src    = layer.src;
     }
+    el.style.cssText = 'position:absolute;left:0;top:0;';
     mediaHost.appendChild(el);
     for (const [k, old] of mediaCache) {
       if (k.startsWith(layer.id + '::') && k !== key) { old.remove?.(); mediaCache.delete(k); }
