@@ -440,15 +440,18 @@ Layer types are implemented as ES module classes under `renderer/layers/`. Each 
 | `GifLayer` | `gif` | source file, opacity | animated GIF at canvas position (native frame rate) |
 | `VideoLayer` | `video` | source file, opacity | looping muted video; covers viewport in screen space (ignores scene zoom/pan) |
 | `LightLayer` | `light` | color, opacity | solid colored rectangle |
-| `FogLayer` | `fog` | *(name only)* | dark fill with destination-out reveal circles |
-| `WeatherLayer` | `weather` | weather type, intensity | animated particle system |
+| `FogLayer` | `fog` | color, opacity | colored fill with destination-out reveal circles |
+| `WeatherLayer` | `weather` | weather type, intensity | animated particle system; particles spawn within the layer's region |
 
 Adding a new layer type: create a class extending `LayerBase` in `renderer/layers/`, implement the `ILayer` interface, and add it to `LAYER_REGISTRY` in `index.js`.
 
 ### Features
 
 - **Layer stack** — image, GIF, video, light/shadow, fog of war, weather particle layers; drag ⠿ grip to reorder
+- **Layer list views** — toggle between **Stack** (⠿, flat z-order list) and **Groups** (⊞, Content / Effects sections) using the button in the Layers header
 - **Layer move/resize** — drag any layer on the GM preview to move it; resize via 8-point handles; snap-to-grid toggle; images placed at their natural pixel size, centred on the canvas
+- **Per-layer delayed reveal** — set a **Reveal (s)** delay on any layer; a ⏱ button appears on hidden layers with a delay set; click to start a countdown visible on the GM screen; at zero the layer becomes visible on both screens; click again to cancel
+- **Quick Assets** — single-click to enter region-draw mode (drag on the preview to place in a specific area); double-click to add as a full-scene layer; available for Fog of War and all weather effects
 - **GM camera** — scroll-wheel to zoom, middle/right-click drag to pan; ⊞ Fit View to auto-fit all layers
 - **Canvas coordinates** — live pixel readout (bottom-left of preview) as the cursor moves
 - **Viewport zoom & pan** — drag the gold rectangle to pan what the player sees
@@ -464,8 +467,7 @@ Adding a new layer type: create a class extending `LayerBase` in `renderer/layer
 
 ### Advanced Screen — Remaining enhancements
 
-- **Per-layer delayed reveal** — countdown shown on the player screen before an object appears
-- **Fog of War reveal tool** — GM draws on the preview to erase fog; currently fog is a static full-screen layer
+- **Fog of War reveal tool** — GM paints on the preview to erase fog regions; currently fog reveal circles are data-only with no GM paint UI
 - **Default assets** — bundled quick-insert objects (fire GIF, fireflies, etc.)
 
 
@@ -510,7 +512,7 @@ A dedicated **Tokens** section (separate from but linked to the layer system).
 
 ### Weather & Atmosphere Effects
 
-Particle/overlay effects implemented as a `weather` layer type (`WeatherLayer.js`); intensity is configurable per layer and the effect can be spatially clipped to a canvas region:
+Particle/overlay effects implemented as a `weather` layer type (`WeatherLayer.js`); intensity is configurable per layer; particles spawn within the layer's bounds so regional layers are fully populated regardless of size:
 
 | Effect | Status |
 |--------|--------|
@@ -519,8 +521,6 @@ Particle/overlay effects implemented as a `weather` layer type (`WeatherLayer.js
 | Falling embers / ash | ✓ implemented |
 | Drifting fog / mist | ✓ implemented |
 | Fireflies | ✓ implemented |
-| Fire | looping GIF or canvas particle version — not yet |
-| Smoke | slow-rising particle layer — not yet |
 
 ---
 
