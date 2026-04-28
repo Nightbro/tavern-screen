@@ -64,16 +64,16 @@ const WEATHER_CFG = {
 
 };
 
-function spawnParticle(type, cw, ch, randomY = false) {
+function spawnParticle(type, rw, rh, randomY = false, rx = 0, ry = 0) {
   const cfg  = WEATHER_CFG[type] || WEATHER_CFG.rain;
   const vy   = cfg.speed + (Math.random() - 0.5) * Math.abs(cfg.speed) * 0.4;
   const vx   = (Math.random() - 0.5) * cfg.spreadX * Math.abs(vy);
   const size = cfg.size[0] + Math.random() * (cfg.size[1] - cfg.size[0]);
   const p = {
-    x:    Math.random() * cw,
+    x:    rx + Math.random() * rw,
     y:    randomY
-      ? Math.random() * ch
-      : (cfg.speed >= 0 ? -size - Math.random() * ch * 0.2 : ch + size),
+      ? ry + Math.random() * rh
+      : (cfg.speed >= 0 ? ry - size - Math.random() * rh * 0.2 : ry + rh + size),
     vx, vy, size,
     color: cfg.color(),
     phase: Math.random() * Math.PI * 2,
@@ -121,50 +121,53 @@ export class WeatherLayer extends LayerBase {
     const type      = layer.weatherType || 'rain';
     const intensity = Math.max(0, Math.min(3, layer.intensity ?? 1));
     const cfg       = WEATHER_CFG[type] || WEATHER_CFG.rain;
-    const cw        = window.innerWidth;
-    const ch        = window.innerHeight;
     const dt        = Math.min((this.#lastTs ? timestamp - this.#lastTs : 16) / 16, 4);
 
-    if (!weatherParticles.has(type)) {
-      weatherParticles.set(type,
-        Array.from({ length: cfg.count }, () => spawnParticle(type, cw, ch, true))
+    // Compute the effective spawn/movement region in screen space.
+    const cw = window.innerWidth;
+    const ch = window.innerHeight;
+    let rx = 0, ry = 0, rw = cw, rh = ch;
+    if (layer.x != null && layer.y != null && layer.w != null && layer.h != null) {
+      const tx = deps.computeMapTransform(deps.viewport);
+      rx = tx.originX + layer.x * tx.zoom;
+      ry = tx.originY + layer.y * tx.zoom;
+      rw = layer.w * tx.zoom;
+      rh = layer.h * tx.zoom;
+    }
+
+    if (!weatherParticles.has(layer.id)) {
+      weatherParticles.set(layer.id,
+        Array.from({ length: cfg.count }, () => spawnParticle(type, rw, rh, true, rx, ry))
       );
     }
-    const ps      = weatherParticles.get(type);
+    const ps      = weatherParticles.get(layer.id);
     const visible = Math.min(ps.length, Math.max(0, Math.floor(ps.length * intensity)));
 
     canvasCtx.save();
-    if (layer.x != null && layer.y != null && layer.w != null && layer.h != null) {
-      const { computeMapTransform, viewport } = deps;
-      const tx = computeMapTransform(viewport);
+    if (rx !== 0 || ry !== 0 || rw !== cw || rh !== ch) {
       canvasCtx.beginPath();
-      canvasCtx.rect(
-        tx.originX + layer.x * tx.zoom,
-        tx.originY + layer.y * tx.zoom,
-        layer.w * tx.zoom,
-        layer.h * tx.zoom,
-      );
+      canvasCtx.rect(rx, ry, rw, rh);
       canvasCtx.clip();
     }
 
     for (let i = 0; i < visible; i++) {
       const p = ps[i];
       if (cfg.tick) {
-        if (cfg.tick(p, dt, cw, ch)) Object.assign(p, spawnParticle(type, cw, ch, false));
+        if (cfg.tick(p, dt, rw, rh)) Object.assign(p, spawnParticle(type, rw, rh, false, rx, ry));
       } else if (type === 'fireflies') {
         p.phase += 0.025 * dt;
         p.x += Math.sin(p.phase * 1.1) * 0.7 * dt;
         p.y += Math.cos(p.phase * 0.8) * 0.5 * dt;
-        if (p.x < -20)     p.x = cw + 20;
-        if (p.x > cw + 20) p.x = -20;
-        if (p.y < -20)     p.y = ch + 20;
-        if (p.y > ch + 20) p.y = -20;
+        if (p.x < rx - 20)       p.x = rx + rw + 20;
+        if (p.x > rx + rw + 20)  p.x = rx - 20;
+        if (p.y < ry - 20)       p.y = ry + rh + 20;
+        if (p.y > ry + rh + 20)  p.y = ry - 20;
       } else {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-        const gone = cfg.speed >= 0 ? p.y > ch + p.size * 4 : p.y < -p.size * 4;
-        if (gone || p.x < -p.size * 4 || p.x > cw + p.size * 4) {
-          Object.assign(p, spawnParticle(type, cw, ch, false));
+        const gone = cfg.speed >= 0 ? p.y > ry + rh + p.size * 4 : p.y < ry - p.size * 4;
+        if (gone || p.x < rx - p.size * 4 || p.x > rx + rw + p.size * 4) {
+          Object.assign(p, spawnParticle(type, rw, rh, false, rx, ry));
         }
       }
       cfg.draw(canvasCtx, p);

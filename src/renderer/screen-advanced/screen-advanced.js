@@ -80,18 +80,18 @@ window.electronAPI.onSceneUpdate((newScene) => {
   for (const [k, el] of mediaCache) {
     if (!layerIds.has(k.split('::')[0])) { el.remove?.(); mediaCache.delete(k); }
   }
-  const newTypes = new Set(newScene.layers.filter(l => l.type === 'weather').map(l => l.weatherType));
-  for (const [t] of weatherParticles) {
-    if (!newTypes.has(t)) weatherParticles.delete(t);
+  const activeWeatherIds = new Set(newScene.layers.filter(l => l.type === 'weather').map(l => l.id));
+  for (const [k] of weatherParticles) {
+    if (!activeWeatherIds.has(k)) weatherParticles.delete(k);
   }
   state.scene = newScene;
   renderHuds();
 });
 
 window.electronAPI.onLayersUpdate((layers) => {
-  const newTypes = new Set(layers.filter(l => l.type === 'weather').map(l => l.weatherType));
-  for (const [t] of weatherParticles) {
-    if (!newTypes.has(t)) weatherParticles.delete(t);
+  const activeWeatherIds = new Set(layers.filter(l => l.type === 'weather').map(l => l.id));
+  for (const [k] of weatherParticles) {
+    if (!activeWeatherIds.has(k)) weatherParticles.delete(k);
   }
   state.scene = { ...state.scene, layers };
 });
