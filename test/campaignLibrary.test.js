@@ -335,7 +335,10 @@ describe('writeNotes', () => {
 // ── HUD Groups ────────────────────────────────────────────────────────────────
 
 function hudsFilePath(tmp) { return path.join(tmp, 'huds.json'); }
-function readHudsFile(tmp) { return JSON.parse(fs.readFileSync(hudsFilePath(tmp), 'utf8')); }
+// Read raw file content (new format: { lastActiveId, groups })
+function readHudsRaw(tmp) { return JSON.parse(fs.readFileSync(hudsFilePath(tmp), 'utf8')); }
+// Convenience: just the groups array from disk
+function readHudsGroups(tmp) { return readHudsRaw(tmp).groups; }
 
 describe('saveHudGroup', () => {
   test('returns null when no root folder is set', () => {
@@ -362,9 +365,9 @@ describe('saveHudGroup', () => {
     lib.setRootFolder(tmp);
     lib.saveHudGroup({ id: 'g1', name: 'Combat', huds: [] });
     lib.saveHudGroup({ id: 'g2', name: 'Exploration', huds: [] });
-    const data = readHudsFile(tmp);
-    expect(data).toHaveLength(2);
-    expect(data.map(g => g.id)).toEqual(['g1', 'g2']);
+    const groups = readHudsGroups(tmp);
+    expect(groups).toHaveLength(2);
+    expect(groups.map(g => g.id)).toEqual(['g1', 'g2']);
   });
 
   test('persists the huds array inside the group entry', () => {
@@ -372,7 +375,7 @@ describe('saveHudGroup', () => {
     lib.setRootFolder(tmp);
     const huds = [{ id: 'h1', type: 'initiative' }];
     lib.saveHudGroup({ id: 'g1', name: 'G', huds });
-    const [entry] = readHudsFile(tmp);
+    const [entry] = readHudsGroups(tmp);
     expect(entry.huds).toHaveLength(1);
     expect(entry.huds[0].id).toBe('h1');
   });
@@ -382,22 +385,32 @@ describe('saveHudGroup', () => {
     lib.setRootFolder(tmp);
     lib.saveHudGroup({ id: 'g1', name: 'First', huds: [] });
     lib.saveHudGroup({ id: 'g1', name: 'Second', huds: [] });
-    const data = readHudsFile(tmp);
-    expect(data).toHaveLength(1);
-    expect(data[0].name).toBe('Second');
+    const groups = readHudsGroups(tmp);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].name).toBe('Second');
+  });
+
+  test('huds.json has { lastActiveId, groups } shape', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.saveHudGroup({ id: 'g1', name: 'G', huds: [] });
+    const raw = readHudsRaw(tmp);
+    expect(raw).toHaveProperty('groups');
+    expect(raw).toHaveProperty('lastActiveId');
+    expect(Array.isArray(raw.groups)).toBe(true);
   });
 });
 
 describe('listHudGroups', () => {
-  test('returns [] when no root folder is set', () => {
+  test('returns { lastActiveId: null, groups: [] } when no root folder is set', () => {
     const { lib } = setup();
-    expect(lib.listHudGroups()).toEqual([]);
+    expect(lib.listHudGroups()).toEqual({ lastActiveId: null, groups: [] });
   });
 
-  test('returns [] when huds.json does not exist', () => {
+  test('returns empty groups when huds.json does not exist', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
-    expect(lib.listHudGroups()).toEqual([]);
+    expect(lib.listHudGroups()).toEqual({ lastActiveId: null, groups: [] });
   });
 
   test('returns groups in insertion order', () => {
@@ -405,19 +418,28 @@ describe('listHudGroups', () => {
     lib.setRootFolder(tmp);
     lib.saveHudGroup({ id: 'g1', name: 'First', huds: [] });
     lib.saveHudGroup({ id: 'g2', name: 'Second', huds: [] });
-    const list = lib.listHudGroups();
-    expect(list[0].id).toBe('g1');
-    expect(list[1].id).toBe('g2');
+    const { groups } = lib.listHudGroups();
+    expect(groups[0].id).toBe('g1');
+    expect(groups[1].id).toBe('g2');
   });
 
   test('each item has id and name (no huds payload)', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
     lib.saveHudGroup({ id: 'g1', name: 'Group', huds: [{ id: 'h1' }] });
-    const [item] = lib.listHudGroups();
+    const { groups } = lib.listHudGroups();
+    const [item] = groups;
     expect(item.id).toBe('g1');
     expect(item.name).toBe('Group');
     expect(item.huds).toBeUndefined();
+  });
+
+  test('reflects lastActiveId set by setLastActiveHudGroupId', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.saveHudGroup({ id: 'g1', name: 'G', huds: [] });
+    lib.setLastActiveHudGroupId('g1');
+    expect(lib.listHudGroups().lastActiveId).toBe('g1');
   });
 });
 
@@ -472,7 +494,7 @@ describe('deleteHudGroup', () => {
     lib.setRootFolder(tmp);
     lib.saveHudGroup({ id: 'g1', name: 'G', huds: [] });
     lib.deleteHudGroup('g1');
-    expect(lib.listHudGroups()).toHaveLength(0);
+    expect(lib.listHudGroups().groups).toHaveLength(0);
   });
 
   test('leaves other groups intact', () => {
@@ -481,15 +503,34 @@ describe('deleteHudGroup', () => {
     lib.saveHudGroup({ id: 'g1', name: 'A', huds: [] });
     lib.saveHudGroup({ id: 'g2', name: 'B', huds: [] });
     lib.deleteHudGroup('g1');
-    const list = lib.listHudGroups();
-    expect(list).toHaveLength(1);
-    expect(list[0].id).toBe('g2');
+    const { groups } = lib.listHudGroups();
+    expect(groups).toHaveLength(1);
+    expect(groups[0].id).toBe('g2');
   });
 
   test('does not throw when group does not exist', () => {
     const { lib, tmp } = setup();
     lib.setRootFolder(tmp);
     expect(() => lib.deleteHudGroup('ghost')).not.toThrow();
+  });
+
+  test('clears lastActiveId when the active group is deleted', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.saveHudGroup({ id: 'g1', name: 'G', huds: [] });
+    lib.setLastActiveHudGroupId('g1');
+    lib.deleteHudGroup('g1');
+    expect(lib.listHudGroups().lastActiveId).toBeNull();
+  });
+
+  test('preserves lastActiveId when a different group is deleted', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.saveHudGroup({ id: 'g1', name: 'A', huds: [] });
+    lib.saveHudGroup({ id: 'g2', name: 'B', huds: [] });
+    lib.setLastActiveHudGroupId('g2');
+    lib.deleteHudGroup('g1');
+    expect(lib.listHudGroups().lastActiveId).toBe('g2');
   });
 });
 
@@ -510,7 +551,7 @@ describe('renameHudGroup', () => {
     lib.setRootFolder(tmp);
     lib.saveHudGroup({ id: 'g1', name: 'Old', huds: [] });
     lib.renameHudGroup('g1', 'New Name');
-    expect(readHudsFile(tmp)[0].name).toBe('New Name');
+    expect(readHudsGroups(tmp)[0].name).toBe('New Name');
   });
 
   test('returns true on success', () => {
@@ -525,7 +566,7 @@ describe('renameHudGroup', () => {
     lib.setRootFolder(tmp);
     lib.saveHudGroup({ id: 'g1', name: 'Old', huds: [] });
     lib.renameHudGroup('g1', 'New Name');
-    expect(lib.listHudGroups()[0].name).toBe('New Name');
+    expect(lib.listHudGroups().groups[0].name).toBe('New Name');
   });
 
   test('does not change other groups or huds after rename', () => {
@@ -537,5 +578,91 @@ describe('renameHudGroup', () => {
     const g1 = lib.loadHudGroup('g1');
     expect(g1.huds).toHaveLength(1);
     expect(lib.loadHudGroup('g2').name).toBe('Other');
+  });
+});
+
+describe('setLastActiveHudGroupId', () => {
+  test('does not throw when no root folder is set', () => {
+    const { lib } = setup();
+    expect(() => lib.setLastActiveHudGroupId('g1')).not.toThrow();
+  });
+
+  test('persists lastActiveId to huds.json', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.saveHudGroup({ id: 'g1', name: 'G', huds: [] });
+    lib.setLastActiveHudGroupId('g1');
+    expect(readHudsRaw(tmp).lastActiveId).toBe('g1');
+  });
+
+  test('updating lastActiveId does not affect groups', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.saveHudGroup({ id: 'g1', name: 'G', huds: [{ id: 'h1' }] });
+    lib.setLastActiveHudGroupId('g1');
+    expect(lib.loadHudGroup('g1').huds).toHaveLength(1);
+  });
+
+  test('can be overwritten with a different id', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    lib.saveHudGroup({ id: 'g1', name: 'A', huds: [] });
+    lib.saveHudGroup({ id: 'g2', name: 'B', huds: [] });
+    lib.setLastActiveHudGroupId('g1');
+    lib.setLastActiveHudGroupId('g2');
+    expect(lib.listHudGroups().lastActiveId).toBe('g2');
+  });
+});
+
+describe('HUD groups — legacy format migration', () => {
+  test('reads old plain-array format without lastActiveId', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    // Write old plain-array format directly
+    fs.writeFileSync(
+      path.join(tmp, 'huds.json'),
+      JSON.stringify([{ id: 'g1', name: 'Old', huds: [] }]),
+      'utf8',
+    );
+    const { groups, lastActiveId } = lib.listHudGroups();
+    expect(groups).toHaveLength(1);
+    expect(groups[0].id).toBe('g1');
+    expect(lastActiveId).toBeNull();
+  });
+
+  test('migrates old Huds/huds.json single-object format on first read', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    // Write old single-object at the legacy location
+    const oldDir = path.join(tmp, 'Huds');
+    fs.mkdirSync(oldDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(oldDir, 'huds.json'),
+      JSON.stringify({ id: 'huds', name: 'My HUDs', huds: [{ id: 'h1', type: 'initiative' }], savedAt: '2026-01-01' }),
+      'utf8',
+    );
+    const { groups, lastActiveId } = lib.listHudGroups();
+    expect(groups).toHaveLength(1);
+    expect(groups[0].name).toBe('My HUDs');
+    // huds payload is only in loadHudGroup; listHudGroups returns summaries
+    const full = lib.loadHudGroup(groups[0].id);
+    expect(full.huds).toHaveLength(1);
+    expect(lastActiveId).toBe(groups[0].id);
+  });
+
+  test('migrated data is persisted to new huds.json location', () => {
+    const { lib, tmp } = setup();
+    lib.setRootFolder(tmp);
+    const oldDir = path.join(tmp, 'Huds');
+    fs.mkdirSync(oldDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(oldDir, 'huds.json'),
+      JSON.stringify({ id: 'huds', name: 'Legacy', huds: [] }),
+      'utf8',
+    );
+    lib.listHudGroups(); // triggers migration + write
+    expect(fs.existsSync(path.join(tmp, 'huds.json'))).toBe(true);
+    const raw = readHudsRaw(tmp);
+    expect(raw.groups[0].name).toBe('Legacy');
   });
 });

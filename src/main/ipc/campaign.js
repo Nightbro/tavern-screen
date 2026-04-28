@@ -24,6 +24,7 @@ function registerCampaignHandlers(ipcMain, { campaignLib, manager }) {
   ipcMain.handle('load-hud-group',   (_e, id)           => {
     const group = campaignLib.loadHudGroup(id);
     if (group?.huds) manager.setHuds(group.huds);
+    if (group) campaignLib.setLastActiveHudGroupId(id);
     return group;
   });
   ipcMain.handle('delete-hud-group', (_e, id)           => { campaignLib.deleteHudGroup(id); });

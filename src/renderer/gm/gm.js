@@ -182,7 +182,7 @@ btnRefreshScenes.addEventListener('click', renderSceneList);
 export async function renderHudGroupList() {
   if (!hudGroupsContent) return;
   hudGroupsContent.innerHTML = '';
-  const groups = await window.electronAPI.listHudGroups();
+  const { groups } = await window.electronAPI.listHudGroups();
   if (!groups.length) return;
   for (const g of groups) hudGroupsContent.appendChild(buildHudGroupRow(g));
 }
@@ -287,8 +287,12 @@ async function applyLoadedHudGroup(groupId) {
 }
 
 export async function loadMostRecentHudGroup() {
-  const groups = await window.electronAPI.listHudGroups();
-  if (groups.length) await applyLoadedHudGroup(groups[0].id);
+  const { lastActiveId, groups } = await window.electronAPI.listHudGroups();
+  if (!groups.length) return;
+  const targetId = lastActiveId && groups.some(g => g.id === lastActiveId)
+    ? lastActiveId
+    : groups[0].id;
+  await applyLoadedHudGroup(targetId);
 }
 
 btnNewHudGroup?.addEventListener('click', () => {

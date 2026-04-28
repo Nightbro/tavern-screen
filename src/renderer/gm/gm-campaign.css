@@ -47,6 +47,12 @@
   min-height: 60px;
   resize: vertical; overflow: hidden;
 }
+
+/* HUD groups area — fills the Huds tab pane entirely (no siblings) */
+#huds-area {
+  flex: 1; display: flex; flex-direction: column; gap: 4px;
+  min-height: 0; overflow: hidden;
+}
 .scenes-toolbar {
   display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 0 8px;
 }

@@ -26,11 +26,12 @@ function makeCampaignLib(overrides = {}) {
     writeCampaignNotes: jest.fn(),
     readNotes:          jest.fn(() => ''),
     writeNotes:         jest.fn(),
-    saveHudGroup:       jest.fn(),
-    listHudGroups:      jest.fn(() => []),
-    loadHudGroup:       jest.fn(() => null),
-    deleteHudGroup:     jest.fn(),
-    renameHudGroup:     jest.fn(() => false),
+    saveHudGroup:            jest.fn(),
+    listHudGroups:           jest.fn(() => ({ lastActiveId: null, groups: [] })),
+    loadHudGroup:            jest.fn(() => null),
+    deleteHudGroup:          jest.fn(),
+    renameHudGroup:          jest.fn(() => false),
+    setLastActiveHudGroupId: jest.fn(),
     saveScene:          jest.fn(),
     listScenes:         jest.fn(() => []),
     loadScene:          jest.fn(() => null),
@@ -96,6 +97,26 @@ describe('IPC load-hud-group', () => {
     ipcMain.invoke('load-hud-group', 'g1');
     expect(manager.setHuds).not.toHaveBeenCalled();
   });
+
+  test('calls setLastActiveHudGroupId with the id when group is found', () => {
+    const setLastActiveHudGroupId = jest.fn();
+    const { ipcMain } = setup({
+      loadHudGroup: jest.fn(() => ({ id: 'g1', name: 'G', huds: [] })),
+      setLastActiveHudGroupId,
+    });
+    ipcMain.invoke('load-hud-group', 'g1');
+    expect(setLastActiveHudGroupId).toHaveBeenCalledWith('g1');
+  });
+
+  test('does not call setLastActiveHudGroupId when group is not found', () => {
+    const setLastActiveHudGroupId = jest.fn();
+    const { ipcMain } = setup({
+      loadHudGroup: jest.fn(() => null),
+      setLastActiveHudGroupId,
+    });
+    ipcMain.invoke('load-hud-group', 'missing');
+    expect(setLastActiveHudGroupId).not.toHaveBeenCalled();
+  });
 });
 
 // ── save-hud-group ────────────────────────────────────────────────────────────
@@ -118,15 +139,15 @@ describe('IPC save-hud-group', () => {
 // ── list-hud-groups ───────────────────────────────────────────────────────────
 
 describe('IPC list-hud-groups', () => {
-  test('returns the list from campaignLib', () => {
-    const list = [{ id: 'g1', name: 'A' }, { id: 'g2', name: 'B' }];
-    const { ipcMain } = setup({ listHudGroups: jest.fn(() => list) });
-    expect(ipcMain.invoke('list-hud-groups')).toBe(list);
+  test('returns the { lastActiveId, groups } object from campaignLib', () => {
+    const result = { lastActiveId: 'g2', groups: [{ id: 'g1', name: 'A' }, { id: 'g2', name: 'B' }] };
+    const { ipcMain } = setup({ listHudGroups: jest.fn(() => result) });
+    expect(ipcMain.invoke('list-hud-groups')).toBe(result);
   });
 
-  test('returns [] when no groups exist', () => {
-    const { ipcMain } = setup({ listHudGroups: jest.fn(() => []) });
-    expect(ipcMain.invoke('list-hud-groups')).toEqual([]);
+  test('returns empty groups when no groups exist', () => {
+    const { ipcMain } = setup({ listHudGroups: jest.fn(() => ({ lastActiveId: null, groups: [] })) });
+    expect(ipcMain.invoke('list-hud-groups')).toEqual({ lastActiveId: null, groups: [] });
   });
 });
 

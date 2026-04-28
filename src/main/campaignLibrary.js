@@ -65,21 +65,59 @@ function createCampaignLibrary(config) {
     return rootFolder ? path.join(rootFolder, HUDS_FILE) : null;
   }
 
-  // Reads all HUD groups from huds.json; returns [] on missing or malformed file.
-  function readHudsData() {
+  // Reads huds.json and returns { lastActiveId, groups }.
+  // Handles three legacy formats transparently:
+  //   - New:  { lastActiveId, groups: [...] }
+  //   - Old array (previous code iteration): [...]
+  //   - Old single-object (pre-redesign): { id, name, huds, savedAt }
+  // Also migrates from the old per-file Huds/huds.json location if present.
+  function readHudsFile() {
     const file = getHudsFile();
-    if (!file || !fs.existsSync(file)) return [];
-    try {
-      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-      return Array.isArray(data) ? data : [];
-    } catch { return []; }
+    if (!file) return { lastActiveId: null, groups: [] };
+
+    if (fs.existsSync(file)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        // New format
+        if (data && !Array.isArray(data) && Array.isArray(data.groups)) {
+          return { lastActiveId: data.lastActiveId ?? null, groups: data.groups };
+        }
+        // Old array format (previous code iteration stored a plain array)
+        if (Array.isArray(data)) {
+          return { lastActiveId: null, groups: data };
+        }
+        // Old single-object format accidentally written to the new path
+        if (data && Array.isArray(data.huds)) {
+          const group = { id: data.id || ('g-' + Date.now()), name: data.name || 'HUD Group', huds: data.huds };
+          return { lastActiveId: group.id, groups: [group] };
+        }
+      } catch { /* fall through to migration */ }
+    }
+
+    // Migrate from old Huds/huds.json single-object format
+    if (rootFolder) {
+      const oldFile = path.join(rootFolder, 'Huds', 'huds.json');
+      if (fs.existsSync(oldFile)) {
+        try {
+          const old = JSON.parse(fs.readFileSync(oldFile, 'utf8'));
+          if (old && !Array.isArray(old) && Array.isArray(old.huds)) {
+            const group = { id: old.id || ('g-' + Date.now()), name: old.name || 'HUD Group', huds: old.huds };
+            const result = { lastActiveId: group.id, groups: [group] };
+            writeHudsFile(result);  // persist to new location immediately
+            return result;
+          }
+        } catch { /* ignore, use empty */ }
+      }
+    }
+
+    return { lastActiveId: null, groups: [] };
   }
 
-  // Writes the HUD groups array to huds.json.
-  function writeHudsData(groups) {
+  // Writes { lastActiveId, groups } to huds.json.
+  function writeHudsFile({ lastActiveId, groups }) {
     const file = getHudsFile();
     if (!file) return;
-    fs.writeFileSync(file, JSON.stringify(groups, null, 2), 'utf8');
+    fs.writeFileSync(file, JSON.stringify({ lastActiveId, groups }, null, 2), 'utf8');
   }
 
   // ── Root folder ────────────────────────────────────────────────────────────
@@ -202,38 +240,52 @@ function createCampaignLibrary(config) {
   // Upserts a HUD group by id and returns its summary.
   function saveHudGroup(group) {
     if (!getHudsFile()) return null;
-    const groups = readHudsData();
+    const { lastActiveId, groups } = readHudsFile();
     const idx = groups.findIndex(g => g.id === group.id);
     if (idx >= 0) groups[idx] = group; else groups.push(group);
-    writeHudsData(groups);
+    writeHudsFile({ lastActiveId, groups });
     return { id: group.id, name: group.name || '' };
   }
 
-  // Returns a list of all HUD groups (id and name only, no huds payload).
+  // Returns { lastActiveId, groups: [{ id, name }, ...] } — no huds payload in groups.
   function listHudGroups() {
-    return readHudsData().map(g => ({ id: g.id, name: g.name || '' }));
+    const { lastActiveId, groups } = readHudsFile();
+    return { lastActiveId, groups: groups.map(g => ({ id: g.id, name: g.name || '' })) };
   }
 
   // Loads and returns a full HUD group by id, or null if not found.
   function loadHudGroup(id) {
-    return readHudsData().find(g => g.id === id) ?? null;
+    const { groups } = readHudsFile();
+    return groups.find(g => g.id === id) ?? null;
   }
 
-  // Removes a HUD group by id.
+  // Removes a HUD group by id; clears lastActiveId if it pointed to the deleted group.
   function deleteHudGroup(id) {
     if (!getHudsFile()) return;
-    writeHudsData(readHudsData().filter(g => g.id !== id));
+    const { lastActiveId, groups } = readHudsFile();
+    writeHudsFile({
+      lastActiveId: lastActiveId === id ? null : lastActiveId,
+      groups: groups.filter(g => g.id !== id),
+    });
   }
 
   // Updates the name of a HUD group in place.
   function renameHudGroup(id, newName) {
     if (!getHudsFile()) return false;
-    const groups = readHudsData();
+    const { lastActiveId, groups } = readHudsFile();
     const group = groups.find(g => g.id === id);
     if (!group) return false;
     group.name = newName;
-    writeHudsData(groups);
+    writeHudsFile({ lastActiveId, groups });
     return true;
+  }
+
+  // Persists which HUD group was last activated (called on load).
+  function setLastActiveHudGroupId(id) {
+    if (!getHudsFile()) return;
+    const data = readHudsFile();
+    data.lastActiveId = id;
+    writeHudsFile(data);
   }
 
   // ── Scenes ─────────────────────────────────────────────────────────────────
@@ -270,7 +322,7 @@ function createCampaignLibrary(config) {
     createSession, renameSession, deleteSession,
     readCampaignNotes, writeCampaignNotes,
     readNotes, writeNotes,
-    saveHudGroup, listHudGroups, loadHudGroup, deleteHudGroup, renameHudGroup,
+    saveHudGroup, listHudGroups, loadHudGroup, deleteHudGroup, renameHudGroup, setLastActiveHudGroupId,
     saveScene, listScenes, loadScene, deleteScene, renameScene,
   };
 }
