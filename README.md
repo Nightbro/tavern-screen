@@ -349,6 +349,10 @@ Campaigns and sessions are stored alongside the map library under the same root 
 
 HUDs are **not session-scoped** — the full HUD group library lives at `userdata/huds.json` in the root folder and is independent of campaigns and sessions. Scenes never contain HUD data, and HUD changes never touch scene files.
 
+### Assets
+
+See [assets-readme.md](assets-readme.md) for the full asset system design — structure, metadata schema, asset types, and how global and campaign-scoped assets interact.
+
 ---
 
 ## Player Screen — Simple Mode
