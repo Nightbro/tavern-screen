@@ -127,7 +127,7 @@ function makeDropTarget(el, targetScope, targetType) {
         const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
         if (!SUPPORTED_EXTS.has(ext)) continue;
         const name = file.name.replace(/\.[^.]+$/, '');
-        await window.electronAPI.createAsset(name, targetType, file.path, campaignId);
+        await window.electronAPI.createAsset(name, targetType, window.electronAPI.getFilePath(file), campaignId);
       }
       await refreshAssets();
       return;
