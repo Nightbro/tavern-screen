@@ -42,8 +42,16 @@
         <div id="asset-preview" class="asset-preview" style="display:none">
           <img   id="asset-preview-img"   class="asset-preview-img" alt="" />
           <video id="asset-preview-video" class="asset-preview-img" muted loop autoplay style="display:none"></video>
-          <div id="asset-preview-name" class="asset-preview-name"></div>
-          <button id="btn-asset-use" class="btn-primary-sm adv-only" title="Add as layer to scene">+ Add to Scene</button>
+          <input id="asset-preview-name-input" class="asset-name-input asset-preview-name-input" type="text" maxlength="64" placeholder="Asset name…" />
+          <div class="asset-preview-meta">
+            <select id="asset-preview-type"  class="asset-type-select"></select>
+            <select id="asset-preview-scope" class="asset-scope-select"></select>
+          </div>
+          <div class="asset-preview-actions">
+            <button id="btn-asset-use"            class="btn-primary-sm adv-only" title="Add as layer to scene">+ Add to Scene</button>
+            <button id="btn-asset-preview-copy"   class="btn-ghost-sm" title="Duplicate">⧉</button>
+            <button id="btn-asset-preview-delete" class="btn-ghost-sm danger" title="Delete">×</button>
+          </div>
         </div>
 
         <!-- Asset list grouped by scope → type -->

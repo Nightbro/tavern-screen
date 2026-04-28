@@ -16,12 +16,16 @@ const assetState = {
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 
-const assetList          = document.getElementById('asset-list');
-const assetPreview       = document.getElementById('asset-preview');
-const assetPreviewImg    = document.getElementById('asset-preview-img');
-const assetPreviewVideo  = document.getElementById('asset-preview-video');
-const assetPreviewName   = document.getElementById('asset-preview-name');
-const btnAssetUse        = document.getElementById('btn-asset-use');
+const assetList               = document.getElementById('asset-list');
+const assetPreview            = document.getElementById('asset-preview');
+const assetPreviewImg         = document.getElementById('asset-preview-img');
+const assetPreviewVideo       = document.getElementById('asset-preview-video');
+const assetPreviewNameInput   = document.getElementById('asset-preview-name-input');
+const assetPreviewTypeSelect  = document.getElementById('asset-preview-type');
+const assetPreviewScopeSelect = document.getElementById('asset-preview-scope');
+const btnAssetUse             = document.getElementById('btn-asset-use');
+const btnAssetPreviewCopy     = document.getElementById('btn-asset-preview-copy');
+const btnAssetPreviewDelete   = document.getElementById('btn-asset-preview-delete');
 const btnAddAsset      = document.getElementById('btn-add-asset');
 const btnManageTypes   = document.getElementById('btn-manage-types');
 const btnRefreshAssets = document.getElementById('btn-refresh-assets');
@@ -51,6 +55,11 @@ async function refreshAssets() {
   assetState.types  = types;
   assetState.assets = assets;
   renderAssets();
+  if (assetState.selectedId) {
+    const selected = assetState.assets.find(a => a.id === assetState.selectedId);
+    if (selected) showPreview(selected);
+    else clearPreview();
+  }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -94,9 +103,12 @@ function renderAssets() {
         makeDropTarget(emptySlot, scope.key, type);
         assetList.appendChild(emptySlot);
       } else {
+        const cardGroup = document.createElement('div');
+        cardGroup.className = 'asset-card-group';
         for (const asset of typeAssets) {
-          assetList.appendChild(buildAssetCard(asset));
+          cardGroup.appendChild(buildAssetCard(asset));
         }
+        assetList.appendChild(cardGroup);
       }
     }
   }
@@ -164,6 +176,7 @@ function buildAssetCard(asset) {
   const card = document.createElement('div');
   card.className = 'asset-card' + (asset.id === assetState.selectedId ? ' active' : '');
   card.dataset.assetId = asset.id;
+  card.title = asset.name;
 
   // Thumbnail
   const thumb = document.createElement('div');
@@ -176,9 +189,9 @@ function buildAssetCard(asset) {
     thumb.appendChild(img);
   } else if (asset.fileName && isVideo(asset.fileName)) {
     const vid = document.createElement('video');
-    vid.src      = assetFileUrl(asset);
-    vid.muted    = true;
-    vid.preload  = 'metadata';
+    vid.src       = assetFileUrl(asset);
+    vid.muted     = true;
+    vid.preload   = 'metadata';
     vid.draggable = false;
     thumb.appendChild(vid);
   } else {
@@ -186,31 +199,19 @@ function buildAssetCard(asset) {
     thumb.textContent = fileIcon(asset.fileName);
   }
 
-  // Info
-  const info = document.createElement('div');
-  info.className = 'asset-card-info';
+  // Type badge (bottom-left)
+  const typeBadge = document.createElement('span');
+  typeBadge.className = 'asset-thumb-type';
+  const ext = (asset.fileName ?? '').split('.').pop()?.toLowerCase() ?? '';
+  typeBadge.textContent = ext || 'file';
+  thumb.appendChild(typeBadge);
 
-  const nameEl = document.createElement('span');
-  nameEl.className   = 'asset-name';
-  nameEl.textContent = asset.name;
-  info.appendChild(nameEl);
-
-  // Actions
-  const actions = document.createElement('div');
-  actions.className = 'asset-actions';
-
-  const canMove = asset.scope === 'global' ? !!campaign.selectedId : true;
-  if (canMove) {
-    const btnMove = document.createElement('button');
-    btnMove.className   = 'btn-icon-xs';
-    btnMove.title       = asset.scope === 'global' ? 'Move to campaign' : 'Move to global';
-    btnMove.textContent = '⇄';
-    btnMove.addEventListener('click', (e) => { e.stopPropagation(); handleMove(asset); });
-    actions.appendChild(btnMove);
-  }
+  // Overlay actions (top-right)
+  const thumbActions = document.createElement('div');
+  thumbActions.className = 'asset-thumb-actions';
 
   const btnCopy = document.createElement('button');
-  btnCopy.className   = 'btn-icon-xs';
+  btnCopy.className   = 'asset-thumb-btn';
   btnCopy.title       = 'Duplicate';
   btnCopy.textContent = '⧉';
   btnCopy.addEventListener('click', async (e) => {
@@ -219,17 +220,9 @@ function buildAssetCard(asset) {
     await window.electronAPI.copyAsset(asset.id, campaignId);
     await refreshAssets();
   });
-  actions.appendChild(btnCopy);
-
-  const btnEdit = document.createElement('button');
-  btnEdit.className   = 'btn-icon-xs';
-  btnEdit.title       = 'Edit';
-  btnEdit.textContent = '✏';
-  btnEdit.addEventListener('click', (e) => { e.stopPropagation(); toggleEditForm(card, asset, nameEl); });
-  actions.appendChild(btnEdit);
 
   const btnDel = document.createElement('button');
-  btnDel.className   = 'btn-icon-xs danger';
+  btnDel.className   = 'asset-thumb-btn danger';
   btnDel.title       = 'Delete';
   btnDel.textContent = '×';
   btnDel.addEventListener('click', (e) => {
@@ -241,11 +234,12 @@ function buildAssetCard(asset) {
       await refreshAssets();
     });
   });
-  actions.appendChild(btnDel);
+
+  thumbActions.appendChild(btnCopy);
+  thumbActions.appendChild(btnDel);
+  thumb.appendChild(thumbActions);
 
   card.appendChild(thumb);
-  card.appendChild(info);
-  card.appendChild(actions);
 
   card.draggable = true;
   card.addEventListener('dragstart', (e) => {
@@ -285,33 +279,61 @@ function selectAsset(asset, card) {
 }
 
 function showPreview(asset) {
-  assetPreviewName.textContent = asset.name;
   const url  = asset.fileName ? assetFileUrl(asset) : null;
   const type = asset.fileName ? layerTypeForFile(asset.fileName) : null;
   if (type === 'video' && url) {
-    assetPreviewVideo.src          = url;
+    assetPreviewVideo.src           = url;
     assetPreviewVideo.style.display = '';
     assetPreviewImg.style.display   = 'none';
   } else if (url && type) {
-    assetPreviewImg.src            = url;
-    assetPreviewImg.style.display  = '';
+    assetPreviewImg.src             = url;
+    assetPreviewImg.style.display   = '';
     assetPreviewVideo.style.display = 'none';
   } else {
     assetPreviewImg.style.display   = 'none';
     assetPreviewVideo.style.display = 'none';
   }
-  assetPreview.style.display      = '';
-  assetPreview.dataset.assetUrl   = url ?? '';
-  assetPreview.dataset.assetName  = asset.name;
-  assetPreview.dataset.assetType  = type ?? '';
+
+  assetPreviewNameInput.value = asset.name;
+
+  assetPreviewTypeSelect.innerHTML = '';
+  for (const t of assetState.types) {
+    const opt = document.createElement('option');
+    opt.value       = t;
+    opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    opt.selected    = t === asset.type;
+    assetPreviewTypeSelect.appendChild(opt);
+  }
+
+  assetPreviewScopeSelect.innerHTML = '';
+  const optGlobal = document.createElement('option');
+  optGlobal.value       = 'global';
+  optGlobal.textContent = 'Global';
+  optGlobal.selected    = asset.scope === 'global';
+  assetPreviewScopeSelect.appendChild(optGlobal);
+  if (campaign.selectedId) {
+    const optCampaign = document.createElement('option');
+    optCampaign.value       = 'campaign';
+    optCampaign.textContent = `Campaign`;
+    optCampaign.selected    = asset.scope === 'campaign';
+    assetPreviewScopeSelect.appendChild(optCampaign);
+  }
+
+  assetPreview.style.display     = '';
+  assetPreview.dataset.assetUrl  = url ?? '';
+  assetPreview.dataset.assetName = asset.name;
+  assetPreview.dataset.assetType = type ?? '';
 }
 
 function clearPreview() {
-  assetState.selectedId = null;
+  assetState.selectedId           = null;
   assetPreview.style.display      = 'none';
   assetPreviewImg.src             = '';
   assetPreviewVideo.src           = '';
   assetPreviewVideo.style.display = 'none';
+  assetPreviewNameInput.value     = '';
+  assetPreviewTypeSelect.innerHTML  = '';
+  assetPreviewScopeSelect.innerHTML = '';
   delete assetPreview.dataset.assetUrl;
   delete assetPreview.dataset.assetName;
   delete assetPreview.dataset.assetType;
@@ -345,6 +367,69 @@ btnAssetUse?.addEventListener('click', async () => {
     if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
     setTimeout(() => window.electronAPI.requestPreview(), 400);
   }
+});
+
+// ── Preview panel handlers ────────────────────────────────────────────────────
+
+async function savePreviewName() {
+  const asset = assetState.assets.find(a => a.id === assetState.selectedId);
+  if (!asset) return;
+  const newName = assetPreviewNameInput.value.trim();
+  if (!newName || newName === asset.name) return;
+  const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+  await window.electronAPI.updateAsset(asset.id, { name: newName }, campaignId);
+  await refreshAssets();
+}
+
+assetPreviewNameInput.addEventListener('blur', savePreviewName);
+assetPreviewNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter')  { e.preventDefault(); assetPreviewNameInput.blur(); }
+  if (e.key === 'Escape') {
+    const asset = assetState.assets.find(a => a.id === assetState.selectedId);
+    if (asset) assetPreviewNameInput.value = asset.name;
+    assetPreviewNameInput.blur();
+  }
+});
+
+assetPreviewTypeSelect.addEventListener('change', async () => {
+  const asset = assetState.assets.find(a => a.id === assetState.selectedId);
+  if (!asset) return;
+  const newType = assetPreviewTypeSelect.value;
+  if (newType === asset.type) return;
+  const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+  await window.electronAPI.updateAsset(asset.id, { type: newType }, campaignId);
+  await refreshAssets();
+});
+
+assetPreviewScopeSelect.addEventListener('change', async () => {
+  const asset = assetState.assets.find(a => a.id === assetState.selectedId);
+  if (!asset) return;
+  const newScope = assetPreviewScopeSelect.value;
+  if (newScope === asset.scope) return;
+  const fromCampaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+  const toCampaignId   = newScope   === 'campaign'  ? campaign.selectedId : null;
+  clearPreview();
+  await window.electronAPI.moveAsset(asset.id, fromCampaignId, toCampaignId);
+  await refreshAssets();
+});
+
+btnAssetPreviewCopy.addEventListener('click', async () => {
+  const asset = assetState.assets.find(a => a.id === assetState.selectedId);
+  if (!asset) return;
+  const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+  await window.electronAPI.copyAsset(asset.id, campaignId);
+  await refreshAssets();
+});
+
+btnAssetPreviewDelete.addEventListener('click', () => {
+  const asset = assetState.assets.find(a => a.id === assetState.selectedId);
+  if (!asset) return;
+  confirmInline(btnAssetPreviewDelete, async () => {
+    const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+    await window.electronAPI.deleteAsset(asset.id, campaignId);
+    clearPreview();
+    await refreshAssets();
+  });
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -381,117 +466,6 @@ function fileIcon(fileName) {
   if (ext === 'svg')              return '🖼';
   if (VIDEO_EXTS.has(ext))       return '🎬';
   return '📁';
-}
-
-// ── Move ──────────────────────────────────────────────────────────────────────
-
-async function handleMove(asset) {
-  const fromCampaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
-  const toCampaignId   = asset.scope === 'global'   ? campaign.selectedId : null;
-  if (assetState.selectedId === asset.id) clearPreview();
-  await window.electronAPI.moveAsset(asset.id, fromCampaignId, toCampaignId);
-  await refreshAssets();
-}
-
-// ── Edit form ─────────────────────────────────────────────────────────────────
-
-function toggleEditForm(card, asset, nameEl) {
-  const existing = card.querySelector('.asset-edit-form');
-  if (existing) { existing.remove(); return; }
-
-  const form = document.createElement('div');
-  form.className = 'asset-edit-form';
-
-  // Name
-  const nameInput = document.createElement('input');
-  nameInput.type        = 'text';
-  nameInput.className   = 'asset-name-input';
-  nameInput.value       = asset.name;
-  nameInput.placeholder = 'Asset name…';
-  nameInput.maxLength   = 64;
-
-  // Type
-  const typeSelect = document.createElement('select');
-  typeSelect.className = 'asset-type-select';
-  for (const t of assetState.types) {
-    const opt = document.createElement('option');
-    opt.value       = t;
-    opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
-    opt.selected    = t === asset.type;
-    typeSelect.appendChild(opt);
-  }
-
-  // Scope
-  const scopeSelect = document.createElement('select');
-  scopeSelect.className = 'asset-scope-select';
-  const optGlobal = document.createElement('option');
-  optGlobal.value       = 'global';
-  optGlobal.textContent = 'Global';
-  optGlobal.selected    = asset.scope === 'global';
-  scopeSelect.appendChild(optGlobal);
-  if (campaign.selectedId) {
-    const optCampaign = document.createElement('option');
-    optCampaign.value       = 'campaign';
-    optCampaign.textContent = `Campaign: ${campaign.selectedId}`;
-    optCampaign.selected    = asset.scope === 'campaign';
-    scopeSelect.appendChild(optCampaign);
-  }
-
-  const btnRow = document.createElement('div');
-  btnRow.className = 'asset-add-actions';
-
-  const btnSave = document.createElement('button');
-  btnSave.className   = 'btn-primary-sm';
-  btnSave.textContent = 'Save';
-
-  const btnCancel = document.createElement('button');
-  btnCancel.className   = 'btn-ghost-sm';
-  btnCancel.textContent = 'Cancel';
-  btnCancel.addEventListener('click', () => form.remove());
-
-  btnSave.addEventListener('click', async () => {
-    const newName  = nameInput.value.trim();
-    const newType  = typeSelect.value;
-    const newScope = scopeSelect.value;
-    if (!newName) { nameInput.focus(); return; }
-
-    const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
-
-    const patch = {};
-    if (newName !== asset.name) patch.name = newName;
-    if (newType !== asset.type) patch.type = newType;
-
-    if (Object.keys(patch).length) {
-      await window.electronAPI.updateAsset(asset.id, patch, campaignId);
-    }
-
-    if (newScope !== asset.scope) {
-      const fromCampaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
-      const toCampaignId   = newScope === 'campaign'    ? campaign.selectedId : null;
-      if (assetState.selectedId === asset.id) clearPreview();
-      await window.electronAPI.moveAsset(asset.id, fromCampaignId, toCampaignId);
-    }
-
-    await refreshAssets();
-  });
-
-  nameInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter')  btnSave.click();
-    if (e.key === 'Escape') form.remove();
-  });
-
-  btnRow.appendChild(btnSave);
-  btnRow.appendChild(btnCancel);
-  form.appendChild(nameInput);
-  form.appendChild(typeSelect);
-  form.appendChild(scopeSelect);
-  form.appendChild(btnRow);
-
-  form.addEventListener('click', e => e.stopPropagation());
-
-  card.appendChild(form);
-  nameInput.focus();
-  nameInput.select();
 }
 
 // ── Add asset ─────────────────────────────────────────────────────────────────
