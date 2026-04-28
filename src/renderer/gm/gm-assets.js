@@ -1,4 +1,4 @@
-import { campaign } from './gm-state.js';
+import { campaign, ui } from './gm-state.js';
 import { confirmInline } from './gm-campaign.js';
 
 const IMAGE_EXTS     = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg']);
@@ -359,7 +359,7 @@ btnAssetUse?.addEventListener('click', async () => {
     });
   }
 
-  const newLayers = await window.electronAPI.addLayer({ type: assetType || 'image', src, name, visible: true, opacity: 1, ...bounds });
+  const newLayers = await window.electronAPI.addLayer({ type: assetType || 'image', src, name, visible: !ui.addLayerHidden, opacity: 1, ...bounds });
   if (newLayers) {
     window.sceneState.layers = newLayers;
     window.renderLayerList();

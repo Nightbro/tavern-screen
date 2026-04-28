@@ -138,6 +138,7 @@ export const ui = {
   pingMode:          false,
   simDragging:       false,
   regionSelectAsset: null,
+  addLayerHidden:    false,
 };
 
 export let autosaveTimer = null;

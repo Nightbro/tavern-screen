@@ -12,6 +12,7 @@ import {
 } from './gm-state.js';
 
 import { LAYER_REGISTRY } from '../layers/index.js';
+import { confirmInline } from './gm-campaign.js';
 
 function imageBoundsFromSrc(src) {
   return new Promise((resolve) => {
@@ -29,6 +30,47 @@ function imageBoundsFromSrc(src) {
 // ── Local drag state (only ever used within this module) ──────────────────────
 let overlayDrag = null;
 let overlayThrottleTimer = null;
+
+// ── Layer visibility mode toggle ──────────────────────────────────────────────
+
+const btnLayerVisMode = document.getElementById('btn-layer-vis-mode');
+
+btnLayerVisMode?.addEventListener('click', () => {
+  ui.addLayerHidden = !ui.addLayerHidden;
+  btnLayerVisMode.classList.toggle('vis-on', !ui.addLayerHidden);
+  if (ui.addLayerHidden) {
+    btnLayerVisMode.textContent = '○ Hidden';
+    btnLayerVisMode.title = 'New layers added as hidden — click to add as visible';
+  } else {
+    btnLayerVisMode.textContent = '● Visible';
+    btnLayerVisMode.title = 'New layers added as visible — click to add as hidden';
+  }
+});
+
+function layerVisible() {
+  return !ui.addLayerHidden;
+}
+
+// ── DEL key: delete selected layer ───────────────────────────────────────────
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Delete') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  if (!sceneState.selectedLayerId) return;
+  e.preventDefault();
+  const layer = sceneState.layers.find(l => l.id === sceneState.selectedLayerId);
+  if (!layer) return;
+  const row = layerListEl.querySelector(`.layer-row[data-layer-id="${CSS.escape(sceneState.selectedLayerId)}"]`);
+  if (!row) return;
+  const delBtn = row.querySelector('.btn-icon-xs.danger');
+  if (!delBtn) return;
+  confirmInline(delBtn, async () => {
+    sceneState.selectedLayerId = null;
+    layerDetail.style.display = 'none';
+    const newLayers = await window.electronAPI.removeLayer(layer.id);
+    if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
+  });
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 // SCREEN MODE TOGGLE & ADVANCED CONTROLS
@@ -288,6 +330,18 @@ function buildLayerRow(layer) {
   row.appendChild(badge);
   row.appendChild(name);
   row.appendChild(delBtn);
+
+  row.addEventListener('dblclick', async (e) => {
+    e.stopPropagation();
+    const newVisible = layer.visible === false;
+    const newLayers = await window.electronAPI.updateLayer(layer.id, { visible: newVisible });
+    if (newLayers) {
+      sceneState.layers = newLayers;
+      sceneState.selectedLayerId = layer.id;
+      renderLayerList();
+    }
+  });
+
   row.addEventListener('click', () => selectLayer(layer.id));
   return row;
 }
@@ -348,6 +402,7 @@ async function addWeatherLayerFull(type) {
     ...LAYER_REGISTRY.weather.getDefaults(),
     weatherType: type,
     name: label,
+    visible: layerVisible(),
   });
   if (newLayers) {
     sceneState.layers = newLayers;
@@ -427,7 +482,7 @@ previewWrapEl.addEventListener('drop', async (e) => {
     }
   }
 
-  const newLayers = await window.electronAPI.addLayer({ type, src: url, name, visible: true, opacity: 1, ...bounds });
+  const newLayers = await window.electronAPI.addLayer({ type, src: url, name, visible: layerVisible(), opacity: 1, ...bounds });
   if (newLayers) {
     sceneState.layers = newLayers;
     renderLayerList();
@@ -440,22 +495,22 @@ previewWrapEl.addEventListener('drop', async (e) => {
 // ── Add layer buttons ─────────────────────────────────────────────────────────
 
 btnAddImageLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.image.getDefaults());
+  const newLayers = await window.electronAPI.addLayer({ ...LAYER_REGISTRY.image.getDefaults(), visible: layerVisible() });
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
 btnAddLightLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.light.getDefaults());
+  const newLayers = await window.electronAPI.addLayer({ ...LAYER_REGISTRY.light.getDefaults(), visible: layerVisible() });
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
 btnAddFogLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.fog.getDefaults());
+  const newLayers = await window.electronAPI.addLayer({ ...LAYER_REGISTRY.fog.getDefaults(), visible: layerVisible() });
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); }
 });
 
 btnAddWeatherLayer.addEventListener('click', async () => {
-  const newLayers = await window.electronAPI.addLayer(LAYER_REGISTRY.weather.getDefaults());
+  const newLayers = await window.electronAPI.addLayer({ ...LAYER_REGISTRY.weather.getDefaults(), visible: layerVisible() });
   if (newLayers) { sceneState.layers = newLayers; renderLayerList(); selectLayer(newLayers.at(-1)?.id); }
 });
 
