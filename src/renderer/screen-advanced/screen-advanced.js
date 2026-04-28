@@ -39,8 +39,8 @@ function render(timestamp) {
 // ── IPC ───────────────────────────────────────────────────────────────────────
 window.electronAPI.onSceneUpdate((newScene) => {
   const layerIds = new Set(newScene.layers.map(l => l.id));
-  for (const [k] of mediaCache) {
-    if (!layerIds.has(k.split('::')[0])) mediaCache.delete(k);
+  for (const [k, el] of mediaCache) {
+    if (!layerIds.has(k.split('::')[0])) { el.remove?.(); mediaCache.delete(k); }
   }
   const newTypes = new Set(newScene.layers.filter(l => l.type === 'weather').map(l => l.weatherType));
   for (const [t] of weatherParticles) {

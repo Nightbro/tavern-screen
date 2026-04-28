@@ -44,15 +44,15 @@ export class VideoLayer extends LayerBase {
       const y = tx.originY + (layer.y ?? 0) * tx.zoom;
       canvasCtx.drawImage(vid, x, y, layer.w * tx.zoom, layer.h * tx.zoom);
     } else {
-      // No explicit bounds: anchor to canvas centre so zoom/pan work.
-      const cw   = window.innerWidth;
-      const ch   = window.innerHeight;
-      const iw   = cw * tx.zoom;
-      const ih   = ch * tx.zoom;
-      const half = (deps.CANVAS_SIZE ?? 8192) / 2;
-      const px   = tx.originX + half * tx.zoom - iw / 2;
-      const py   = tx.originY + half * tx.zoom - ih / 2;
-      canvasCtx.drawImage(vid, px, py, iw, ih);
+      // No explicit bounds: cover the viewport in screen space, ignoring scene transform.
+      const cw = window.innerWidth;
+      const ch = window.innerHeight;
+      const vw = vid.videoWidth  || cw;
+      const vh = vid.videoHeight || ch;
+      const s  = Math.max(cw / vw, ch / vh);
+      const dw = vw * s;
+      const dh = vh * s;
+      canvasCtx.drawImage(vid, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
     }
     canvasCtx.restore();
   }

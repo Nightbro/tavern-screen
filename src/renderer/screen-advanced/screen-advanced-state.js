@@ -7,6 +7,8 @@ export const hudRoot = document.getElementById('hud-root');
 export const mediaCache       = new Map();
 export const weatherParticles = new Map();
 
+const mediaHost = document.getElementById('media-host');
+
 export const state = {
   settings: { gridVisible: true, cellSizeInches: 1.0, zoom: 1.0, dpi: 96, gridColor: '#ffffff', gridOpacity: 0.25 },
   scene:    { map: null, viewport: { cx: 4096, cy: 4096, zoom: 1.0 }, layers: [], huds: [] },
@@ -38,8 +40,9 @@ export function getMedia(layer) {
       el.onload = () => { el.loaded = true; };
       el.src    = layer.src;
     }
-    for (const [k] of mediaCache) {
-      if (k.startsWith(layer.id + '::') && k !== key) mediaCache.delete(k);
+    mediaHost.appendChild(el);
+    for (const [k, old] of mediaCache) {
+      if (k.startsWith(layer.id + '::') && k !== key) { old.remove?.(); mediaCache.delete(k); }
     }
     mediaCache.set(key, el);
   }
