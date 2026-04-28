@@ -8,6 +8,7 @@ export const mediaCache       = new Map();
 export const weatherParticles = new Map();
 
 const mediaHost = document.getElementById('media-host');
+export const gifHost  = document.getElementById('gif-host');
 
 export const state = {
   settings: { gridVisible: true, cellSizeInches: 1.0, zoom: 1.0, dpi: 96, gridColor: '#ffffff', gridOpacity: 0.25 },

@@ -3,6 +3,7 @@ import { LAYER_REGISTRY } from '../layers/index.js';
 
 export function drawLayer(layer, tx) {
   if (layer.type === 'weather') return;
+  if (layer.type === 'gif') return; // rendered via DOM gif-host overlay
   LAYER_REGISTRY[layer.type]?.drawPlayerLayer(layer, ctx, tx, { CANVAS_SIZE, getMedia });
 }
 
