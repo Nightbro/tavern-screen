@@ -640,7 +640,31 @@ export function renderLayerOverlay() {
   const ctx = overlayCtx;
   const ow = layerOverlay.width, oh = layerOverlay.height;
   ctx.clearRect(0, 0, ow, oh);
-  if (!display.advanced) return;
+
+  if (!display.advanced) {
+    // Simple mode: draw ghost outlines for hidden layers over the preview image
+    const ca = getContentArea();
+    for (const layer of sceneState.layers) {
+      if (!POSITIONABLE_TYPES.has(layer.type) || layer.visible !== false) continue;
+      const b = (layer.x != null && layer.y != null && layer.w != null && layer.h != null)
+        ? {
+            px: ca.cx + (layer.x / CANVAS_SIZE) * ca.cw,
+            py: ca.cy + (layer.y / CANVAS_SIZE) * ca.ch,
+            pw: (layer.w / CANVAS_SIZE) * ca.cw,
+            ph: (layer.h / CANVAS_SIZE) * ca.ch,
+          }
+        : { px: ca.cx, py: ca.cy, pw: ca.cw, ph: ca.ch };
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      LAYER_REGISTRY[layer.type]?.drawGMPreview(layer, ctx, b, { imageCache: gmImageCache, onImageLoaded: renderLayerOverlay });
+      ctx.strokeStyle = 'rgba(74,144,217,0.8)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(b.px + 0.5, b.py + 0.5, b.pw, b.ph);
+      ctx.restore();
+    }
+    return;
+  }
 
   // Evict GM image cache entries for removed layers and clean up any DOM-attached elements
   const layerIds = new Set(sceneState.layers.map(l => l.id));
