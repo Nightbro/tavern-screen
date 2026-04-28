@@ -1,3 +1,39 @@
+/* ── Shared left panel tabs ─────────────────────────────────────────────── */
+
+.panel-tabs {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #2e2e4e;
+  padding-bottom: 6px;
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 4px 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #555;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+
+.panel-tab:hover  { color: #aaa; }
+.panel-tab.active { color: #c9a84c; border-color: #c9a84c44; background: #c9a84c0d; }
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ── Asset manager tab ──────────────────────────────────────────────────── */
 
 .asset-toolbar {

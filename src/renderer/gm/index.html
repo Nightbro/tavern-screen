@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tavern Screen — GM</title>
   <link rel="stylesheet" href="gm-base.css" />
-  <link rel="stylesheet" href="gm-library.css" />
   <link rel="stylesheet" href="gm-campaign.css" />
   <link rel="stylesheet" href="gm-monitors.css" />
   <link rel="stylesheet" href="gm-controls.css" />
@@ -21,41 +20,44 @@
 
   <div class="workspace">
 
-    <!-- ── Left: Map Library + Campaign (tabbed) ── -->
+    <!-- ── Left: Assets + Campaign (tabbed) ── -->
     <aside class="panel" id="panel-maps">
 
       <!-- Tab nav -->
       <nav class="panel-tabs" id="left-panel-tabs">
-        <button class="panel-tab active" data-tab="maps">Maps</button>
-        <button class="panel-tab"        data-tab="asset-manager">Assets</button>
+        <button class="panel-tab active" data-tab="asset-manager">Assets</button>
         <button class="panel-tab"        data-tab="campaign">Campaign</button>
         <button class="panel-tab"        data-tab="huds">Huds</button>
       </nav>
 
-      <!-- ══ Tab: Maps ══ -->
-      <div class="tab-pane" id="tab-pane-maps">
+      <!-- ══ Tab: Assets ══ -->
+      <div class="tab-pane" id="tab-pane-asset-manager">
 
-        <div class="lib-toolbar">
-          <span class="panel-title">Maps</span>
-          <div class="lib-toolbar-actions">
-            <button id="btn-refresh-lib" class="btn-icon-sm" title="Refresh library">↺</button>
-            <button id="btn-select-folder" class="btn-ghost-sm" title="Change root folder">📁 Folder</button>
-          </div>
+        <div class="asset-toolbar">
+          <span class="panel-title">Assets</span>
+          <button id="btn-select-folder"  class="btn-ghost-sm"  title="Set root folder">📁</button>
+          <button id="btn-refresh-assets" class="btn-icon-sm"   title="Refresh">↺</button>
         </div>
 
         <!-- No-folder state -->
-        <div id="lib-setup" style="display:none">
-          <p>Select a folder to store your maps.<br/>A <code>maps/</code> subfolder will be created inside it.</p>
+        <div id="asset-no-folder" style="display:none">
+          <p>Select a folder to store your assets.</p>
           <button id="btn-setup-folder" class="btn-primary">Select Folder</button>
         </div>
 
-        <!-- Library content -->
-        <div id="lib-root-path"></div>
-        <div id="lib-content"></div>
+        <!-- Asset preview -->
+        <div id="asset-preview" class="asset-preview" style="display:none">
+          <img id="asset-preview-img" class="asset-preview-img" alt="" />
+          <div id="asset-preview-name" class="asset-preview-name"></div>
+          <button id="btn-asset-use" class="btn-primary-sm adv-only" title="Add as image layer to scene">+ Add to Scene</button>
+        </div>
 
-        <!-- Quick assets (visible only in Advanced mode) -->
-        <div class="adv-only" id="lib-assets">
-          <div class="lib-assets-header">
+        <!-- Asset list grouped by scope → type -->
+        <div id="asset-list" class="asset-list"></div>
+
+        <!-- Quick Assets (advanced mode only) -->
+        <div class="adv-only asset-quick-assets" id="lib-assets">
+          <div class="asset-quick-header">
             <span class="panel-title">Quick Assets</span>
           </div>
           <div class="lib-assets-grid">
@@ -67,32 +69,9 @@
           </div>
         </div>
 
-        <div class="lib-footer">
-          <button id="btn-new-project" class="btn-ghost-sm">+ New Project</button>
-          <button id="btn-add-images"  class="btn-primary-sm">+ Add Images</button>
-        </div>
-
-      </div><!-- /tab-pane-maps -->
-
-      <!-- ══ Tab: Assets ══ -->
-      <div class="tab-pane" id="tab-pane-asset-manager" style="display:none">
-
-        <div class="asset-toolbar">
-          <span class="panel-title">Assets</span>
-          <button id="btn-refresh-assets" class="btn-icon-sm" title="Refresh assets">↺</button>
-        </div>
-
-        <div class="asset-filters">
-          <select id="asset-type-filter" class="asset-filter-select">
-            <option value="">All types</option>
-          </select>
-        </div>
-
-        <div id="asset-list" class="asset-list"></div>
-
         <div class="asset-footer">
-          <button id="btn-add-asset"     class="btn-primary-sm">+ Add Asset</button>
-          <button id="btn-manage-types"  class="btn-ghost-sm">Types</button>
+          <button id="btn-add-asset"    class="btn-primary-sm">+ Add Asset</button>
+          <button id="btn-manage-types" class="btn-ghost-sm">Types</button>
         </div>
 
       </div><!-- /tab-pane-asset-manager -->
