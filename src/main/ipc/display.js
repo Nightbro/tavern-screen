@@ -12,6 +12,9 @@ function registerDisplayHandlers(ipcMain, { manager, config }) {
   });
 
   ipcMain.on('request-preview', () => manager.capturePreview());
+
+  ipcMain.handle('get-last-state',   ()         => config.get('lastState', {}));
+  ipcMain.on(    'save-last-state',  (_e, state) => config.set('lastState', state));
 }
 
 module.exports = { registerDisplayHandlers };

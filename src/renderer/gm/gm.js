@@ -55,7 +55,10 @@ export async function loadMostRecentScene() {
   if (!sceneState.ready || !campaign.selectedId) { renderSceneList(); return; }
   const scenes = await window.electronAPI.listScenesCampaign(campaign.selectedId, campaign.sessionId);
   if (scenes.length) {
-    await applyLoadedScene(scenes[0].id);
+    const savedId = campaign.savedSceneId;
+    campaign.savedSceneId = null;
+    const targetId = savedId && scenes.find(s => s.id === savedId) ? savedId : scenes[0].id;
+    await applyLoadedScene(targetId);
   } else {
     sceneState.loadedId = null;
     renderSceneList();
@@ -149,6 +152,7 @@ async function applyLoadedScene(sceneIdOrScene) {
 
   sceneState.loadedId = scene.id ?? null;
   window.electronAPI.setScene(scene);
+  window.electronAPI.saveLastState({ campaignId: campaign.selectedId, sessionId: campaign.sessionId ?? null, sceneId: scene.id ?? null });
   sceneState.layers = scene.layers   ?? [];
   viewport.cx       = scene.viewport?.cx    ?? 4096;
   viewport.cy       = scene.viewport?.cy    ?? 4096;
@@ -362,7 +366,10 @@ btnResetScene.addEventListener('click', () => {
 // Receive persisted settings from main process on startup
 window.electronAPI.onInitialSettings(async (s) => {
   applySettingsToUI(s);
-  if (s.screenMode === 'advanced' && !sceneState.ready) await initScene();
+  if (s.screenMode === 'advanced' && !sceneState.ready) {
+    await initScene();
+    await loadMostRecentScene();
+  }
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestPreview: ()           => ipcRenderer.send('request-preview'),
   onScreenPreview:(cb)         => ipcRenderer.on('screen-preview', (_e, url) => cb(url)),
 
+  // ── Persistence ───────────────────────────────────────────────────────────
+  getLastState:   ()           => ipcRenderer.invoke('get-last-state'),
+  saveLastState:  (state)      => ipcRenderer.send('save-last-state', state),
+
   // ── Library: folder ───────────────────────────────────────────────────────
   getLibraryRoot:    ()        => ipcRenderer.invoke('get-library-root'),
 

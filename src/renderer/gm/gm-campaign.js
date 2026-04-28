@@ -25,15 +25,27 @@ tabBtns.forEach(btn => {
 // ════════════════════════════════════════════════════════════════════════════
 
 export async function initCampaigns() {
-  const { campaigns: list } = await window.electronAPI.scanCampaigns();
-  campaign.list = list;
+  const [{ campaigns: list }, lastState] = await Promise.all([
+    window.electronAPI.scanCampaigns(),
+    window.electronAPI.getLastState(),
+  ]);
+  campaign.list         = list;
+  campaign.savedSceneId = lastState.sceneId ?? null;
   renderCampaignSelect();
   if (campaign.list.length > 0) {
-    campaign.selectedId = campaign.list[0].id;
+    const savedCampaignId = lastState.campaignId && list.find(c => c.id === lastState.campaignId)
+      ? lastState.campaignId
+      : null;
+    campaign.selectedId = savedCampaignId ?? campaign.list[0].id;
     campaignSelect.value = campaign.selectedId;
+    const sel = campaign.list.find(c => c.id === campaign.selectedId);
+    if (lastState.sessionId && sel?.sessions.find(s => s.id === lastState.sessionId)) {
+      campaign.sessionId = lastState.sessionId;
+    }
     renderSessions();
   }
   await loadCurrentNotes();
+  await window.loadMostRecentScene();
 }
 
 async function refreshCampaigns() {
@@ -250,6 +262,7 @@ async function selectSession(campaignId, sessionId) {
     campaign.selectedId = campaignId;
     campaign.sessionId  = sessionId;
   }
+  window.electronAPI.saveLastState({ campaignId: campaign.selectedId, sessionId: campaign.sessionId, sceneId: null });
   document.querySelectorAll('.session-row').forEach(r => {
     r.classList.toggle('active', r.dataset.sessionId === campaign.sessionId);
   });
@@ -263,6 +276,7 @@ campaignSelect.addEventListener('change', async () => {
   await flushNotes();
   campaign.selectedId = campaignSelect.value;
   campaign.sessionId  = null;
+  window.electronAPI.saveLastState({ campaignId: campaign.selectedId, sessionId: null, sceneId: null });
   renderSessions();
   await loadCurrentNotes();
   await window.loadMostRecentScene();

@@ -40,10 +40,11 @@ export const NOTES_DEBOUNCE_MS = 800;
 export const settings = { gridVisible: true, cellSizeInches: 1.0, zoom: 1.0, dpi: 96, gridColor: '#ffffff', gridOpacity: 0.25 };
 
 export const campaign = {
-  list:       [],
-  selectedId: null,
-  sessionId:  null,
-  notesTimer: null,
+  list:         [],
+  selectedId:   null,
+  sessionId:    null,
+  notesTimer:   null,
+  savedSceneId: null,
 };
 
 export const display = {
