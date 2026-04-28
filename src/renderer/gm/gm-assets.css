@@ -123,6 +123,7 @@
 
 .asset-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
@@ -191,6 +192,18 @@
   opacity: 0;
   transition: opacity 0.1s;
   flex-shrink: 0;
+}
+
+/* ── Inline edit form (inside card) ────────────────────────────────────── */
+
+.asset-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 8px;
+  border-top: 1px solid #2a2a4e;
+  width: 100%;
+  margin-top: 4px;
 }
 
 /* ── Inline add form ────────────────────────────────────────────────────── */

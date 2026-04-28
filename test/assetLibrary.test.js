@@ -249,6 +249,18 @@ describe('updateAsset', () => {
     expect(meta.name).toBe('New');
   });
 
+  test('moves folder when type changes', () => {
+    const { lib, tmp } = setup();
+    const asset = lib.createAsset('Hero', 'characters', makeSrcFile(tmp, 'hero.png'), null);
+    lib.updateAsset(asset.id, { type: 'maps' }, null);
+    const oldDir = path.join(tmp, 'userdata', 'assets', 'characters', asset.id);
+    const newDir = path.join(tmp, 'userdata', 'assets', 'maps', asset.id);
+    expect(fs.existsSync(oldDir)).toBe(false);
+    expect(fs.existsSync(newDir)).toBe(true);
+    const { assets } = lib.listAssets(null);
+    expect(assets[0].type).toBe('maps');
+  });
+
   test('returns false when asset does not exist', () => {
     const { lib } = setup();
     expect(lib.updateAsset('nonexistent', { name: 'X' }, null)).toBe(false);

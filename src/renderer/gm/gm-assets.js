@@ -187,12 +187,12 @@ function buildAssetCard(asset) {
     actions.appendChild(btnMove);
   }
 
-  const btnRename = document.createElement('button');
-  btnRename.className   = 'btn-icon-xs';
-  btnRename.title       = 'Rename';
-  btnRename.textContent = '✏';
-  btnRename.addEventListener('click', (e) => { e.stopPropagation(); startRename(nameEl, asset); });
-  actions.appendChild(btnRename);
+  const btnEdit = document.createElement('button');
+  btnEdit.className   = 'btn-icon-xs';
+  btnEdit.title       = 'Edit';
+  btnEdit.textContent = '✏';
+  btnEdit.addEventListener('click', (e) => { e.stopPropagation(); toggleEditForm(card, asset, nameEl); });
+  actions.appendChild(btnEdit);
 
   const btnDel = document.createElement('button');
   btnDel.className   = 'btn-icon-xs danger';
@@ -319,33 +319,103 @@ async function handleMove(asset) {
   await refreshAssets();
 }
 
-// ── Rename ────────────────────────────────────────────────────────────────────
+// ── Edit form ─────────────────────────────────────────────────────────────────
 
-function startRename(nameEl, asset) {
-  const input = document.createElement('input');
-  input.className = 'asset-name-input';
-  input.value     = asset.name;
-  nameEl.replaceWith(input);
-  input.focus();
-  input.select();
+function toggleEditForm(card, asset, nameEl) {
+  const existing = card.querySelector('.asset-edit-form');
+  if (existing) { existing.remove(); return; }
 
-  async function commit() {
-    const newName = input.value.trim();
-    if (newName && newName !== asset.name) {
-      const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
-      await window.electronAPI.updateAsset(asset.id, { name: newName }, campaignId);
-      asset.name = newName;
-      if (assetState.selectedId === asset.id) assetPreviewName.textContent = newName;
-    }
-    input.replaceWith(nameEl);
-    nameEl.textContent = asset.name;
+  const form = document.createElement('div');
+  form.className = 'asset-edit-form';
+
+  // Name
+  const nameInput = document.createElement('input');
+  nameInput.type        = 'text';
+  nameInput.className   = 'asset-name-input';
+  nameInput.value       = asset.name;
+  nameInput.placeholder = 'Asset name…';
+  nameInput.maxLength   = 64;
+
+  // Type
+  const typeSelect = document.createElement('select');
+  typeSelect.className = 'asset-type-select';
+  for (const t of assetState.types) {
+    const opt = document.createElement('option');
+    opt.value       = t;
+    opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    opt.selected    = t === asset.type;
+    typeSelect.appendChild(opt);
   }
 
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter')  input.blur();
-    if (e.key === 'Escape') { input.value = asset.name; input.blur(); }
+  // Scope
+  const scopeSelect = document.createElement('select');
+  scopeSelect.className = 'asset-scope-select';
+  const optGlobal = document.createElement('option');
+  optGlobal.value       = 'global';
+  optGlobal.textContent = 'Global';
+  optGlobal.selected    = asset.scope === 'global';
+  scopeSelect.appendChild(optGlobal);
+  if (campaign.selectedId) {
+    const optCampaign = document.createElement('option');
+    optCampaign.value       = 'campaign';
+    optCampaign.textContent = `Campaign: ${campaign.selectedId}`;
+    optCampaign.selected    = asset.scope === 'campaign';
+    scopeSelect.appendChild(optCampaign);
+  }
+
+  const btnRow = document.createElement('div');
+  btnRow.className = 'asset-add-actions';
+
+  const btnSave = document.createElement('button');
+  btnSave.className   = 'btn-primary-sm';
+  btnSave.textContent = 'Save';
+
+  const btnCancel = document.createElement('button');
+  btnCancel.className   = 'btn-ghost-sm';
+  btnCancel.textContent = 'Cancel';
+  btnCancel.addEventListener('click', () => form.remove());
+
+  btnSave.addEventListener('click', async () => {
+    const newName  = nameInput.value.trim();
+    const newType  = typeSelect.value;
+    const newScope = scopeSelect.value;
+    if (!newName) { nameInput.focus(); return; }
+
+    const campaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+
+    const patch = {};
+    if (newName !== asset.name) patch.name = newName;
+    if (newType !== asset.type) patch.type = newType;
+
+    if (Object.keys(patch).length) {
+      await window.electronAPI.updateAsset(asset.id, patch, campaignId);
+    }
+
+    if (newScope !== asset.scope) {
+      const fromCampaignId = asset.scope === 'campaign' ? campaign.selectedId : null;
+      const toCampaignId   = newScope === 'campaign'    ? campaign.selectedId : null;
+      if (assetState.selectedId === asset.id) clearPreview();
+      await window.electronAPI.moveAsset(asset.id, fromCampaignId, toCampaignId);
+    }
+
+    await refreshAssets();
   });
+
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  btnSave.click();
+    if (e.key === 'Escape') form.remove();
+  });
+
+  btnRow.appendChild(btnSave);
+  btnRow.appendChild(btnCancel);
+  form.appendChild(nameInput);
+  form.appendChild(typeSelect);
+  form.appendChild(scopeSelect);
+  form.appendChild(btnRow);
+
+  card.appendChild(form);
+  nameInput.focus();
+  nameInput.select();
 }
 
 // ── Add asset ─────────────────────────────────────────────────────────────────

@@ -454,6 +454,18 @@ function createCampaignLibrary(config) {
     const entry = (index.assets ?? []).find(a => a.id === id);
     if (!entry) return false;
 
+    const oldType = entry.type;
+    const newType = patch.type && patch.type !== oldType ? patch.type : null;
+
+    if (newType) {
+      const oldDir = path.join(assetsDir, oldType, id);
+      const newDir = path.join(assetsDir, newType, id);
+      if (fs.existsSync(oldDir)) {
+        fs.mkdirSync(path.join(assetsDir, newType), { recursive: true });
+        fs.renameSync(oldDir, newDir);
+      }
+    }
+
     Object.assign(entry, patch);
     writeAssetsIndex(index, campaignId);
 
