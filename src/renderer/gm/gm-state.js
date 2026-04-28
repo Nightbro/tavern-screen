@@ -93,7 +93,7 @@ export const btnAddWeatherLayer   = document.getElementById('btn-add-weather-lay
 export const btnSaveScene         = document.getElementById('btn-save-scene');
 export const btnLoadScene         = document.getElementById('btn-load-scene');
 export const btnResetScene        = document.getElementById('btn-reset-scene');
-export const sceneNameInput       = document.getElementById('scene-name-input');
+export const btnNewScene          = document.getElementById('btn-new-scene');
 export const sceneAutosaveBadge   = document.getElementById('scene-autosave-badge');
 export const scenesContent        = document.getElementById('scenes-content');
 export const btnRefreshScenes     = document.getElementById('btn-refresh-scenes');
@@ -178,7 +178,7 @@ Object.assign(window, {
   statusesEditor, statusesEntriesEl, handoutEditor,
   hudSimWrap, hudSimViewport, hudSimScreen,
   btnAddImageLayer, btnAddLightLayer, btnAddFogLayer, btnAddWeatherLayer,
-  btnSaveScene, btnLoadScene, btnResetScene, sceneNameInput, sceneAutosaveBadge,
+  btnSaveScene, btnLoadScene, btnResetScene, btnNewScene, sceneAutosaveBadge,
   scenesContent, btnRefreshScenes,
   hudGroupsContent, btnNewHudGroup, btnRefreshHudGroups, hudGroupAutosaveBadge,
   elCanvasBg, btnFitView, elSnapToGrid, canvasCoordsEl,

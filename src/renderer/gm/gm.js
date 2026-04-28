@@ -1,8 +1,8 @@
 import {
   sceneState, campaign, viewport, autosaveTimer, genId,
-  sceneAutosaveBadge, sceneNameInput, btnRefreshScenes,
+  sceneAutosaveBadge, btnRefreshScenes, scenesContent,
   hudGroupsContent, btnNewHudGroup, btnRefreshHudGroups, hudGroupAutosaveBadge,
-  btnSaveScene, btnLoadScene, btnResetScene,
+  btnSaveScene, btnLoadScene, btnResetScene, btnNewScene,
   layerDetail, initiativeEditor, elCanvasBg,
   monitorSectionBody, btnToggleMonitors,
   panelMaps, panelSettings, resizeHandleLeft, resizeHandleRight,
@@ -131,7 +131,6 @@ function startSceneRename(row, nameEl, s) {
       await window.electronAPI.renameSceneCampaign(campaign.selectedId, campaign.sessionId, s.id, newName);
       if (sceneState.loadedId === s.id) {
         window.electronAPI.updateSceneMeta({ name: newName });
-        sceneNameInput.value = newName;
       }
     }
     renderSceneList();
@@ -159,7 +158,6 @@ async function applyLoadedScene(sceneIdOrScene) {
   viewport.zoom     = scene.viewport?.zoom   ?? 1.0;
   sceneState.bg     = scene.background ?? '#1a1a2e';
   if (elCanvasBg) elCanvasBg.value = sceneState.bg;
-  sceneNameInput.value = scene.name ?? '';
   updateVpZoomUI();
   renderLayerList();
   renderHudList();
@@ -171,13 +169,44 @@ async function applyLoadedScene(sceneIdOrScene) {
   renderSceneList();
 }
 
-// Scene name: update meta + trigger autosave
-sceneNameInput.addEventListener('input', () => {
-  window.electronAPI.updateSceneMeta({ name: sceneNameInput.value.trim() });
-  scheduleAutosave();
-});
-
 btnRefreshScenes.addEventListener('click', renderSceneList);
+
+btnNewScene?.addEventListener('click', () => {
+  if (!campaign.selectedId) return;
+  const input = document.createElement('input');
+  input.className   = 'scene-row-name-input';
+  input.placeholder = 'Scene name…';
+  input.maxLength   = 64;
+  input.style.margin = '2px 8px';
+  scenesContent.appendChild(input);
+  input.focus();
+
+  async function commit() {
+    const name = input.value.trim();
+    input.remove();
+    if (!name) return;
+    window.electronAPI.resetScene();
+    sceneState.loadedId = null;
+    sceneState.layers   = [];
+    viewport.cx = 4096; viewport.cy = 4096; viewport.zoom = 1.0;
+    sceneState.bg = '#1a1a2e';
+    if (elCanvasBg) elCanvasBg.value = sceneState.bg;
+    window.electronAPI.updateSceneMeta({ name });
+    updateVpZoomUI();
+    renderLayerList();
+    sceneState.selectedLayerId = null;
+    sceneState.selectedHudId   = null;
+    layerDetail.style.display      = 'none';
+    initiativeEditor.style.display = 'none';
+    setAutosaveBadge('');
+    scheduleAutosave();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  input.blur();
+    if (e.key === 'Escape') { input.value = ''; input.blur(); }
+  });
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 // HUD GROUPS
@@ -347,7 +376,6 @@ btnResetScene.addEventListener('click', () => {
     viewport.cx = 4096; viewport.cy = 4096; viewport.zoom = 1.0;
     sceneState.bg = '#1a1a2e';
     if (elCanvasBg) elCanvasBg.value = sceneState.bg;
-    sceneNameInput.value = '';
     updateVpZoomUI();
     renderLayerList();
     sceneState.selectedLayerId = null;

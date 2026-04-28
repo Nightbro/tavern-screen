@@ -8,7 +8,6 @@ import {
   btnPingMode, previewImg, canvasCoordsEl,
   layerListEl, layerDetail, layerDetailTitle, layerDetailFields,
   btnAddImageLayer, btnAddLightLayer, btnAddFogLayer, btnAddWeatherLayer,
-  sceneNameInput,
 } from './gm-state.js';
 
 import { LAYER_REGISTRY } from '../layers/index.js';
@@ -134,7 +133,6 @@ export async function initScene() {
   viewport.cy       = scene.viewport?.cy   ?? 4096;
   viewport.zoom     = scene.viewport?.zoom  ?? 1.0;
   sceneState.bg     = scene.background ?? '#1a1a2e';
-  sceneNameInput.value = scene.name ?? '';
   renderLayerList();
   window.renderHudList();
   window.renderHudPreview();

@@ -29,14 +29,6 @@
   border-color: #c9a84c;
 }
 
-/* ── Scene name + autosave ── */
-.scene-name-row { display: flex; align-items: center; gap: 6px; padding: 0 8px; }
-.scene-name-input {
-  flex: 1; background: #11111f; border: 1px solid #2e2e4e;
-  border-radius: 4px; color: #ddd; font-size: 12px;
-  padding: 4px 7px; outline: none; min-width: 0;
-}
-.scene-name-input:focus { border-color: #4a90d9; }
 .scene-autosave-badge {
   font-size: 9px; white-space: nowrap; flex-shrink: 0;
   color: #555; margin-left: auto;
