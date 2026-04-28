@@ -13,6 +13,7 @@ const { registerDisplayHandlers }  = require('./src/main/ipc/display');
 const { registerLibraryHandlers }  = require('./src/main/ipc/library');
 const { registerCampaignHandlers } = require('./src/main/ipc/campaign');
 const { registerSceneHandlers }    = require('./src/main/ipc/scene');
+const { registerAssetHandlers }    = require('./src/main/ipc/asset');
 
 const config      = createConfig(path.join(app.getPath('userData'), 'config.json'));
 const lib         = createLibrary(config);
@@ -31,6 +32,7 @@ registerDisplayHandlers(ipcMain,  { manager, config });
 registerLibraryHandlers(ipcMain,  { lib, campaignLib, manager, dialog, BrowserWindow });
 registerCampaignHandlers(ipcMain, { campaignLib, manager });
 registerSceneHandlers(ipcMain,    { manager, campaignLib, dialog, BrowserWindow });
+registerAssetHandlers(ipcMain,    { campaignLib });
 
 // ── CSS hot-reload (dev only) ──────────────────────────────────────────────
 if (!app.isPackaged) {

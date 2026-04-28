@@ -40,6 +40,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openMapDialog:  ()           => ipcRenderer.invoke('open-map-dialog'),
   getFilePath:    (file)       => webUtils.getPathForFile(file),
 
+  // ── Assets ───────────────────────────────────────────────────────────────
+  listAssetTypes:  ()                                    => ipcRenderer.invoke('list-asset-types'),
+  addAssetType:    (typeName)                            => ipcRenderer.invoke('add-asset-type',    typeName),
+  removeAssetType: (typeName)                            => ipcRenderer.invoke('remove-asset-type', typeName),
+  listAssets:      (campaignId)                          => ipcRenderer.invoke('list-assets',       campaignId),
+  createAsset:     (name, type, filePath, campaignId)    => ipcRenderer.invoke('create-asset',      name, type, filePath, campaignId),
+  updateAsset:     (id, patch, campaignId)               => ipcRenderer.invoke('update-asset',      id, patch, campaignId),
+  deleteAsset:     (id, campaignId)                      => ipcRenderer.invoke('delete-asset',      id, campaignId),
+  moveAsset:       (id, fromCampaignId, toCampaignId)    => ipcRenderer.invoke('move-asset',        id, fromCampaignId, toCampaignId),
+
   // ── Campaigns ─────────────────────────────────────────────────────────────
   scanCampaigns:   ()                                    => ipcRenderer.invoke('scan-campaigns'),
   createCampaign:  (name)                                => ipcRenderer.invoke('create-campaign', name),
