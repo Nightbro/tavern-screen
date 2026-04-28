@@ -1,15 +1,20 @@
-// File-system campaign library: manages campaigns, sessions, notes, HUDs, and scenes.
+// File-system campaign library: manages campaigns, sessions, notes, HUDs, scenes, and assets.
 
 const fs   = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const { saveSnapshot, listSnapshots, loadSnapshot, deleteSnapshot, renameSnapshot } = require('./snapshotStore');
 
-const CAMPAIGNS_DIR = 'campaigns';
-const SESSIONS_DIR  = 'sessions';
-const NOTES_FILE    = 'notes.md';
-const SCENES_DIR    = 'scenes';
-const SAVE_DIR      = 'userdata';
-const HUDS_FILE     = 'huds.json';
+const CAMPAIGNS_DIR  = 'campaigns';
+const SESSIONS_DIR   = 'sessions';
+const NOTES_FILE     = 'notes.md';
+const SCENES_DIR     = 'scenes';
+const SAVE_DIR       = 'userdata';
+const HUDS_FILE      = 'huds.json';
+const ASSETS_DIR     = 'assets';
+const ASSETS_INDEX   = 'assets.json';
+const ASSET_META     = 'asset.json';
+const DEFAULT_TYPES  = ['characters', 'maps', 'objects', 'handouts'];
 
 // Creates the campaign library backed by config (use createConfig() for file persistence).
 function createCampaignLibrary(config) {
@@ -340,6 +345,169 @@ function createCampaignLibrary(config) {
     return renameSnapshot(scenesDir(campaignId, sessionId), sceneId, newName);
   }
 
+  // ── Assets ─────────────────────────────────────────────────────────────────
+
+  // Returns the assets directory for global scope (no campaignId) or campaign scope.
+  function getAssetsDir(campaignId) {
+    if (!rootFolder) return null;
+    return campaignId
+      ? path.join(rootFolder, SAVE_DIR, CAMPAIGNS_DIR, campaignId, ASSETS_DIR)
+      : path.join(rootFolder, SAVE_DIR, ASSETS_DIR);
+  }
+
+  // Reads and returns the assets.json index for the given scope.
+  function readAssetsIndex(campaignId) {
+    const file = campaignId
+      ? path.join(getAssetsDir(campaignId), ASSETS_INDEX)
+      : path.join(getAssetsDir(null), ASSETS_INDEX);
+    if (!file || !fs.existsSync(file)) {
+      return { types: campaignId ? undefined : [...DEFAULT_TYPES], assets: [] };
+    }
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch {
+      return { types: campaignId ? undefined : [...DEFAULT_TYPES], assets: [] };
+    }
+  }
+
+  // Writes the assets.json index for the given scope.
+  function writeAssetsIndex(data, campaignId) {
+    const dir = getAssetsDir(campaignId);
+    if (!dir) return;
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, ASSETS_INDEX), JSON.stringify(data, null, 2), 'utf8');
+  }
+
+  // Returns all asset types (always from the global index).
+  function listAssetTypes() {
+    if (!rootFolder) return [...DEFAULT_TYPES];
+    const { types } = readAssetsIndex(null);
+    return types ?? [...DEFAULT_TYPES];
+  }
+
+  // Adds a new asset type to the global index. Returns false if it already exists.
+  function addAssetType(typeName) {
+    if (!rootFolder) throw new Error('No root folder set');
+    const index = readAssetsIndex(null);
+    if (!index.types) index.types = [...DEFAULT_TYPES];
+    if (index.types.includes(typeName)) return false;
+    index.types.push(typeName);
+    writeAssetsIndex(index, null);
+    return true;
+  }
+
+  // Removes an asset type from the global index. Returns false if it does not exist.
+  function removeAssetType(typeName) {
+    if (!rootFolder) throw new Error('No root folder set');
+    const index = readAssetsIndex(null);
+    if (!index.types) return false;
+    const i = index.types.indexOf(typeName);
+    if (i === -1) return false;
+    index.types.splice(i, 1);
+    writeAssetsIndex(index, null);
+    return true;
+  }
+
+  // Lists assets for the given scope. If campaignId is provided, merges global + campaign assets.
+  // Each asset entry includes a `scope` field: 'global' or 'campaign'.
+  function listAssets(campaignId) {
+    const types = listAssetTypes();
+    const globalIndex = readAssetsIndex(null);
+    const globalAssets = (globalIndex.assets ?? []).map(a => ({ ...a, scope: 'global' }));
+    if (!campaignId) return { types, assets: globalAssets };
+
+    const campaignIndex = readAssetsIndex(campaignId);
+    const campaignAssets = (campaignIndex.assets ?? []).map(a => ({ ...a, scope: 'campaign' }));
+    return { types, assets: [...globalAssets, ...campaignAssets] };
+  }
+
+  // Creates a new asset by copying srcFilePath into the asset folder.
+  // Returns the new asset entry (including scope and fileName).
+  function createAsset(name, type, srcFilePath, campaignId) {
+    const assetsDir = getAssetsDir(campaignId);
+    if (!assetsDir) throw new Error('No root folder set');
+
+    const id       = randomUUID();
+    const fileName = path.basename(srcFilePath);
+    const assetDir = path.join(assetsDir, type, id);
+
+    fs.mkdirSync(assetDir, { recursive: true });
+    fs.copyFileSync(srcFilePath, path.join(assetDir, fileName));
+
+    const meta = { id, name, type };
+    fs.writeFileSync(path.join(assetDir, ASSET_META), JSON.stringify(meta, null, 2), 'utf8');
+
+    const index = readAssetsIndex(campaignId);
+    if (!index.assets) index.assets = [];
+    index.assets.push(meta);
+    writeAssetsIndex(index, campaignId);
+
+    return { ...meta, scope: campaignId ? 'campaign' : 'global', fileName };
+  }
+
+  // Updates metadata fields on an existing asset. Returns false if not found.
+  function updateAsset(id, patch, campaignId) {
+    const assetsDir = getAssetsDir(campaignId);
+    if (!assetsDir) return false;
+
+    const index = readAssetsIndex(campaignId);
+    const entry = (index.assets ?? []).find(a => a.id === id);
+    if (!entry) return false;
+
+    Object.assign(entry, patch);
+    writeAssetsIndex(index, campaignId);
+
+    const metaFile = path.join(assetsDir, entry.type, id, ASSET_META);
+    if (fs.existsSync(metaFile)) {
+      const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+      Object.assign(meta, patch);
+      fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2), 'utf8');
+    }
+
+    return true;
+  }
+
+  // Deletes an asset folder and removes it from the index.
+  function deleteAsset(id, campaignId) {
+    const assetsDir = getAssetsDir(campaignId);
+    if (!assetsDir) return;
+
+    const index = readAssetsIndex(campaignId);
+    const entry = (index.assets ?? []).find(a => a.id === id);
+    if (!entry) return;
+
+    const assetDir = path.join(assetsDir, entry.type, id);
+    if (fs.existsSync(assetDir)) fs.rmSync(assetDir, { recursive: true, force: true });
+
+    index.assets = index.assets.filter(a => a.id !== id);
+    writeAssetsIndex(index, campaignId);
+  }
+
+  // Moves an asset between scopes (null = global). Returns false if not found.
+  function moveAsset(id, fromCampaignId, toCampaignId) {
+    const fromDir = getAssetsDir(fromCampaignId);
+    const toDir   = getAssetsDir(toCampaignId);
+    if (!fromDir || !toDir) return false;
+
+    const fromIndex = readAssetsIndex(fromCampaignId);
+    const entry = (fromIndex.assets ?? []).find(a => a.id === id);
+    if (!entry) return false;
+
+    const destTypeDir = path.join(toDir, entry.type);
+    fs.mkdirSync(destTypeDir, { recursive: true });
+    fs.renameSync(path.join(fromDir, entry.type, id), path.join(destTypeDir, id));
+
+    fromIndex.assets = fromIndex.assets.filter(a => a.id !== id);
+    writeAssetsIndex(fromIndex, fromCampaignId);
+
+    const toIndex = readAssetsIndex(toCampaignId);
+    if (!toIndex.assets) toIndex.assets = [];
+    toIndex.assets.push(entry);
+    writeAssetsIndex(toIndex, toCampaignId);
+
+    return true;
+  }
+
   return {
     setRootFolder, getRootFolder, getCampaignsDir,
     scan,
@@ -349,6 +517,8 @@ function createCampaignLibrary(config) {
     readNotes, writeNotes,
     saveHudGroup, listHudGroups, loadHudGroup, deleteHudGroup, renameHudGroup, setLastActiveHudGroupId,
     saveScene, listScenes, loadScene, deleteScene, renameScene,
+    listAssetTypes, addAssetType, removeAssetType,
+    listAssets, createAsset, updateAsset, deleteAsset, moveAsset,
   };
 }
 
