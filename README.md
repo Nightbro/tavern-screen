@@ -510,20 +510,6 @@ A dedicated **Tokens** section (separate from but linked to the layer system).
 
 ---
 
-### Weather & Atmosphere Effects
-
-Particle/overlay effects implemented as a `weather` layer type (`WeatherLayer.js`); intensity is configurable per layer; particles spawn within the layer's bounds so regional layers are fully populated regardless of size:
-
-| Effect | Status |
-|--------|--------|
-| Rain | ✓ implemented |
-| Snow | ✓ implemented |
-| Falling embers / ash | ✓ implemented |
-| Drifting fog / mist | ✓ implemented |
-| Fireflies | ✓ implemented |
-
----
-
 ### Touch & Pen Support
 
 - Pan/pinch-to-zoom the GM preview on touch
