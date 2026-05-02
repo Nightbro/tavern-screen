@@ -1,5 +1,5 @@
-import { canvas, ctx, state, mediaCache, weatherParticles, gifHost, computeMapTransform } from './screen-advanced-state.js';
-import { drawLayer, drawGrid, drawWeatherLayer, setLastWeatherTs } from './screen-advanced-layers.js';
+import { canvas, ctx, state, mediaCache, weatherParticles, collapseAnimations, gifHost, computeMapTransform } from './screen-advanced-state.js';
+import { drawLayer, drawGrid, drawWeatherLayer, drawCollapseLayer, setLastWeatherTs } from './screen-advanced-layers.js';
 import { renderHuds, showPing }                   from './screen-advanced-huds.js';
 
 // ── Canvas resize ─────────────────────────────────────────────────────────────
@@ -67,8 +67,10 @@ function render(timestamp) {
 
   syncGifLayers(state.scene.layers, tx);
 
-  const weatherLayers = state.scene.layers.filter(l => l.type === 'weather' && l.visible !== false);
-  for (const wl of weatherLayers) drawWeatherLayer(wl, timestamp);
+  const weatherLayers  = state.scene.layers.filter(l => l.type === 'weather'  && l.visible !== false);
+  const collapseLayers = state.scene.layers.filter(l => l.type === 'collapse' && l.visible !== false);
+  for (const wl of weatherLayers)  drawWeatherLayer(wl, timestamp);
+  for (const cl of collapseLayers) drawCollapseLayer(cl, timestamp);
   if (weatherLayers.length) setLastWeatherTs(timestamp);
 
   if (state.settings.gridVisible) drawGrid(tx);
@@ -84,6 +86,12 @@ window.electronAPI.onSceneUpdate((newScene) => {
   for (const [k] of weatherParticles) {
     if (!activeWeatherIds.has(k)) weatherParticles.delete(k);
   }
+  for (const [k] of collapseAnimations) {
+    if (!layerIds.has(k)) collapseAnimations.delete(k);
+  }
+  for (const layer of newScene.layers) {
+    if (layer.type === 'collapse' && layer.collapseState === 'idle') collapseAnimations.delete(layer.id);
+  }
   state.scene = newScene;
   renderHuds();
 });
@@ -92,6 +100,13 @@ window.electronAPI.onLayersUpdate((layers) => {
   const activeWeatherIds = new Set(layers.filter(l => l.type === 'weather').map(l => l.id));
   for (const [k] of weatherParticles) {
     if (!activeWeatherIds.has(k)) weatherParticles.delete(k);
+  }
+  const activeLayerIds = new Set(layers.map(l => l.id));
+  for (const [k] of collapseAnimations) {
+    if (!activeLayerIds.has(k)) collapseAnimations.delete(k);
+  }
+  for (const layer of layers) {
+    if (layer.type === 'collapse' && layer.collapseState === 'idle') collapseAnimations.delete(layer.id);
   }
   state.scene = { ...state.scene, layers };
 });

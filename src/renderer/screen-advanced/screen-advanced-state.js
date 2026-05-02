@@ -4,8 +4,9 @@ export const canvas  = document.getElementById('map-canvas');
 export const ctx     = canvas.getContext('2d');
 export const hudRoot = document.getElementById('hud-root');
 
-export const mediaCache       = new Map();
-export const weatherParticles = new Map();
+export const mediaCache        = new Map();
+export const weatherParticles  = new Map();
+export const collapseAnimations = new Map();
 
 const mediaHost = document.getElementById('media-host');
 export const gifHost  = document.getElementById('gif-host');

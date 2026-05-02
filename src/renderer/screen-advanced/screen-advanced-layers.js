@@ -1,9 +1,10 @@
-import { ctx, CANVAS_SIZE, state, getMedia, weatherParticles, computeMapTransform } from './screen-advanced-state.js';
+import { ctx, CANVAS_SIZE, state, getMedia, weatherParticles, collapseAnimations, computeMapTransform } from './screen-advanced-state.js';
 import { LAYER_REGISTRY } from '../layers/index.js';
 
 export function drawLayer(layer, tx) {
-  if (layer.type === 'weather') return;
-  if (layer.type === 'gif') return; // rendered via DOM gif-host overlay
+  if (layer.type === 'weather')  return;
+  if (layer.type === 'gif')      return; // rendered via DOM gif-host overlay
+  if (layer.type === 'collapse') return; // rendered via drawCollapseLayer
   LAYER_REGISTRY[layer.type]?.drawPlayerLayer(layer, ctx, tx, { CANVAS_SIZE, getMedia });
 }
 
@@ -40,6 +41,13 @@ export function setLastWeatherTs(ts) {
 
 export function drawWeatherLayer(layer, timestamp) {
   LAYER_REGISTRY.weather.drawWeatherFrame(layer, ctx, timestamp, weatherParticles, {
+    computeMapTransform,
+    viewport: state.scene.viewport,
+  });
+}
+
+export function drawCollapseLayer(layer, timestamp) {
+  LAYER_REGISTRY.collapse.drawCollapseFrame(layer, ctx, timestamp, collapseAnimations, {
     computeMapTransform,
     viewport: state.scene.viewport,
   });

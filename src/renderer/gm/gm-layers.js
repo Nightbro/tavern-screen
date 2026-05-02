@@ -531,6 +531,20 @@ async function addFogLayerFull() {
   }
 }
 
+async function addCollapseLayerFull() {
+  const newLayers = await window.electronAPI.addLayer({
+    ...LAYER_REGISTRY.collapse.getDefaults(),
+    name: 'Collapse Floor',
+    visible: layerVisible(),
+  });
+  if (newLayers) {
+    sceneState.layers = newLayers;
+    renderLayerList();
+    const layersTab = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+    if (layersTab && !layersTab.classList.contains('active')) layersTab.click();
+  }
+}
+
 function setRegionSelectAsset(assetKey, layerType = null) {
   ui.regionSelectAsset = assetKey ?? null;
   ui.regionSelectAssetLayerType = assetKey ? layerType : null;
@@ -560,6 +574,8 @@ document.querySelectorAll('.btn-asset').forEach(btn => {
     setRegionSelectAsset(null);
     if (layerType === 'fog') {
       await addFogLayerFull();
+    } else if (layerType === 'collapse') {
+      await addCollapseLayerFull();
     } else {
       await addWeatherLayerFull(btn.dataset.asset);
     }
@@ -1154,6 +1170,8 @@ document.addEventListener('mouseup', async () => {
     let layerDef;
     if (assetLayerType === 'fog') {
       layerDef = { ...LAYER_REGISTRY.fog.getDefaults(), name: 'Fog of War', x, y, w, h, visible: layerVisible() };
+    } else if (assetLayerType === 'collapse') {
+      layerDef = { ...LAYER_REGISTRY.collapse.getDefaults(), name: 'Collapse Floor', x, y, w, h, visible: layerVisible() };
     } else {
       const label = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
       layerDef = { ...LAYER_REGISTRY.weather.getDefaults(), weatherType: assetKey, name: label, x, y, w, h, visible: layerVisible() };

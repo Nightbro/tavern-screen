@@ -157,7 +157,7 @@ export function genId() {
 export const layerOverlay  = document.getElementById('layer-overlay');
 export const overlayCtx    = layerOverlay.getContext('2d');
 
-export const POSITIONABLE_TYPES = new Set(['image', 'gif', 'video', 'light', 'fog', 'weather']);
+export const POSITIONABLE_TYPES = new Set(['image', 'gif', 'video', 'light', 'fog', 'weather', 'collapse']);
 export const HANDLE_SIZE        = 8;
 
 // ── Window bridge (for unconverted classic scripts) ───────────────────────────
