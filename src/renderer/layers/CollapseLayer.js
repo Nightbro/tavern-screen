@@ -27,20 +27,35 @@ function calcGrid(layerW, layerH, settings) {
   return { cols, rows };
 }
 
-function initCollapseAnimation(layer, timestamp, cols, rows) {
-  const centerC  = (cols - 1) / 2;
-  const centerR  = (rows - 1) / 2;
-  const maxDist  = Math.sqrt(centerC * centerC + centerR * centerR) || 1;
-  let maxDelay   = 0;
-  const tiles    = [];
-  const idSeed   = layer.id ? layer.id.charCodeAt(0) : 0;
+// Snapshot the canvas region in physical pixels so drawImage works correctly
+// when the main canvas has a devicePixelRatio transform applied.
+function captureRegion(canvasCtx, sx, sy, sw, sh) {
+  const dpr  = window.devicePixelRatio || 1;
+  const snap = document.createElement('canvas');
+  snap.width  = Math.max(1, Math.round(sw * dpr));
+  snap.height = Math.max(1, Math.round(sh * dpr));
+  snap.getContext('2d').drawImage(
+    canvasCtx.canvas,
+    Math.round(sx * dpr), Math.round(sy * dpr), snap.width, snap.height,
+    0, 0, snap.width, snap.height,
+  );
+  return snap;
+}
+
+function initCollapseAnimation(layer, timestamp, cols, rows, snap) {
+  const centerC = (cols - 1) / 2;
+  const centerR = (rows - 1) / 2;
+  const maxDist = Math.sqrt(centerC * centerC + centerR * centerR) || 1;
+  let maxDelay  = 0;
+  const tiles   = [];
+  const idSeed  = layer.id ? layer.id.charCodeAt(0) : 0;
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const dist     = Math.sqrt((c - centerC) ** 2 + (r - centerR) ** 2);
-      const jitter   = (Math.sin(c * 7.3 + r * 3.1) * 0.5 + 0.5) * 0.15;
-      const delay    = (dist / maxDist) * 0.5 + jitter;
-      maxDelay       = Math.max(maxDelay, delay);
+      const dist   = Math.sqrt((c - centerC) ** 2 + (r - centerR) ** 2);
+      const jitter = (Math.sin(c * 7.3 + r * 3.1) * 0.5 + 0.5) * 0.15;
+      const delay  = (dist / maxDist) * 0.5 + jitter;
+      maxDelay     = Math.max(maxDelay, delay);
 
       const seed  = c * 1000 + r * 37 + idSeed;
       const shade = 95 + Math.floor((Math.sin(seed * 0.031) * 0.5 + 0.5) * 40);
@@ -49,24 +64,28 @@ function initCollapseAnimation(layer, timestamp, cols, rows) {
         delay,
         angleVel: (Math.sin(c * 5.1 + r * 2.7) - 0.5) * 0.18,
         cracks: generateCracks(seed),
-        color: `rgb(${shade},${shade - 6},${shade - 12})`,
+        fallbackColor: `rgb(${shade},${shade - 6},${shade - 12})`,
       });
     }
   }
 
-  return { tiles, cols, rows, startTime: timestamp, totalDuration: maxDelay + CRACK_DURATION + FALL_DURATION };
+  return { tiles, cols, rows, snap, startTime: timestamp, totalDuration: maxDelay + CRACK_DURATION + FALL_DURATION };
 }
 
-function drawTileIntact(ctx, x, y, w, h, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
-  const b = Math.max(1, Math.min(w, h) * 0.07);
-  ctx.fillStyle = 'rgba(255,255,255,0.13)';
-  ctx.fillRect(x, y, w, b);
-  ctx.fillRect(x, y, b, h);
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.fillRect(x, y + h - b, w, b);
-  ctx.fillRect(x + w - b, y, b, h);
+// Draw a single tile — from the captured snapshot if available, else a fallback fill.
+function drawTile(canvasCtx, anim, tile, x, y, w, h) {
+  if (anim.snap) {
+    const capTileW = anim.snap.width  / anim.cols;
+    const capTileH = anim.snap.height / anim.rows;
+    canvasCtx.drawImage(
+      anim.snap,
+      tile.col * capTileW, tile.row * capTileH, capTileW, capTileH,
+      x, y, w, h,
+    );
+  } else {
+    canvasCtx.fillStyle = tile.fallbackColor;
+    canvasCtx.fillRect(x, y, w, h);
+  }
 }
 
 function drawCracks(ctx, x, y, w, h, cracks, progress) {
@@ -170,8 +189,8 @@ export class CollapseLayer extends LayerBase {
     overlayCtx.fillRect(px, py, pw, ph);
 
     const { cols, rows } = calcGrid(layer.w, layer.h, window.settings);
-    const tw   = pw / cols;
-    const th   = ph / rows;
+    const tw = pw / cols;
+    const th = ph / rows;
     overlayCtx.strokeStyle = cs === 'idle' ? 'rgba(180,155,110,0.45)' : 'rgba(210,100,40,0.6)';
     overlayCtx.lineWidth   = 0.5;
     overlayCtx.beginPath();
@@ -203,6 +222,14 @@ export class CollapseLayer extends LayerBase {
     const sw = (layer.w ?? 200) * tx.zoom;
     const sh = (layer.h ?? 200) * tx.zoom;
 
+    // Capture background before drawing anything — must happen on the first
+    // collapsing frame while the canvas still shows the floor content.
+    if (cs === 'collapsing' && !collapseAnimations.has(layer.id)) {
+      const { cols, rows } = calcGrid(layer.w, layer.h, deps.settings);
+      const snap = captureRegion(canvasCtx, sx, sy, sw, sh);
+      collapseAnimations.set(layer.id, initCollapseAnimation(layer, timestamp, cols, rows, snap));
+    }
+
     canvasCtx.save();
     drawVoid(canvasCtx, sx, sy, sw, sh);
 
@@ -211,12 +238,8 @@ export class CollapseLayer extends LayerBase {
       return;
     }
 
-    // 'collapsing' — init or advance animation
-    if (!collapseAnimations.has(layer.id)) {
-      const { cols, rows } = calcGrid(layer.w, layer.h, deps.settings);
-      collapseAnimations.set(layer.id, initCollapseAnimation(layer, timestamp, cols, rows));
-    }
     const anim    = collapseAnimations.get(layer.id);
+    if (!anim) { canvasCtx.restore(); return; }
     const elapsed = (timestamp - anim.startTime) / 1000;
     const tileW   = sw / anim.cols;
     const tileH   = sh / anim.rows;
@@ -229,28 +252,28 @@ export class CollapseLayer extends LayerBase {
       const t = elapsed - tile.delay;
 
       if (t < 0) {
-        drawTileIntact(canvasCtx, sx + tile.col * tileW, sy + tile.row * tileH, tileW, tileH, tile.color);
+        drawTile(canvasCtx, anim, tile, sx + tile.col * tileW, sy + tile.row * tileH, tileW, tileH);
         continue;
       }
-      if (t >= CRACK_DURATION + FALL_DURATION) continue; // fully gone
+      if (t >= CRACK_DURATION + FALL_DURATION) continue;
 
       const tx2 = sx + tile.col * tileW;
       const ty2 = sy + tile.row * tileH;
 
       if (t < CRACK_DURATION) {
-        drawTileIntact(canvasCtx, tx2, ty2, tileW, tileH, tile.color);
+        drawTile(canvasCtx, anim, tile, tx2, ty2, tileW, tileH);
         drawCracks(canvasCtx, tx2, ty2, tileW, tileH, tile.cracks, t / CRACK_DURATION);
       } else {
-        const fallT  = (t - CRACK_DURATION) / FALL_DURATION;
-        const fallY  = fallT * fallT * sh * 1.4;
-        const angle  = tile.angleVel * fallT * Math.PI * 2;
-        const alpha  = Math.max(0, 1 - fallT * 1.15);
+        const fallT = (t - CRACK_DURATION) / FALL_DURATION;
+        const fallY = fallT * fallT * sh * 1.4;
+        const angle = tile.angleVel * fallT * Math.PI * 2;
+        const alpha = Math.max(0, 1 - fallT * 1.15);
 
         canvasCtx.save();
         canvasCtx.globalAlpha = alpha;
         canvasCtx.translate(tx2 + tileW / 2, ty2 + tileH / 2 + fallY);
         canvasCtx.rotate(angle);
-        drawTileIntact(canvasCtx, -tileW / 2, -tileH / 2, tileW, tileH, tile.color);
+        drawTile(canvasCtx, anim, tile, -tileW / 2, -tileH / 2, tileW, tileH);
         drawCracks(canvasCtx, -tileW / 2, -tileH / 2, tileW, tileH, tile.cracks, 1.0);
         canvasCtx.restore();
       }
