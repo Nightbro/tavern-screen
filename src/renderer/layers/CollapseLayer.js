@@ -20,9 +20,14 @@ function generateCracks(seed) {
   return cracks;
 }
 
-function initCollapseAnimation(layer, timestamp) {
-  const cols = Math.max(2, Math.min(20, layer.tileCols ?? 10));
-  const rows = Math.max(2, Math.min(20, layer.tileRows ?? 10));
+function calcGrid(layerW, layerH, settings) {
+  const cellPx = (settings?.cellSizeInches ?? 1) * (settings?.dpi ?? 96);
+  const cols   = Math.max(2, Math.min(30, Math.round((layerW ?? 200) / cellPx)));
+  const rows   = Math.max(2, Math.min(30, Math.round((layerH ?? 200) / cellPx)));
+  return { cols, rows };
+}
+
+function initCollapseAnimation(layer, timestamp, cols, rows) {
   const centerC  = (cols - 1) / 2;
   const centerR  = (rows - 1) / 2;
   const maxDist  = Math.sqrt(centerC * centerC + centerR * centerR) || 1;
@@ -49,7 +54,7 @@ function initCollapseAnimation(layer, timestamp) {
     }
   }
 
-  return { tiles, startTime: timestamp, totalDuration: maxDelay + CRACK_DURATION + FALL_DURATION };
+  return { tiles, cols, rows, startTime: timestamp, totalDuration: maxDelay + CRACK_DURATION + FALL_DURATION };
 }
 
 function drawTileIntact(ctx, x, y, w, h, color) {
@@ -110,26 +115,10 @@ export class CollapseLayer extends LayerBase {
   getType()     { return 'collapse'; }
   getBadge()    { return 'CF'; }
   getDefaults() {
-    return { type: 'collapse', visible: true, collapseState: 'idle', tileCols: 10, tileRows: 10 };
+    return { type: 'collapse', visible: true, collapseState: 'idle' };
   }
 
   renderEditorFields(layer, addField, ctx) {
-    const colsInput = document.createElement('input');
-    colsInput.type = 'number'; colsInput.min = 2; colsInput.max = 20; colsInput.step = 1;
-    colsInput.value = layer.tileCols ?? 10;
-    addField('Tile Cols', colsInput);
-    colsInput.addEventListener('change', async () => {
-      await ctx.updateLayer(layer.id, { tileCols: Math.max(2, Math.min(20, parseInt(colsInput.value) || 10)) });
-    });
-
-    const rowsInput = document.createElement('input');
-    rowsInput.type = 'number'; rowsInput.min = 2; rowsInput.max = 20; rowsInput.step = 1;
-    rowsInput.value = layer.tileRows ?? 10;
-    addField('Tile Rows', rowsInput);
-    rowsInput.addEventListener('change', async () => {
-      await ctx.updateLayer(layer.id, { tileRows: Math.max(2, Math.min(20, parseInt(rowsInput.value) || 10)) });
-    });
-
     const stateEl = document.createElement('span');
     const cs = layer.collapseState ?? 'idle';
     stateEl.textContent = cs.charAt(0).toUpperCase() + cs.slice(1);
@@ -180,8 +169,7 @@ export class CollapseLayer extends LayerBase {
         : 'rgba(120,100,70,0.25)';
     overlayCtx.fillRect(px, py, pw, ph);
 
-    const cols = layer.tileCols ?? 10;
-    const rows = layer.tileRows ?? 10;
+    const { cols, rows } = calcGrid(layer.w, layer.h, window.settings);
     const tw   = pw / cols;
     const th   = ph / rows;
     overlayCtx.strokeStyle = cs === 'idle' ? 'rgba(180,155,110,0.45)' : 'rgba(210,100,40,0.6)';
@@ -225,15 +213,13 @@ export class CollapseLayer extends LayerBase {
 
     // 'collapsing' — init or advance animation
     if (!collapseAnimations.has(layer.id)) {
-      collapseAnimations.set(layer.id, initCollapseAnimation(layer, timestamp));
+      const { cols, rows } = calcGrid(layer.w, layer.h, deps.settings);
+      collapseAnimations.set(layer.id, initCollapseAnimation(layer, timestamp, cols, rows));
     }
     const anim    = collapseAnimations.get(layer.id);
     const elapsed = (timestamp - anim.startTime) / 1000;
-
-    const cols  = Math.max(2, Math.min(20, layer.tileCols ?? 10));
-    const rows  = Math.max(2, Math.min(20, layer.tileRows ?? 10));
-    const tileW = sw / cols;
-    const tileH = sh / rows;
+    const tileW   = sw / anim.cols;
+    const tileH   = sh / anim.rows;
 
     canvasCtx.beginPath();
     canvasCtx.rect(sx, sy, sw, sh);

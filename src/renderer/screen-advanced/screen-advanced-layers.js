@@ -49,6 +49,7 @@ export function drawWeatherLayer(layer, timestamp) {
 export function drawCollapseLayer(layer, timestamp) {
   LAYER_REGISTRY.collapse.drawCollapseFrame(layer, ctx, timestamp, collapseAnimations, {
     computeMapTransform,
-    viewport: state.scene.viewport,
+    viewport:  state.scene.viewport,
+    settings:  state.settings,
   });
 }
