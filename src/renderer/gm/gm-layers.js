@@ -1041,28 +1041,30 @@ layerOverlay.addEventListener('mousedown', (e) => {
 
   const hit = hitTestOverlay(mx, my);
 
+  // ── No hit: deselect and start viewport pan ──────────────────────────────
   if (!hit) {
     if (sceneState.selectedLayerId) selectLayer(null);
+    e.preventDefault();
+    overlayDrag = { mode: 'vpPan', startMx: mx, startMy: my, startCx: viewport.cx, startCy: viewport.cy };
     return;
   }
 
   e.preventDefault();
 
-  // ── Viewport pan drag ────────────────────────────────────────────────────
+  // ── Viewport pan drag (clicking the viewport rectangle) ──────────────────
   if (hit.mode === 'vpPan') {
     overlayDrag = { mode: 'vpPan', startMx: mx, startMy: my, startCx: viewport.cx, startCy: viewport.cy };
     layerOverlay.style.cursor = 'grabbing';
     return;
   }
 
-  // Select the hit layer if it isn't already
+  // ── Unselected layer: click selects, drag pans viewport ──────────────────
   if (hit.layerId !== sceneState.selectedLayerId) {
-    sceneState.selectedLayerId = hit.layerId;
-    renderLayerList();
-    const layer = sceneState.layers.find(l => l.id === sceneState.selectedLayerId);
-    if (layer) renderLayerDetail(layer);
+    overlayDrag = { mode: 'panOrSelect', pendingLayerId: hit.layerId, startMx: mx, startMy: my, startCx: viewport.cx, startCy: viewport.cy };
+    return;
   }
 
+  // ── Selected layer: start move or resize ─────────────────────────────────
   const layer = sceneState.layers.find(l => l.id === hit.layerId);
   if (!layer) return;
 
@@ -1098,6 +1100,14 @@ document.addEventListener('mousemove', (e) => {
     overlayDrag.endMy = my;
     renderLayerOverlay();
     return;
+  }
+
+  // ── Pan-or-select: pending click-select vs viewport pan ──────────────────
+  if (overlayDrag.mode === 'panOrSelect') {
+    const dist = Math.hypot(mx - overlayDrag.startMx, my - overlayDrag.startMy);
+    if (dist <= 4) return;
+    overlayDrag = { mode: 'vpPan', startMx: overlayDrag.startMx, startMy: overlayDrag.startMy, startCx: overlayDrag.startCx, startCy: overlayDrag.startCy };
+    layerOverlay.style.cursor = 'grabbing';
   }
 
   // ── Viewport pan ──────────────────────────────────────────────────────────
@@ -1211,6 +1221,13 @@ document.addEventListener('mouseup', async () => {
   layerOverlay.style.cursor = '';
 
   if (drag.mode === 'vpPan') {
+    renderLayerOverlay();
+    return;
+  }
+
+  // ── Pan-or-select: small movement = click, select the layer ──────────────
+  if (drag.mode === 'panOrSelect') {
+    selectLayer(drag.pendingLayerId);
     renderLayerOverlay();
     return;
   }
