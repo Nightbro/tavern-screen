@@ -169,6 +169,10 @@ if (btnToggleGrid && gridGroupBody) {
 
 elSnapToGrid?.addEventListener('change', () => { viewport.snapToGrid = elSnapToGrid.checked; });
 
+let shiftHeld = false;
+document.addEventListener('keydown', e => { if (e.key === 'Shift') shiftHeld = true; });
+document.addEventListener('keyup',   e => { if (e.key === 'Shift') shiftHeld = false; });
+
 // ── Scene init ────────────────────────────────────────────────────────────────
 
 export async function initScene() {
@@ -451,6 +455,7 @@ function renderLayerDetail(layer) {
 
   const layerCtx = {
     sceneState,
+    settings,
     imageBoundsFromSrc,
     refreshDetail: (updatedLayer) => renderLayerDetail(updatedLayer),
     updateLayer: async (id, patch) => {
@@ -1126,16 +1131,70 @@ document.addEventListener('mousemove', (e) => {
     }
   } else {
     let { x, y, w, h } = startLayer;
-    switch (overlayDrag.handle) {
-      case 'TL': x = startLayer.x + dx_canvas; y = startLayer.y + dy_canvas; w = Math.max(MIN, startLayer.w - dx_canvas); h = Math.max(MIN, startLayer.h - dy_canvas); break;
-      case 'TC':                                y = startLayer.y + dy_canvas;                                               h = Math.max(MIN, startLayer.h - dy_canvas); break;
-      case 'TR':                                y = startLayer.y + dy_canvas; w = Math.max(MIN, startLayer.w + dx_canvas); h = Math.max(MIN, startLayer.h - dy_canvas); break;
-      case 'ML': x = startLayer.x + dx_canvas;                               w = Math.max(MIN, startLayer.w - dx_canvas);                                              break;
-      case 'MR':                                                              w = Math.max(MIN, startLayer.w + dx_canvas);                                              break;
-      case 'BL': x = startLayer.x + dx_canvas;                               w = Math.max(MIN, startLayer.w - dx_canvas); h = Math.max(MIN, startLayer.h + dy_canvas); break;
-      case 'BC':                                                                                                            h = Math.max(MIN, startLayer.h + dy_canvas); break;
-      case 'BR':                                                              w = Math.max(MIN, startLayer.w + dx_canvas); h = Math.max(MIN, startLayer.h + dy_canvas); break;
+    const handle = overlayDrag.handle;
+
+    if (viewport.snapToGrid && settings.cellSizeInches && settings.dpi) {
+      const cellPx = settings.cellSizeInches * settings.dpi;
+      const snap = v => Math.round(v / cellPx) * cellPx;
+      const fixedRight  = startLayer.x + startLayer.w;
+      const fixedBottom = startLayer.y + startLayer.h;
+      const rawLeft   = startLayer.x + dx_canvas;
+      const rawTop    = startLayer.y + dy_canvas;
+      const rawRight  = fixedRight  + dx_canvas;
+      const rawBottom = fixedBottom + dy_canvas;
+      switch (handle) {
+        case 'TL': { const sx = snap(rawLeft); const sy = snap(rawTop); x = sx; y = sy; w = Math.max(MIN, fixedRight - sx); h = Math.max(MIN, fixedBottom - sy); break; }
+        case 'TC': { const sy = snap(rawTop);  y = sy; h = Math.max(MIN, fixedBottom - sy); break; }
+        case 'TR': { const sy = snap(rawTop); y = sy; h = Math.max(MIN, fixedBottom - sy); w = Math.max(MIN, snap(rawRight) - startLayer.x); break; }
+        case 'ML': { const sx = snap(rawLeft); x = sx; w = Math.max(MIN, fixedRight - sx); break; }
+        case 'MR': { w = Math.max(MIN, snap(rawRight) - startLayer.x); break; }
+        case 'BL': { const sx = snap(rawLeft); x = sx; w = Math.max(MIN, fixedRight - sx); h = Math.max(MIN, snap(rawBottom) - startLayer.y); break; }
+        case 'BC': { h = Math.max(MIN, snap(rawBottom) - startLayer.y); break; }
+        case 'BR': { w = Math.max(MIN, snap(rawRight) - startLayer.x); h = Math.max(MIN, snap(rawBottom) - startLayer.y); break; }
+      }
+    } else {
+      switch (handle) {
+        case 'TL': x = startLayer.x + dx_canvas; y = startLayer.y + dy_canvas; w = Math.max(MIN, startLayer.w - dx_canvas); h = Math.max(MIN, startLayer.h - dy_canvas); break;
+        case 'TC':                                y = startLayer.y + dy_canvas;                                               h = Math.max(MIN, startLayer.h - dy_canvas); break;
+        case 'TR':                                y = startLayer.y + dy_canvas; w = Math.max(MIN, startLayer.w + dx_canvas); h = Math.max(MIN, startLayer.h - dy_canvas); break;
+        case 'ML': x = startLayer.x + dx_canvas;                               w = Math.max(MIN, startLayer.w - dx_canvas);                                              break;
+        case 'MR':                                                              w = Math.max(MIN, startLayer.w + dx_canvas);                                              break;
+        case 'BL': x = startLayer.x + dx_canvas;                               w = Math.max(MIN, startLayer.w - dx_canvas); h = Math.max(MIN, startLayer.h + dy_canvas); break;
+        case 'BC':                                                                                                            h = Math.max(MIN, startLayer.h + dy_canvas); break;
+        case 'BR':                                                              w = Math.max(MIN, startLayer.w + dx_canvas); h = Math.max(MIN, startLayer.h + dy_canvas); break;
+      }
     }
+
+    // Aspect ratio constraint — Shift key (temporary) or lockAspect flag (permanent)
+    const activeLayer = sceneState.layers.find(l => l.id === overlayDrag.layerId);
+    if ((shiftHeld || activeLayer?.lockAspect) && startLayer.w > 0 && startLayer.h > 0) {
+      const aspect    = startLayer.w / startLayer.h;
+      const fixedR    = startLayer.x + startLayer.w;
+      const fixedB    = startLayer.y + startLayer.h;
+      switch (handle) {
+        case 'BR':
+          if (w / h > aspect) h = Math.max(MIN, w / aspect); else w = Math.max(MIN, h * aspect);
+          break;
+        case 'TR':
+          if (w / h > aspect) { h = Math.max(MIN, w / aspect); y = fixedB - h; } else w = Math.max(MIN, h * aspect);
+          break;
+        case 'BL':
+          if (w / h > aspect) h = Math.max(MIN, w / aspect); else { w = Math.max(MIN, h * aspect); x = fixedR - w; }
+          break;
+        case 'TL':
+          if (w / h > aspect) { h = Math.max(MIN, w / aspect); y = fixedB - h; } else { w = Math.max(MIN, h * aspect); x = fixedR - w; }
+          break;
+        case 'MR': case 'ML':
+          h = Math.max(MIN, w / aspect);
+          y = startLayer.y + (startLayer.h - h) / 2;
+          break;
+        case 'TC': case 'BC':
+          w = Math.max(MIN, h * aspect);
+          x = startLayer.x + (startLayer.w - w) / 2;
+          break;
+      }
+    }
+
     patch = { x, y, w, h };
   }
 

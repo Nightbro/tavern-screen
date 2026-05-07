@@ -8,6 +8,7 @@ export class VideoLayer extends LayerBase {
   renderEditorFields(layer, addField, ctx) {
     this._buildSrcPicker(layer, addField, ctx);
     this._buildOpacityField(layer, addField, ctx, 1);
+    this._buildSizeFields(layer, addField, ctx);
   }
 
   drawGMPreview(layer, overlayCtx, bounds, gmCtx) {
