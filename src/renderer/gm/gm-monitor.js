@@ -231,7 +231,14 @@ centerPreviewTabs.forEach(btn => {
     centerTabHudSim.style.display  = tab === 'hud-sim' ? '' : 'none';
     if (centerTabHuds) centerTabHuds.style.display = tab === 'huds' ? '' : 'none';
 
+    if (tab === 'preview') {
+      const btn = document.querySelector('#right-panel-tabs [data-right-tab="layers"]');
+      if (btn && !btn.classList.contains('active')) btn.click();
+    }
+
     if (tab === 'hud-sim') {
+      const btn = document.querySelector('#right-panel-tabs [data-right-tab="huds"]');
+      if (btn && !btn.classList.contains('active')) btn.click();
       window.electronAPI.requestPreview();
       window.updateHudSimulation();
     }
