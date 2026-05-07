@@ -37,12 +37,37 @@ for (const hud of Object.values(HUD_REGISTRY)) hud.mountEditor(gmCtx);
 window._gmSceneState = sceneState;
 
 // ════════════════════════════════════════════════════════════════════════════
-// CENTER TAB SWITCHING (HUDs tab lives in center panel)
+// PANEL TAB SWITCHING
 // ════════════════════════════════════════════════════════════════════════════
 
+// Right panel tabs (Layers / HUDs)
+const rightPaneTabs   = document.querySelectorAll('#right-panel-tabs .panel-tab');
+const rightPaneLayers = document.getElementById('right-tab-pane-layers');
+const rightPaneHuds   = document.getElementById('right-tab-pane-huds');
+
+rightPaneTabs.forEach(btn => {
+  btn.addEventListener('click', () => {
+    rightPaneTabs.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.rightTab;
+    if (rightPaneLayers) rightPaneLayers.style.display = tab === 'layers' ? '' : 'none';
+    if (rightPaneHuds)   rightPaneHuds.style.display   = tab === 'huds'   ? '' : 'none';
+  });
+});
+
+// Show HUD editors wherever the pane currently lives.
 function switchToHudsTab() {
-  const hudsBtn = document.querySelector('#center-preview-tabs [data-center-tab="huds"]');
-  if (hudsBtn && !hudsBtn.classList.contains('active')) hudsBtn.click();
+  const hudPane     = document.getElementById('right-tab-pane-huds');
+  const centerSlot  = document.getElementById('center-tab-huds');
+  if (hudPane && centerSlot && centerSlot.contains(hudPane)) {
+    // Pane is already in the center tab — just make sure center tab is active
+    const btn = document.querySelector('#center-preview-tabs [data-center-tab="huds"]');
+    if (btn && !btn.classList.contains('active')) btn.click();
+  } else {
+    // Pane is in the right panel — activate its HUDs tab
+    const btn = document.querySelector('#right-panel-tabs [data-right-tab="huds"]');
+    if (btn && !btn.classList.contains('active')) btn.click();
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════

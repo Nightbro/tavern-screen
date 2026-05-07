@@ -202,20 +202,49 @@ const centerPreviewTabs  = document.querySelectorAll('#center-preview-tabs .pane
 const centerTabPreview   = document.getElementById('center-tab-preview');
 const centerTabHudSim    = document.getElementById('center-tab-hud-sim');
 const centerTabHuds      = document.getElementById('center-tab-huds');
+const rightPanel         = document.getElementById('panel-settings');
+const rightResizeHandle  = document.getElementById('resize-right');
+
+let activeCenterTab = 'preview';
 
 centerPreviewTabs.forEach(btn => {
   btn.addEventListener('click', () => {
+    const prevTab = activeCenterTab;
     centerPreviewTabs.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const tab = btn.dataset.centerTab;
-    centerTabPreview.style.display  = tab === 'preview'  ? '' : 'none';
-    centerTabHudSim.style.display   = tab === 'hud-sim'  ? '' : 'none';
+    activeCenterTab = tab;
+
+    // Leaving HUDs tab: move pane back to right panel and restore it
+    if (prevTab === 'huds' && tab !== 'huds') {
+      const hudPane = document.getElementById('right-tab-pane-huds');
+      if (hudPane && rightPanel) {
+        hudPane.style.removeProperty('display');
+        hudPane.style.display = 'none'; // back to hidden (layers tab active)
+        rightPanel.appendChild(hudPane);
+      }
+      if (rightPanel)        rightPanel.style.display = '';
+      if (rightResizeHandle) rightResizeHandle.style.display = '';
+    }
+
+    centerTabPreview.style.display = tab === 'preview' ? '' : 'none';
+    centerTabHudSim.style.display  = tab === 'hud-sim' ? '' : 'none';
     if (centerTabHuds) centerTabHuds.style.display = tab === 'huds' ? '' : 'none';
+
     if (tab === 'hud-sim') {
       window.electronAPI.requestPreview();
       window.updateHudSimulation();
     }
+
     if (tab === 'huds') {
+      // Move HUD pane from right panel into center tab, hide right panel
+      const hudPane = document.getElementById('right-tab-pane-huds');
+      if (hudPane && centerTabHuds) {
+        hudPane.style.display = '';
+        centerTabHuds.appendChild(hudPane);
+      }
+      if (rightPanel)        rightPanel.style.display = 'none';
+      if (rightResizeHandle) rightResizeHandle.style.display = 'none';
       window.electronAPI.requestPreview();
     }
   });
