@@ -223,10 +223,16 @@
 
     <div class="panel-resize-handle" id="resize-right"></div>
 
-    <!-- ── Right: Settings / Layers ── -->
+    <!-- ── Right: Settings / Layers / HUDs ── -->
     <aside class="panel" id="panel-settings">
 
-      <!-- ══ Layers ══ -->
+      <!-- Right panel tab nav (advanced mode only) -->
+      <nav class="panel-tabs adv-only" id="right-panel-tabs">
+        <button class="panel-tab active" data-right-tab="layers">Layers</button>
+        <button class="panel-tab"        data-right-tab="huds">HUDs</button>
+      </nav>
+
+      <!-- ══ Tab: Layers ══ -->
       <div class="right-tab-pane" id="right-tab-pane-layers">
 
         <!-- Grid (collapsible) -->
@@ -321,8 +327,13 @@
           <div id="layer-detail-fields"></div>
         </div>
 
-        <!-- HUDs -->
-        <div class="settings-group adv-only" id="group-huds">
+      </div><!-- /right-tab-pane-layers -->
+
+      <!-- ══ Tab: HUDs ══ -->
+      <div class="right-tab-pane" id="right-tab-pane-huds" style="display:none">
+
+        <!-- HUD list -->
+        <div class="settings-group" id="group-huds">
           <div class="layer-group-header">
             <div class="settings-group-title">HUDs</div>
             <button class="btn-icon-xs" id="btn-add-initiative" title="Add Initiative Tracker">In</button>
@@ -333,7 +344,7 @@
         </div>
 
         <!-- Initiative tracker editor -->
-        <div class="settings-group adv-only" id="initiative-editor" style="display:none">
+        <div class="settings-group" id="initiative-editor" style="display:none">
           <div class="settings-group-title">Initiative</div>
           <div style="margin-bottom:6px">
             <div style="font-size:10px;color:#5a5a8e;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Positions</div>
@@ -367,7 +378,7 @@
         </div>
 
         <!-- Statuses HUD editor -->
-        <div class="settings-group adv-only" id="statuses-editor" style="display:none">
+        <div class="settings-group" id="statuses-editor" style="display:none">
           <div class="settings-group-title">Statuses Panel</div>
           <label class="field-row" style="padding:0 0 4px 0">
             <span>Title</span>
@@ -390,7 +401,7 @@
         </div>
 
         <!-- Handout HUD editor -->
-        <div class="settings-group adv-only" id="handout-editor" style="display:none">
+        <div class="settings-group" id="handout-editor" style="display:none">
           <div class="settings-group-title">Handout</div>
           <label class="field-row" style="padding:0 0 4px 0">
             <span>Name</span>
@@ -413,8 +424,7 @@
           </div>
         </div>
 
-
-      </div><!-- /right-tab-pane-layers -->
+      </div><!-- /right-tab-pane-huds -->
 
     </aside>
 
