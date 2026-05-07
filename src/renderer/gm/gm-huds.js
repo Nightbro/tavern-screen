@@ -37,25 +37,11 @@ for (const hud of Object.values(HUD_REGISTRY)) hud.mountEditor(gmCtx);
 window._gmSceneState = sceneState;
 
 // ════════════════════════════════════════════════════════════════════════════
-// RIGHT PANEL TAB SWITCHING
+// CENTER TAB SWITCHING (HUDs tab lives in center panel)
 // ════════════════════════════════════════════════════════════════════════════
 
-const rightPaneTabs   = document.querySelectorAll('#right-panel-tabs .panel-tab');
-const rightPaneLayers = document.getElementById('right-tab-pane-layers');
-const rightPaneHuds   = document.getElementById('right-tab-pane-huds');
-
-rightPaneTabs.forEach(btn => {
-  btn.addEventListener('click', () => {
-    rightPaneTabs.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.rightTab;
-    if (rightPaneLayers) rightPaneLayers.style.display = tab === 'layers' ? '' : 'none';
-    if (rightPaneHuds)   rightPaneHuds.style.display   = tab === 'huds'   ? '' : 'none';
-  });
-});
-
 function switchToHudsTab() {
-  const hudsBtn = document.querySelector('#right-panel-tabs [data-right-tab="huds"]');
+  const hudsBtn = document.querySelector('#center-preview-tabs [data-center-tab="huds"]');
   if (hudsBtn && !hudsBtn.classList.contains('active')) hudsBtn.click();
 }
 

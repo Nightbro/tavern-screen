@@ -24,7 +24,7 @@ header h1 { font-size: 17px; font-weight: 600; color: #c9a84c; letter-spacing: 1
 
 #panel-maps    { width: 280px; min-width: 180px; border-right: none; flex-shrink: 0; overflow-y: auto; }
 #panel-center  { flex: 1; min-width: 200px; }
-#panel-settings{ width: 255px; min-width: 180px; flex-shrink: 0; overflow: hidden; }
+#panel-settings{ width: 255px; min-width: 180px; flex-shrink: 0; overflow-y: auto; }
 
 /* ── Panel resize handles ── */
 .panel-resize-handle {

@@ -125,6 +125,8 @@ window.electronAPI.onScreenPreview((dataUrl) => {
   display.previewUrl = dataUrl;
   // Write through the window setter so the gm-state module binding stays in sync.
   window.lastScreenPreviewUrl = dataUrl;
+  const hudMiniImg = document.getElementById('hud-tab-preview-img');
+  if (hudMiniImg) { hudMiniImg.src = dataUrl; hudMiniImg.style.display = 'block'; }
   if (!display.advanced) {
     previewImg.src = dataUrl;
     previewImg.style.display = 'block';
@@ -195,10 +197,11 @@ elDpi.addEventListener('change', () => {
 });
 
 
-// ── Center preview tabs (Preview / HUD Sim) ───────────────────────────────────
+// ── Center preview tabs (Preview / HUD Sim / HUDs) ───────────────────────────
 const centerPreviewTabs  = document.querySelectorAll('#center-preview-tabs .panel-tab');
 const centerTabPreview   = document.getElementById('center-tab-preview');
 const centerTabHudSim    = document.getElementById('center-tab-hud-sim');
+const centerTabHuds      = document.getElementById('center-tab-huds');
 
 centerPreviewTabs.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -207,9 +210,13 @@ centerPreviewTabs.forEach(btn => {
     const tab = btn.dataset.centerTab;
     centerTabPreview.style.display  = tab === 'preview'  ? '' : 'none';
     centerTabHudSim.style.display   = tab === 'hud-sim'  ? '' : 'none';
+    if (centerTabHuds) centerTabHuds.style.display = tab === 'huds' ? '' : 'none';
     if (tab === 'hud-sim') {
       window.electronAPI.requestPreview();
       window.updateHudSimulation();
+    }
+    if (tab === 'huds') {
+      window.electronAPI.requestPreview();
     }
   });
 });
