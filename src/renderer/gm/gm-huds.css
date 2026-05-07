@@ -128,6 +128,36 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
+   CONDITION TOOLTIP
+   ════════════════════════════════════════════════════════════════ */
+
+.condition-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: #0d0d1a;
+  border: 1px solid #3a3a5e;
+  border-radius: 6px;
+  padding: 8px 11px;
+  max-width: 240px;
+  pointer-events: none;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.condition-tooltip-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c9a84c;
+  letter-spacing: 0.3px;
+}
+.condition-tooltip-desc {
+  font-size: 10px;
+  color: #999;
+  line-height: 1.55;
+}
+
+/* ════════════════════════════════════════════════════════════════
    CENTER HUDS TAB
    ════════════════════════════════════════════════════════════════ */
 

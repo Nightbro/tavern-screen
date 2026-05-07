@@ -1,5 +1,40 @@
 import { IHud } from './IHud.js';
-import { PF1E_CONDITIONS } from './settings-huds.js';
+import { PF1E_CONDITIONS, DND5E_CONDITIONS } from './settings-huds.js';
+
+// ── Shared floating tooltip for condition descriptions ───────────────────────
+let _tooltip = null;
+function getTooltip() {
+  if (!_tooltip) {
+    _tooltip = document.createElement('div');
+    _tooltip.className = 'condition-tooltip';
+    _tooltip.style.display = 'none';
+    document.body.appendChild(_tooltip);
+  }
+  return _tooltip;
+}
+function showConditionTooltip(name, desc, e) {
+  const tip = getTooltip();
+  tip.innerHTML = `<strong class="condition-tooltip-name">${name}</strong><span class="condition-tooltip-desc">${desc.replace(/\n/g, '<br>')}</span>`;
+  tip.style.display = 'block';
+  positionTooltip(tip, e);
+}
+function positionTooltip(tip, e) {
+  const margin = 12;
+  const tw = tip.offsetWidth  || 240;
+  const th = tip.offsetHeight || 60;
+  let x = e.clientX + margin;
+  let y = e.clientY + margin;
+  if (x + tw > window.innerWidth)  x = e.clientX - tw - margin;
+  if (y + th > window.innerHeight) y = e.clientY - th - margin;
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+}
+function hideConditionTooltip() { getTooltip().style.display = 'none'; }
+function attachConditionTooltip(el, name, desc) {
+  el.addEventListener('mouseenter', e => showConditionTooltip(name, desc, e));
+  el.addEventListener('mousemove',  e => positionTooltip(getTooltip(), e));
+  el.addEventListener('mouseleave', hideConditionTooltip);
+}
 
 export class HudBase extends IHud {
   static CORNERS = [
@@ -214,6 +249,8 @@ export class HudBase extends IHud {
     const chipsRow = document.createElement('div');
     chipsRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;';
 
+    const descMap = Object.fromEntries(DND5E_CONDITIONS.filter(c => c.desc).map(c => [c.name, c.desc]));
+
     statuses.forEach((s, si) => {
       const chip = document.createElement('span');
       chip.className = 'init-status-chip';
@@ -236,6 +273,8 @@ export class HudBase extends IHud {
       });
 
       chip.appendChild(dot); chip.appendChild(lbl); chip.appendChild(del);
+      const desc = s.desc ?? descMap[s.label];
+      if (desc) attachConditionTooltip(chip, s.label, desc);
       chipsRow.appendChild(chip);
     });
 
@@ -257,6 +296,27 @@ export class HudBase extends IHud {
       if (updated) refreshFn(updated);
     };
 
+    const dnd5eTitle = document.createElement('div');
+    dnd5eTitle.className   = 'preset-section-title';
+    dnd5eTitle.textContent = 'D&D 5e';
+    picker.appendChild(dnd5eTitle);
+
+    const dnd5eGrid = document.createElement('div');
+    dnd5eGrid.className = 'preset-grid';
+    for (const { name, color, desc } of DND5E_CONDITIONS) {
+      const btn = document.createElement('button');
+      btn.className = 'preset-btn';
+      const dot = document.createElement('span');
+      dot.className        = 'preset-btn-dot';
+      dot.style.background = color;
+      btn.appendChild(dot);
+      btn.appendChild(document.createTextNode(name));
+      btn.addEventListener('click', () => quickAdd(name, color));
+      if (desc) attachConditionTooltip(btn, name, desc);
+      dnd5eGrid.appendChild(btn);
+    }
+    picker.appendChild(dnd5eGrid);
+
     const pf1eTitle = document.createElement('div');
     pf1eTitle.className   = 'preset-section-title';
     pf1eTitle.textContent = 'Pathfinder 1e';
@@ -267,7 +327,6 @@ export class HudBase extends IHud {
     for (const { name, color } of PF1E_CONDITIONS) {
       const btn = document.createElement('button');
       btn.className = 'preset-btn';
-      btn.title     = name;
       const dot = document.createElement('span');
       dot.className    = 'preset-btn-dot';
       dot.style.background = color;
